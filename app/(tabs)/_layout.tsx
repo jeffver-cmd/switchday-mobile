@@ -49,7 +49,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="vault"
-        options={{ href: null }}  // hidden from tab bar, still routable
+        options={{ tabBarButton: () => null }}
       />
     </Tabs>
   )

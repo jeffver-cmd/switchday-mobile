@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../supabase'
-import { fetchSchedules, Schedule } from '../api/schedules'
+import type { Schedule } from '../api/schedules'
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -49,13 +49,18 @@ export function useSchedules() {
         ? connection.user_b_id
         : connection.user_a_id
 
-      // 3. Profiles + schedules in parallel
+      // 3. Profiles + schedules in parallel — query Supabase directly
+      //    (web API uses cookie-based auth and cannot accept the mobile Bearer token)
       const [profilesResult, schedulesResult] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, display_name, initials, color')
           .in('id', [userId, coParentId].filter(Boolean) as string[]),
-        fetchSchedules(),
+        supabase
+          .from('parenting_schedules')
+          .select('*')
+          .eq('connection_id', connection.id)
+          .order('created_at', { ascending: false }),
       ])
 
       const profiles = profilesResult.data ?? []
@@ -64,14 +69,14 @@ export function useSchedules() {
 
       if (!myProfile) { setError('profile_not_found'); setLoading(false); return }
 
-      if (schedulesResult.error) { setError(schedulesResult.error); setLoading(false); return }
+      if (schedulesResult.error) { setError(schedulesResult.error.message); setLoading(false); return }
 
       setData({
         userId,
         connectionId: connection.id,
         myProfile: myProfile as Profile,
         coParentProfile,
-        schedules: schedulesResult.data ?? [],
+        schedules: (schedulesResult.data ?? []) as unknown as Schedule[],
       })
     } catch {
       setError('load_failed')
