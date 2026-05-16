@@ -9,9 +9,11 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.3",
     "@supabase/supabase-js": "^2.105.4",
     "expo": "~54.0.33",
     "expo-constants": "~18.0.13",
+    "expo-crypto": "~15.0.9",
     "expo-linking": "~8.0.12",
     "expo-router": "~6.0.23",
     "expo-secure-store": "~15.0.8",
