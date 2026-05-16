@@ -9,6 +9,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
 import { useDashboard } from '@/lib/hooks/useDashboard'
 
 // ─── date helpers ────────────────────────────────────────────────────────────
@@ -110,9 +111,9 @@ export default function DashboardScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerDate}>{formatHeaderDate()}</Text>
-          <View style={[styles.avatar, { backgroundColor: myProfile.color }]}>
-            <Text style={styles.avatarText}>{myProfile.initials}</Text>
-          </View>
+          <TouchableOpacity onPress={() => router.push('/settings')} style={styles.gearBtn}>
+            <Ionicons name="settings-outline" size={22} color="#374151" />
+          </TouchableOpacity>
         </View>
 
         {/* Custody card */}
@@ -232,8 +233,7 @@ const styles = StyleSheet.create({
   // Header
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   headerDate: { fontSize: 15, fontWeight: '600', color: '#374151' },
-  avatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 13, fontWeight: '700', color: '#ffffff' },
+  gearBtn: { padding: 4 },
 
   // Custody card
   custodyCard: {
