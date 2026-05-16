@@ -49,7 +49,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="vault"
-        options={{ tabBarButton: () => null }}
+        options={{ href: null }}
       />
     </Tabs>
   )
