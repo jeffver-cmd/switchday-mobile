@@ -44,8 +44,12 @@ export default function TabsLayout() {
         options={{ title: 'Expenses', tabBarIcon: tabIcon('receipt', 'receipt-outline') }}
       />
       <Tabs.Screen
+        name="schedule"
+        options={{ title: 'Schedule', tabBarIcon: tabIcon('calendar-number', 'calendar-number-outline') }}
+      />
+      <Tabs.Screen
         name="vault"
-        options={{ title: 'Vault', tabBarIcon: tabIcon('folder', 'folder-outline') }}
+        options={{ href: null }}  // hidden from tab bar, still routable
       />
     </Tabs>
   )

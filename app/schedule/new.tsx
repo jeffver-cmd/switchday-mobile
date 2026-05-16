@@ -1,0 +1,822 @@
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  FlatList,
+  Modal,
+  Platform,
+  ActivityIndicator,
+  Alert,
+  useWindowDimensions,
+} from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import DateTimePicker from '@react-native-community/datetimepicker'
+import { useRouter, useLocalSearchParams } from 'expo-router'
+import { useState, useCallback, useMemo } from 'react'
+import { useSchedules } from '@/lib/hooks/useSchedules'
+import { createSchedule, scheduleAction } from '@/lib/api/schedules'
+
+// ─── types ───────────────────────────────────────────────────────────────────
+
+type UIPattern =
+  | 'week_on_week_off'
+  | '2_2_3'
+  | '3_4_4_3'
+  | '2_2_5_5'
+  | 'custom_cycle'
+  | 'custom_specific'
+
+// ─── constants ───────────────────────────────────────────────────────────────
+
+const PATTERN_OPTIONS: { key: UIPattern; label: string; sub: string }[] = [
+  { key: 'week_on_week_off', label: 'Week on / week off', sub: '7-7 · 50/50' },
+  { key: '2_2_3',           label: '2-2-3 rotating',    sub: '50/50' },
+  { key: '3_4_4_3',         label: '3-4-4-3 rotating',  sub: '50/50' },
+  { key: '2_2_5_5',         label: '2-2-5-5 rotating',  sub: '50/50' },
+  { key: 'custom_cycle',    label: 'Custom cycle',       sub: 'Repeating pattern' },
+  { key: 'custom_specific', label: 'Specific days',      sub: 'Assign day by day' },
+]
+
+const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+
+// ─── date helpers ─────────────────────────────────────────────────────────────
+
+function toYMD(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function fmtDisplay(d: Date | null): string {
+  if (!d) return 'Select date'
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate()
+}
+
+function firstWeekday(year: number, month: number): number {
+  return new Date(year, month, 1).getDay()
+}
+
+function toDateStr(year: number, month: number, day: number): string {
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+const MONTH_NAMES = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
+]
+
+// ─── date field component ─────────────────────────────────────────────────────
+
+interface DateFieldProps {
+  label: string
+  value: Date | null
+  min?: Date
+  max?: Date
+  onChange: (d: Date) => void
+}
+
+function DateField({ label, value, min, max, onChange }: DateFieldProps) {
+  const [show, setShow] = useState(false)
+
+  const handleChange = useCallback((_: unknown, selected?: Date) => {
+    if (Platform.OS === 'android') setShow(false)
+    if (selected) onChange(selected)
+  }, [onChange])
+
+  return (
+    <View style={df.wrapper}>
+      <Text style={df.label}>{label}</Text>
+      <TouchableOpacity style={df.btn} onPress={() => setShow(true)}>
+        <Text style={value ? df.valueText : df.placeholderText}>{fmtDisplay(value)}</Text>
+        <Text style={df.chevron}>›</Text>
+      </TouchableOpacity>
+
+      {Platform.OS === 'android' && show && (
+        <DateTimePicker
+          value={value ?? new Date()}
+          mode="date"
+          minimumDate={min}
+          maximumDate={max}
+          onChange={handleChange}
+        />
+      )}
+
+      {Platform.OS === 'ios' && (
+        <Modal
+          visible={show}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShow(false)}
+        >
+          <View style={df.iosBackdrop}>
+            <View style={df.iosSheet}>
+              <View style={df.iosDone}>
+                <TouchableOpacity onPress={() => setShow(false)}>
+                  <Text style={df.iosDoneText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={value ?? new Date()}
+                mode="date"
+                display="spinner"
+                minimumDate={min}
+                maximumDate={max}
+                onChange={handleChange}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
+    </View>
+  )
+}
+
+const df = StyleSheet.create({
+  wrapper: { marginBottom: 0 },
+  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  btn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#f9fafb', borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb',
+    paddingHorizontal: 14, paddingVertical: 13,
+  },
+  valueText: { fontSize: 15, color: '#1f2937' },
+  placeholderText: { fontSize: 15, color: '#9ca3af' },
+  chevron: { fontSize: 20, color: '#9ca3af' },
+  iosBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
+  iosSheet: { backgroundColor: '#ffffff', borderTopLeftRadius: 16, borderTopRightRadius: 16 },
+  iosDone: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingTop: 12 },
+  iosDoneText: { fontSize: 17, fontWeight: '600', color: '#1f2937' },
+})
+
+// ─── custom cycle editor ──────────────────────────────────────────────────────
+
+interface CycleEditorProps {
+  sequence: string[]
+  onSequenceChange: (seq: string[]) => void
+  cycleLen: number
+  onCycleLenChange: (n: number) => void
+  ownerA: { id: string; color: string; initials: string }
+  ownerB: { id: string; color: string; initials: string }
+}
+
+function CustomCycleEditor({ sequence, onSequenceChange, cycleLen, onCycleLenChange, ownerA, ownerB }: CycleEditorProps) {
+  const splitA = sequence.filter(id => id === ownerA.id).length
+  const splitPct = sequence.length > 0 ? Math.round((splitA / sequence.length) * 100) : 50
+
+  const toggleDay = useCallback((index: number) => {
+    const next = [...sequence]
+    next[index] = next[index] === ownerA.id ? ownerB.id : ownerA.id
+    onSequenceChange(next)
+  }, [sequence, ownerA.id, ownerB.id, onSequenceChange])
+
+  const addDay = useCallback(() => {
+    if (cycleLen >= 56) return
+    const newLen = cycleLen + 1
+    onCycleLenChange(newLen)
+    // append the other from the last day
+    const last = sequence[sequence.length - 1] ?? ownerA.id
+    const next = last === ownerA.id ? ownerB.id : ownerA.id
+    onSequenceChange([...sequence, next])
+  }, [cycleLen, sequence, ownerA.id, ownerB.id, onCycleLenChange, onSequenceChange])
+
+  const removeDay = useCallback(() => {
+    if (cycleLen <= 1) return
+    onCycleLenChange(cycleLen - 1)
+    onSequenceChange(sequence.slice(0, -1))
+  }, [cycleLen, sequence, onCycleLenChange, onSequenceChange])
+
+  return (
+    <View style={ce.container}>
+      {/* Stepper */}
+      <View style={ce.stepperRow}>
+        <TouchableOpacity style={ce.stepBtn} onPress={removeDay} disabled={cycleLen <= 1}>
+          <Text style={ce.stepBtnText}>−</Text>
+        </TouchableOpacity>
+        <Text style={ce.stepLabel}>{cycleLen} days</Text>
+        <TouchableOpacity style={ce.stepBtn} onPress={addDay} disabled={cycleLen >= 56}>
+          <Text style={ce.stepBtnText}>+</Text>
+        </TouchableOpacity>
+        <Text style={ce.splitLabel}>{splitPct}% / {100 - splitPct}%</Text>
+      </View>
+
+      {/* Day strip */}
+      <FlatList
+        horizontal
+        data={sequence}
+        keyExtractor={(_, i) => String(i)}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={ce.strip}
+        renderItem={({ item, index }) => {
+          const owner = item === ownerA.id ? ownerA : ownerB
+          return (
+            <TouchableOpacity style={ce.cell} onPress={() => toggleDay(index)}>
+              <View style={[ce.circle, { backgroundColor: owner.color }]}>
+                <Text style={ce.circleText}>{owner.initials}</Text>
+              </View>
+              <Text style={ce.dayNum}>{index + 1}</Text>
+            </TouchableOpacity>
+          )
+        }}
+      />
+
+      {/* Legend */}
+      <View style={ce.legend}>
+        <View style={ce.legendItem}>
+          <View style={[ce.legendDot, { backgroundColor: ownerA.color }]} />
+          <Text style={ce.legendText}>{ownerA.initials} = {ownerA.id === ownerA.id ? 'You' : ''}</Text>
+        </View>
+        <View style={ce.legendItem}>
+          <View style={[ce.legendDot, { backgroundColor: ownerB.color }]} />
+          <Text style={ce.legendText}>{ownerB.initials} = Co-parent</Text>
+        </View>
+      </View>
+    </View>
+  )
+}
+
+const ce = StyleSheet.create({
+  container: { marginTop: 8 },
+  stepperRow: {
+    flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 10,
+  },
+  stepBtn: {
+    width: 34, height: 34, borderRadius: 17, backgroundColor: '#f3f4f6',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  stepBtnText: { fontSize: 20, color: '#374151', lineHeight: 24 },
+  stepLabel: { fontSize: 15, fontWeight: '600', color: '#1f2937', minWidth: 64, textAlign: 'center' },
+  splitLabel: { fontSize: 13, color: '#9ca3af', marginLeft: 'auto' },
+  strip: { paddingVertical: 4, paddingHorizontal: 4, gap: 6 },
+  cell: { alignItems: 'center', width: 48, gap: 4 },
+  circle: {
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  circleText: { fontSize: 13, fontWeight: '700', color: '#ffffff' },
+  dayNum: { fontSize: 10, color: '#6b7280' },
+  legend: { flexDirection: 'row', gap: 16, marginTop: 10 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 12, height: 12, borderRadius: 6 },
+  legendText: { fontSize: 12, color: '#6b7280' },
+})
+
+// ─── custom specific days editor ──────────────────────────────────────────────
+
+interface SpecificEditorProps {
+  specificDays: Record<string, string>
+  onChange: (days: Record<string, string>) => void
+  startDate: Date
+  endDate: Date
+  ownerA: { id: string; color: string; initials: string }
+  ownerB: { id: string; color: string; initials: string }
+}
+
+function CustomSpecificEditor({ specificDays, onChange, startDate, endDate, ownerA, ownerB }: SpecificEditorProps) {
+  const { width } = useWindowDimensions()
+  const CELL = Math.floor((width - 48) / 7)
+
+  const startYM = { year: startDate.getFullYear(), month: startDate.getMonth() }
+  const endYM   = { year: endDate.getFullYear(),   month: endDate.getMonth() }
+
+  const [edYear, setEdYear]   = useState(startYM.year)
+  const [edMonth, setEdMonth] = useState(startYM.month)
+
+  const startYMD = toYMD(startDate)
+  const endYMD   = toYMD(endDate)
+
+  const atStart = edYear === startYM.year && edMonth === startYM.month
+  const atEnd   = edYear === endYM.year   && edMonth === endYM.month
+
+  function prevMonth() {
+    if (atStart) return
+    if (edMonth === 0) { setEdYear(y => y - 1); setEdMonth(11) }
+    else setEdMonth(m => m - 1)
+  }
+
+  function nextMonth() {
+    if (atEnd) return
+    if (edMonth === 11) { setEdYear(y => y + 1); setEdMonth(0) }
+    else setEdMonth(m => m + 1)
+  }
+
+  const cells = useMemo(() => {
+    const total = daysInMonth(edYear, edMonth)
+    const offset = firstWeekday(edYear, edMonth)
+    const items: Array<{ day: number | null; dateStr: string | null }> = []
+    for (let i = 0; i < offset; i++) items.push({ day: null, dateStr: null })
+    for (let d = 1; d <= total; d++) items.push({ day: d, dateStr: toDateStr(edYear, edMonth, d) })
+    while (items.length % 7 !== 0) items.push({ day: null, dateStr: null })
+    return items
+  }, [edYear, edMonth])
+
+  const tapDay = useCallback((dateStr: string) => {
+    const current = specificDays[dateStr]
+    const next = { ...specificDays }
+    if (!current) {
+      next[dateStr] = ownerA.id
+    } else if (current === ownerA.id) {
+      next[dateStr] = ownerB.id
+    } else {
+      delete next[dateStr]
+    }
+    onChange(next)
+  }, [specificDays, ownerA.id, ownerB.id, onChange])
+
+  // count assignments
+  const totalAssigned = Object.keys(specificDays).length
+  const aCount = Object.values(specificDays).filter(id => id === ownerA.id).length
+  const bCount = totalAssigned - aCount
+
+  return (
+    <View style={se.container}>
+      {/* Month nav */}
+      <View style={se.monthHeader}>
+        <TouchableOpacity onPress={prevMonth} disabled={atStart} style={se.navBtn}>
+          <Text style={[se.navArrow, atStart && se.navDisabled]}>‹</Text>
+        </TouchableOpacity>
+        <Text style={se.monthTitle}>{MONTH_NAMES[edMonth]} {edYear}</Text>
+        <TouchableOpacity onPress={nextMonth} disabled={atEnd} style={se.navBtn}>
+          <Text style={[se.navArrow, atEnd && se.navDisabled]}>›</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Weekday labels */}
+      <View style={se.weekRow}>
+        {WEEKDAYS.map(wd => (
+          <View key={wd} style={[se.weekCell, { width: CELL }]}>
+            <Text style={se.weekLabel}>{wd}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Grid */}
+      <View style={se.grid}>
+        {cells.map((cell, i) => {
+          if (!cell.day || !cell.dateStr) {
+            return <View key={`b${i}`} style={[se.cell, { width: CELL, height: CELL }]} />
+          }
+          const outOfRange = cell.dateStr < startYMD || cell.dateStr > endYMD
+          const ownerId = specificDays[cell.dateStr]
+          const owner = ownerId === ownerA.id ? ownerA : ownerId === ownerB.id ? ownerB : null
+
+          return (
+            <TouchableOpacity
+              key={cell.dateStr}
+              style={[se.cell, { width: CELL, height: CELL }, outOfRange && se.cellOut]}
+              onPress={() => !outOfRange && tapDay(cell.dateStr!)}
+              activeOpacity={outOfRange ? 1 : 0.7}
+            >
+              {owner ? (
+                <View style={[se.ownerCircle, { backgroundColor: owner.color }]}>
+                  <Text style={se.ownerInitials}>{owner.initials}</Text>
+                </View>
+              ) : (
+                <View style={[se.emptyCircle, outOfRange && se.emptyCircleOut]}>
+                  <Text style={[se.dayNum, outOfRange && se.dayNumOut]}>{cell.day}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )
+        })}
+      </View>
+
+      {/* Tally */}
+      <View style={se.tally}>
+        <View style={se.tallyItem}>
+          <View style={[se.tallyDot, { backgroundColor: ownerA.color }]} />
+          <Text style={se.tallyText}>{ownerA.initials}: {aCount} days</Text>
+        </View>
+        <View style={se.tallyItem}>
+          <View style={[se.tallyDot, { backgroundColor: ownerB.color }]} />
+          <Text style={se.tallyText}>{ownerB.initials}: {bCount} days</Text>
+        </View>
+        <Text style={se.tallyUnassigned}>
+          Unassigned: {Object.keys(cells.filter(c => c.dateStr && c.dateStr >= startYMD && c.dateStr <= endYMD)).length - totalAssigned < 0
+            ? 0
+            : /* simple approach */ '—'}
+        </Text>
+      </View>
+    </View>
+  )
+}
+
+const se = StyleSheet.create({
+  container: { marginTop: 8 },
+  monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  navBtn: { padding: 4 },
+  navArrow: { fontSize: 26, color: '#374151', fontWeight: '300', lineHeight: 30 },
+  navDisabled: { color: '#d1d5db' },
+  monthTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  weekRow: { flexDirection: 'row', marginBottom: 4 },
+  weekCell: { alignItems: 'center', paddingVertical: 2 },
+  weekLabel: { fontSize: 10, fontWeight: '600', color: '#9ca3af' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  cell: { alignItems: 'center', justifyContent: 'center', padding: 2 },
+  cellOut: { opacity: 0.25 },
+  ownerCircle: {
+    width: 34, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  ownerInitials: { fontSize: 12, fontWeight: '700', color: '#ffffff' },
+  emptyCircle: {
+    width: 34, height: 34, borderRadius: 17, borderWidth: 1,
+    borderColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center',
+  },
+  emptyCircleOut: { borderColor: '#f3f4f6' },
+  dayNum: { fontSize: 12, color: '#6b7280' },
+  dayNumOut: { color: '#d1d5db' },
+  tally: { flexDirection: 'row', gap: 12, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' },
+  tallyItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  tallyDot: { width: 10, height: 10, borderRadius: 5 },
+  tallyText: { fontSize: 12, color: '#374151', fontWeight: '500' },
+  tallyUnassigned: { fontSize: 12, color: '#9ca3af' },
+})
+
+// ─── main form screen ─────────────────────────────────────────────────────────
+
+export default function NewScheduleScreen() {
+  const router = useRouter()
+  const { supersedesId } = useLocalSearchParams<{ supersedesId?: string }>()
+  const { data, loading: profileLoading } = useSchedules()
+
+  // ── form state ──────────────────────────────────────────────────────────────
+  const [name, setName]               = useState('')
+  const [pattern, setPattern]         = useState<UIPattern | null>(null)
+  const [startDate, setStartDate]     = useState<Date | null>(null)
+  const [endDate, setEndDate]         = useState<Date | null>(null)
+  const [firstOwnerId, setFirstOwnerId] = useState<string | null>(null)
+  const [ownerSequence, setOwnerSequence] = useState<string[]>([])
+  const [cycleLen, setCycleLen]       = useState(14)
+  const [specificDays, setSpecificDays] = useState<Record<string, string>>({})
+  const [note, setNote]               = useState('')
+  const [saving, setSaving]           = useState(false)
+
+  const myProfile    = data?.myProfile
+  const coProfile    = data?.coParentProfile
+  const connectionId = data?.connectionId
+
+  // Owner objects for custom editors
+  const ownerA = useMemo(() => myProfile
+    ? { id: myProfile.id, color: myProfile.color, initials: myProfile.initials }
+    : null, [myProfile])
+  const ownerB = useMemo(() => coProfile
+    ? { id: coProfile.id, color: coProfile.color, initials: coProfile.initials }
+    : null, [coProfile])
+
+  // When pattern changes to custom_cycle, initialise sequence with firstOwner or default split
+  const handlePatternSelect = useCallback((p: UIPattern) => {
+    setPattern(p)
+    if (p === 'custom_cycle' && firstOwnerId && ownerA && ownerB) {
+      const other = firstOwnerId === ownerA.id ? ownerB.id : ownerA.id
+      const seq = Array(14).fill(null).map((_, i) => (i < 7 ? firstOwnerId : other))
+      setOwnerSequence(seq)
+      setCycleLen(14)
+    }
+  }, [firstOwnerId, ownerA, ownerB])
+
+  // When first owner changes, also re-init cycle sequence
+  const handleFirstOwner = useCallback((id: string) => {
+    setFirstOwnerId(id)
+    if (pattern === 'custom_cycle' && ownerA && ownerB) {
+      const other = id === ownerA.id ? ownerB.id : ownerA.id
+      const seq = Array(14).fill(null).map((_, i) => (i < 7 ? id : other))
+      setOwnerSequence(seq)
+      setCycleLen(14)
+    }
+  }, [pattern, ownerA, ownerB])
+
+  // ── validation ──────────────────────────────────────────────────────────────
+  function validate(): string | null {
+    if (!name.trim())  return 'Schedule name is required'
+    if (!pattern)      return 'Select a pattern'
+    if (!startDate)    return 'Select a start date'
+    if (!endDate)      return 'Select an end date'
+    if (startDate >= endDate) return 'End date must be after start date'
+    if (!firstOwnerId) return 'Select who goes first'
+    if (pattern === 'custom_cycle' && ownerSequence.length === 0)
+      return 'Add at least one day to the cycle'
+    return null
+  }
+
+  // ── submit ──────────────────────────────────────────────────────────────────
+  async function submit(andPropose: boolean) {
+    const err = validate()
+    if (err) { Alert.alert('Check form', err); return }
+
+    // Build pattern_data
+    const isCustomCycle    = pattern === 'custom_cycle'
+    const isCustomSpecific = pattern === 'custom_specific'
+    const apiPattern       = isCustomCycle || isCustomSpecific ? 'custom' : pattern!
+
+    const patternData = isCustomSpecific
+      ? { first_week_owner_id: firstOwnerId!, specific_days: specificDays }
+      : isCustomCycle
+        ? { first_week_owner_id: firstOwnerId!, owner_sequence: ownerSequence, cycle_length: cycleLen }
+        : { first_week_owner_id: firstOwnerId! }
+
+    setSaving(true)
+    const { data: created, error: createErr } = await createSchedule({
+      name: name.trim(),
+      pattern: apiPattern as import('@/lib/api/schedules').SchedulePattern,
+      start_date: toYMD(startDate!),
+      end_date:   toYMD(endDate!),
+      pattern_data: patternData,
+      note: note.trim() || null,
+      supersedes_id: supersedesId ?? null,
+    })
+
+    if (createErr || !created) {
+      setSaving(false)
+      Alert.alert('Error', createErr ?? 'Could not create schedule')
+      return
+    }
+
+    if (andPropose) {
+      const { error: proposeErr } = await scheduleAction(created.id, { action: 'propose' })
+      setSaving(false)
+      if (proposeErr) {
+        Alert.alert('Saved as draft', `Schedule saved but proposal failed: ${proposeErr}`)
+      } else {
+        Alert.alert('Proposed!', `${coProfile?.display_name ?? 'Co-parent'} has been notified.`, [
+          { text: 'OK', onPress: () => router.back() },
+        ])
+        return
+      }
+    } else {
+      setSaving(false)
+    }
+
+    router.back()
+  }
+
+  // ── render ──────────────────────────────────────────────────────────────────
+
+  const showCustomEditor = pattern === 'custom_cycle' || pattern === 'custom_specific'
+  const startMin = new Date()
+  const endMin   = startDate ?? new Date()
+
+  if (profileLoading || !myProfile) {
+    return (
+      <SafeAreaView style={s.centered}>
+        <ActivityIndicator size="large" color="#374151" />
+      </SafeAreaView>
+    )
+  }
+
+  if (!coProfile) {
+    return (
+      <SafeAreaView style={s.centered}>
+        <Text style={s.errText}>No co-parent connected</Text>
+        <TouchableOpacity onPress={() => router.back()} style={s.backLink}>
+          <Text style={s.backLinkText}>Go back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    )
+  }
+
+  return (
+    <SafeAreaView style={s.container} edges={['top']}>
+      {/* Header */}
+      <View style={s.header}>
+        <TouchableOpacity onPress={() => router.back()} style={s.cancelBtn} hitSlop={12}>
+          <Text style={s.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+        <Text style={s.title}>
+          {supersedesId ? 'Propose Replacement' : 'New Schedule'}
+        </Text>
+        <View style={{ width: 64 }} />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={s.form}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Name ── */}
+        <Text style={s.label}>Schedule name</Text>
+        <TextInput
+          style={s.input}
+          value={name}
+          onChangeText={setName}
+          placeholder="e.g. Summer 2026"
+          placeholderTextColor="#9ca3af"
+          maxLength={80}
+        />
+
+        {/* ── Pattern ── */}
+        <Text style={s.label}>Pattern</Text>
+        <View style={s.patternGrid}>
+          {PATTERN_OPTIONS.map(opt => (
+            <TouchableOpacity
+              key={opt.key}
+              style={[s.patternCard, pattern === opt.key && s.patternCardActive]}
+              onPress={() => handlePatternSelect(opt.key)}
+            >
+              <Text style={[s.patternLabel, pattern === opt.key && s.patternLabelActive]}>
+                {opt.label}
+              </Text>
+              <Text style={[s.patternSub, pattern === opt.key && s.patternSubActive]}>
+                {opt.sub}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* ── Date range ── */}
+        {pattern && (
+          <>
+            <Text style={s.sectionTitle}>Date range</Text>
+            <View style={s.dateRow}>
+              <View style={s.dateField}>
+                <DateField
+                  label="Start"
+                  value={startDate}
+                  min={startMin}
+                  onChange={d => {
+                    setStartDate(d)
+                    if (endDate && d >= endDate) setEndDate(null)
+                  }}
+                />
+              </View>
+              <View style={s.dateField}>
+                <DateField
+                  label="End"
+                  value={endDate}
+                  min={endMin}
+                  onChange={setEndDate}
+                />
+              </View>
+            </View>
+          </>
+        )}
+
+        {/* ── Who goes first ── */}
+        {pattern && startDate && endDate && (
+          <>
+            <Text style={s.sectionTitle}>
+              {pattern === 'custom_specific' ? 'First assignment owner' : 'Who goes first'}
+            </Text>
+            <View style={s.ownerRow}>
+              {[myProfile, coProfile].map(p => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={[
+                    s.ownerCard,
+                    firstOwnerId === p.id && { borderColor: p.color, borderWidth: 2 },
+                  ]}
+                  onPress={() => handleFirstOwner(p.id)}
+                >
+                  <View style={[s.ownerAvatar, { backgroundColor: p.color }]}>
+                    <Text style={s.ownerInitials}>{p.initials}</Text>
+                  </View>
+                  <Text style={s.ownerName} numberOfLines={1}>
+                    {p.id === myProfile.id ? 'Me' : p.display_name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* ── Custom editors ── */}
+        {showCustomEditor && firstOwnerId && startDate && endDate && ownerA && ownerB && (
+          <>
+            <Text style={s.sectionTitle}>
+              {pattern === 'custom_cycle' ? 'Day cycle' : 'Day assignments'}
+            </Text>
+            {pattern === 'custom_cycle' ? (
+              <CustomCycleEditor
+                sequence={ownerSequence}
+                onSequenceChange={setOwnerSequence}
+                cycleLen={cycleLen}
+                onCycleLenChange={setCycleLen}
+                ownerA={firstOwnerId === ownerA.id ? ownerA : ownerB}
+                ownerB={firstOwnerId === ownerA.id ? ownerB : ownerA}
+              />
+            ) : (
+              <CustomSpecificEditor
+                specificDays={specificDays}
+                onChange={setSpecificDays}
+                startDate={startDate}
+                endDate={endDate}
+                ownerA={firstOwnerId === ownerA.id ? ownerA : ownerB}
+                ownerB={firstOwnerId === ownerA.id ? ownerB : ownerA}
+              />
+            )}
+          </>
+        )}
+
+        {/* ── Note ── */}
+        {pattern && startDate && endDate && firstOwnerId && (
+          <>
+            <Text style={s.sectionTitle}>Note <Text style={s.optional}>(optional)</Text></Text>
+            <TextInput
+              style={[s.input, s.noteInput]}
+              value={note}
+              onChangeText={setNote}
+              placeholder="Message to co-parent about this proposal…"
+              placeholderTextColor="#9ca3af"
+              multiline
+              maxLength={500}
+            />
+          </>
+        )}
+
+        {/* ── Footer actions ── */}
+        {pattern && startDate && endDate && firstOwnerId && (
+          <View style={s.footer}>
+            {saving ? (
+              <ActivityIndicator size="large" color="#374151" style={{ marginVertical: 16 }} />
+            ) : (
+              <>
+                <TouchableOpacity style={[s.btn, s.btnPrimary]} onPress={() => submit(true)}>
+                  <Text style={s.btnPrimaryText}>Propose to {coProfile.display_name}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.btn, s.btnGhost]} onPress={() => submit(false)}>
+                  <Text style={s.btnGhostText}>Save as draft</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        )}
+
+        <View style={{ height: 60 }} />
+      </ScrollView>
+    </SafeAreaView>
+  )
+}
+
+// ─── styles ──────────────────────────────────────────────────────────────────
+
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  centered:  { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
+  errText:   { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 12 },
+  backLink:  { paddingHorizontal: 20, paddingVertical: 10 },
+  backLinkText: { color: '#3b82f6', fontSize: 15 },
+
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+  },
+  cancelBtn: { width: 64 },
+  cancelText: { fontSize: 16, color: '#6b7280' },
+  title: { fontSize: 17, fontWeight: '600', color: '#111827' },
+
+  form: { paddingHorizontal: 20, paddingTop: 20 },
+  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 16 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginTop: 24, marginBottom: 10 },
+  optional: { fontWeight: '400', color: '#9ca3af' },
+
+  input: {
+    backgroundColor: '#f9fafb', borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb',
+    paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: '#1f2937',
+  },
+  noteInput: { minHeight: 80, textAlignVertical: 'top' },
+
+  // Pattern grid
+  patternGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  patternCard: {
+    width: '47%', borderRadius: 12, borderWidth: 1.5, borderColor: '#e5e7eb',
+    backgroundColor: '#f9fafb', paddingHorizontal: 12, paddingVertical: 12,
+  },
+  patternCardActive: { borderColor: '#1f2937', backgroundColor: '#f0f0f0' },
+  patternLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 2 },
+  patternLabelActive: { color: '#111827' },
+  patternSub: { fontSize: 11, color: '#9ca3af' },
+  patternSubActive: { color: '#6b7280' },
+
+  // Date range
+  dateRow: { flexDirection: 'row', gap: 10 },
+  dateField: { flex: 1 },
+
+  // Owner selector
+  ownerRow: { flexDirection: 'row', gap: 12 },
+  ownerCard: {
+    flex: 1, borderRadius: 14, borderWidth: 1.5, borderColor: '#e5e7eb',
+    backgroundColor: '#f9fafb', alignItems: 'center', paddingVertical: 16, gap: 8,
+  },
+  ownerAvatar: {
+    width: 48, height: 48, borderRadius: 24,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  ownerInitials: { fontSize: 17, fontWeight: '700', color: '#ffffff' },
+  ownerName: { fontSize: 13, fontWeight: '500', color: '#374151' },
+
+  // Footer
+  footer: { marginTop: 28, gap: 10 },
+  btn: { borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
+  btnPrimary: { backgroundColor: '#1f2937' },
+  btnPrimaryText: { color: '#ffffff', fontWeight: '700', fontSize: 15 },
+  btnGhost: { backgroundColor: '#f3f4f6' },
+  btnGhostText: { color: '#374151', fontWeight: '600', fontSize: 15 },
+})
