@@ -1,5 +1,5 @@
 import * as Notifications from 'expo-notifications'
-import Constants from 'expo-constants'
+import Constants, { ExecutionEnvironment } from 'expo-constants'
 import { Platform } from 'react-native'
 import { supabase } from './supabase'
 
@@ -15,9 +15,13 @@ Notifications.setNotificationHandler({
 /**
  * Request permission and register this device's Expo push token with Supabase.
  * Safe to call multiple times — upserts on (user_id, token).
- * Silently no-ops on simulators (getExpoPushTokenAsync throws, caught below).
+ * No-ops in Expo Go (push removed in SDK 53) and on simulators.
  */
 export async function registerForPushNotificationsAsync(userId: string): Promise<void> {
+  // Push tokens are unavailable in Expo Go since SDK 53 — skip silently.
+  // Works in development builds (bare) and production (standalone).
+  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return
+
   try {
     const { status: existingStatus } = await Notifications.getPermissionsAsync()
     let finalStatus = existingStatus
