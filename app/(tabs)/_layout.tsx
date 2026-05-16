@@ -1,4 +1,13 @@
 import { Tabs } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
+
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
+
+function tabIcon(active: IoniconsName, inactive: IoniconsName) {
+  return ({ color, focused }: { color: string; focused: boolean }) => (
+    <Ionicons name={focused ? active : inactive} size={22} color={color} />
+  )
+}
 
 export default function TabsLayout() {
   return (
@@ -18,11 +27,26 @@ export default function TabsLayout() {
         },
       }}
     >
-      <Tabs.Screen name="dashboard" options={{ title: 'Home' }} />
-      <Tabs.Screen name="calendar" options={{ title: 'Calendar' }} />
-      <Tabs.Screen name="messages" options={{ title: 'Messages' }} />
-      <Tabs.Screen name="expenses" options={{ title: 'Expenses' }} />
-      <Tabs.Screen name="vault" options={{ title: 'Vault' }} />
+      <Tabs.Screen
+        name="dashboard"
+        options={{ title: 'Home', tabBarIcon: tabIcon('home', 'home-outline') }}
+      />
+      <Tabs.Screen
+        name="calendar"
+        options={{ title: 'Calendar', tabBarIcon: tabIcon('calendar', 'calendar-outline') }}
+      />
+      <Tabs.Screen
+        name="messages"
+        options={{ title: 'Messages', tabBarIcon: tabIcon('chatbubble', 'chatbubble-outline') }}
+      />
+      <Tabs.Screen
+        name="expenses"
+        options={{ title: 'Expenses', tabBarIcon: tabIcon('receipt', 'receipt-outline') }}
+      />
+      <Tabs.Screen
+        name="vault"
+        options={{ title: 'Vault', tabBarIcon: tabIcon('folder', 'folder-outline') }}
+      />
     </Tabs>
   )
 }
