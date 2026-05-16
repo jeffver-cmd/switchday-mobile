@@ -1,12 +1,20 @@
-import { View, Text, SafeAreaView } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function CalendarScreen() {
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <View className="flex-1 px-5 pt-6">
-        <Text className="text-2xl font-bold text-gray-900">Calendar</Text>
-        <Text className="mt-1 text-sm text-gray-500">Coming soon</Text>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.inner}>
+        <Text style={styles.heading}>Calendar</Text>
+        <Text style={styles.sub}>Coming soon</Text>
       </View>
     </SafeAreaView>
   )
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  inner: { flex: 1, paddingHorizontal: 20, paddingTop: 24 },
+  heading: { fontSize: 24, fontWeight: '700', color: '#111827' },
+  sub: { marginTop: 4, fontSize: 14, color: '#6b7280' },
+})

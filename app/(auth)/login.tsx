@@ -8,6 +8,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  StyleSheet,
 } from 'react-native'
 import { Link, useRouter } from 'expo-router'
 import { supabase } from '@/lib/supabase'
@@ -33,21 +34,15 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-white"
+      style={styles.container}
     >
-      <View className="flex-1 justify-center px-6">
-        {/* Logo / wordmark */}
-        <Text className="mb-2 text-3xl font-bold tracking-tight text-gray-900">
-          Switchday
-        </Text>
-        <Text className="mb-10 text-base text-gray-500">
-          Sign in to your account
-        </Text>
+      <View style={styles.inner}>
+        <Text style={styles.logo}>Switchday</Text>
+        <Text style={styles.subtitle}>Sign in to your account</Text>
 
-        {/* Email */}
-        <Text className="mb-1 text-sm font-medium text-gray-700">Email</Text>
+        <Text style={styles.label}>Email</Text>
         <TextInput
-          className="mb-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-base text-gray-900"
+          style={styles.input}
           placeholder="you@example.com"
           placeholderTextColor="#9ca3af"
           keyboardType="email-address"
@@ -57,10 +52,9 @@ export default function LoginScreen() {
           onChangeText={setEmail}
         />
 
-        {/* Password */}
-        <Text className="mb-1 text-sm font-medium text-gray-700">Password</Text>
+        <Text style={styles.label}>Password</Text>
         <TextInput
-          className="mb-6 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-base text-gray-900"
+          style={[styles.input, styles.inputSpacingBottom]}
           placeholder="••••••••"
           placeholderTextColor="#9ca3af"
           secureTextEntry
@@ -69,25 +63,23 @@ export default function LoginScreen() {
           onChangeText={setPassword}
         />
 
-        {/* Sign in button */}
         <TouchableOpacity
           onPress={handleLogin}
           disabled={loading || !email || !password}
-          className="items-center rounded-xl bg-gray-800 py-4 disabled:opacity-50"
+          style={[styles.button, (loading || !email || !password) && styles.buttonDisabled]}
         >
           {loading ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <Text className="text-base font-semibold text-white">Sign in</Text>
+            <Text style={styles.buttonText}>Sign in</Text>
           )}
         </TouchableOpacity>
 
-        {/* Sign up link */}
-        <View className="mt-6 flex-row justify-center">
-          <Text className="text-sm text-gray-500">Don&apos;t have an account? </Text>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Don't have an account? </Text>
           <Link href="/(auth)/signup" asChild>
             <TouchableOpacity>
-              <Text className="text-sm font-medium text-gray-900">Sign up</Text>
+              <Text style={styles.footerLink}>Sign up</Text>
             </TouchableOpacity>
           </Link>
         </View>
@@ -95,3 +87,34 @@ export default function LoginScreen() {
     </KeyboardAvoidingView>
   )
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  logo: { fontSize: 30, fontWeight: '700', color: '#111827', marginBottom: 8 },
+  subtitle: { fontSize: 16, color: '#6b7280', marginBottom: 40 },
+  label: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 4 },
+  input: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#111827',
+    marginBottom: 16,
+  },
+  inputSpacingBottom: { marginBottom: 24 },
+  button: {
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  buttonDisabled: { opacity: 0.5 },
+  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
+  footerText: { fontSize: 14, color: '#6b7280' },
+  footerLink: { fontSize: 14, fontWeight: '500', color: '#111827' },
+})

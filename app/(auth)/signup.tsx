@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  StyleSheet,
 } from 'react-native'
 import { Link, useRouter } from 'expo-router'
 import { supabase } from '@/lib/supabase'
@@ -26,9 +27,7 @@ export default function SignupScreen() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: { display_name: name },
-      },
+      options: { data: { display_name: name } },
     })
     setLoading(false)
     if (error) {
@@ -45,81 +44,98 @@ export default function SignupScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-white"
+      style={styles.container}
     >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View className="flex-1 justify-center px-6 py-10">
-          <Text className="mb-2 text-3xl font-bold tracking-tight text-gray-900">
-            Create account
-          </Text>
-          <Text className="mb-10 text-base text-gray-500">
-            Get started with Switchday
-          </Text>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <Text style={styles.logo}>Create account</Text>
+        <Text style={styles.subtitle}>Get started with Switchday</Text>
 
-          {/* Name */}
-          <Text className="mb-1 text-sm font-medium text-gray-700">Your name</Text>
-          <TextInput
-            className="mb-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-base text-gray-900"
-            placeholder="Alex"
-            placeholderTextColor="#9ca3af"
-            autoCapitalize="words"
-            autoComplete="name"
-            value={name}
-            onChangeText={setName}
-          />
+        <Text style={styles.label}>Your name</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Alex"
+          placeholderTextColor="#9ca3af"
+          autoCapitalize="words"
+          autoComplete="name"
+          value={name}
+          onChangeText={setName}
+        />
 
-          {/* Email */}
-          <Text className="mb-1 text-sm font-medium text-gray-700">Email</Text>
-          <TextInput
-            className="mb-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-base text-gray-900"
-            placeholder="you@example.com"
-            placeholderTextColor="#9ca3af"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            value={email}
-            onChangeText={setEmail}
-          />
+        <Text style={styles.label}>Email</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="you@example.com"
+          placeholderTextColor="#9ca3af"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+          value={email}
+          onChangeText={setEmail}
+        />
 
-          {/* Password */}
-          <Text className="mb-1 text-sm font-medium text-gray-700">Password</Text>
-          <TextInput
-            className="mb-6 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-base text-gray-900"
-            placeholder="At least 8 characters"
-            placeholderTextColor="#9ca3af"
-            secureTextEntry
-            autoComplete="new-password"
-            value={password}
-            onChangeText={setPassword}
-          />
+        <Text style={styles.label}>Password</Text>
+        <TextInput
+          style={[styles.input, styles.inputSpacingBottom]}
+          placeholder="At least 8 characters"
+          placeholderTextColor="#9ca3af"
+          secureTextEntry
+          autoComplete="new-password"
+          value={password}
+          onChangeText={setPassword}
+        />
 
-          {/* Create account button */}
-          <TouchableOpacity
-            onPress={handleSignup}
-            disabled={loading || !name || !email || !password}
-            className="items-center rounded-xl bg-gray-800 py-4 disabled:opacity-50"
-          >
-            {loading ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text className="text-base font-semibold text-white">Create account</Text>
-            )}
-          </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleSignup}
+          disabled={loading || !name || !email || !password}
+          style={[styles.button, (loading || !name || !email || !password) && styles.buttonDisabled]}
+        >
+          {loading ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <Text style={styles.buttonText}>Create account</Text>
+          )}
+        </TouchableOpacity>
 
-          {/* Sign in link */}
-          <View className="mt-6 flex-row justify-center">
-            <Text className="text-sm text-gray-500">Already have an account? </Text>
-            <Link href="/(auth)/login" asChild>
-              <TouchableOpacity>
-                <Text className="text-sm font-medium text-gray-900">Sign in</Text>
-              </TouchableOpacity>
-            </Link>
-          </View>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Already have an account? </Text>
+          <Link href="/(auth)/login" asChild>
+            <TouchableOpacity>
+              <Text style={styles.footerLink}>Sign in</Text>
+            </TouchableOpacity>
+          </Link>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   )
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 },
+  logo: { fontSize: 30, fontWeight: '700', color: '#111827', marginBottom: 8 },
+  subtitle: { fontSize: 16, color: '#6b7280', marginBottom: 40 },
+  label: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 4 },
+  input: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#111827',
+    marginBottom: 16,
+  },
+  inputSpacingBottom: { marginBottom: 24 },
+  button: {
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  buttonDisabled: { opacity: 0.5 },
+  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
+  footerText: { fontSize: 14, color: '#6b7280' },
+  footerLink: { fontSize: 14, fontWeight: '500', color: '#111827' },
+})
