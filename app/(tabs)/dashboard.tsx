@@ -273,8 +273,8 @@ const styles = StyleSheet.create({
   seeAllText: { fontSize: 13, color: '#6b7280', marginTop: 8, textAlign: 'center' },
 
   // Events
-  eventRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  eventDate: { fontSize: 12, fontWeight: '600', color: '#9ca3af', width: 72, paddingTop: 1 },
+  eventRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 },
+  eventDate: { fontSize: 12, fontWeight: '600', color: '#9ca3af', width: 84, paddingTop: 1 },
   eventInfo: { flex: 1 },
   eventTitle: { fontSize: 14, fontWeight: '500', color: '#1f2937' },
   eventTime: { fontSize: 12, color: '#6b7280', marginTop: 2 },
