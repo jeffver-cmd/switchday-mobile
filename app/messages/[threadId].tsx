@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   sendBtnDisabled: { backgroundColor: colors.border },
-  sendBtnText: { color: colors.white, fontSize: 20, fontWeight: '700', fontFamily: font.bold, lineHeight: 22 },
+  sendBtnText: { color: colors.white, fontSize: 20, fontWeight: '700', lineHeight: 22 },
 
   sendError: { fontSize: 12, fontFamily: font.regular, color: colors.danger, textAlign: 'center', paddingHorizontal: 16, paddingBottom: 4 },
 })

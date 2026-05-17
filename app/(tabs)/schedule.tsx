@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   emptySubtitle: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, textAlign: 'center' },
 
   historyToggle: { paddingVertical: 10 },
-  historyToggleText: { fontSize: 14, fontWeight: '600', fontFamily: font.semibold, color: colors.textMuted },
+  historyToggleText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
 })
 
 const card = StyleSheet.create({

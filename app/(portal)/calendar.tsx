@@ -329,13 +329,13 @@ const S = StyleSheet.create({
   dayNum:     { fontSize: 13, fontWeight: '500', fontFamily: font.medium, color: colors.textPrimary },
   todayNum:   { color: colors.white, fontWeight: '700', fontFamily: font.bold },
   selNum:     { fontWeight: '700', fontFamily: font.bold },
-  switchLabel: { fontSize: 9, fontFamily: font.regular, color: colors.textMuted, marginTop: 1 },
+  switchLabel: { fontSize: 9, color: colors.textMuted, marginTop: 1 },
   dotsRow:    { flexDirection: 'row', gap: 2, marginTop: 2 },
   dot:        { width: 4, height: 4, borderRadius: 2 },
   legend:     { flexDirection: 'row', gap: 16, paddingVertical: 12, paddingHorizontal: 4, marginTop: 4, borderTopWidth: 1, borderTopColor: colors.border, marginBottom: 4 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendSwatch: { width: 14, height: 14, borderRadius: 3 },
-  legendSwitch: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted },
+  legendSwitch: { fontSize: 14, color: colors.textMuted },
   legendLabel: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted },
 })
 

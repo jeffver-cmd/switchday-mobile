@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   todayNum: { color: colors.white, fontWeight: '700', fontFamily: font.bold },
   selectedNum: { fontWeight: '700', fontFamily: font.bold },
 
-  switchLabel: { fontSize: 9, fontFamily: font.regular, color: colors.textMuted, marginTop: 1 },
+  switchLabel: { fontSize: 9, color: colors.textMuted, marginTop: 1 },
 
   // Event dots
   dotsRow: { flexDirection: 'row', gap: 2, marginTop: 2 },
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendSwatch: { width: 14, height: 14, borderRadius: 3 },
-  legendSwitch: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted },
+  legendSwitch: { fontSize: 14, color: colors.textMuted },
   legendLabel: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted },
 })
 
