@@ -248,38 +248,55 @@ export default function DashboardScreen() {
         </View>
 
         {/* ── Custody card ───────────────────────────────────────────────── */}
-        <View style={[styles.custodyCard, { backgroundColor: ownerColor }]}>
-          {isSwitch && (
-            <View style={styles.switchBadge}>
-              <Text style={styles.switchBadgeText}>SWITCH DAY</Text>
-            </View>
-          )}
-          <Text style={styles.custodyLabel}>
-            {isMyDay ? 'Your day' : `${todayOwner?.display_name ?? 'Co-parent'}'s day`}
-          </Text>
-          <Text style={styles.custodyInitials}>{todayOwner?.initials ?? '?'}</Text>
-          {coParentProfile && (
-            <Text style={styles.custodySubLabel}>
-              {isMyDay
-                ? `${coParentProfile.display_name} has ${formatChildrenNames(childrenNames)} next`
-                : `You have ${formatChildrenNames(childrenNames)} next`}
-            </Text>
-          )}
+        <View style={[styles.custodyCard, { backgroundColor: colors.surface }]}>
+          {/* Subtle owner-colour tint overlay */}
+          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: ownerColor, opacity: 0.08, borderRadius: radius.xl }]} />
 
-          {/* Next switch — folded into card bottom */}
-          {nextSwitch && (
-            <>
-              <View style={styles.custodyDivider} />
-              <View style={styles.custodyNextSwitch}>
-                <Ionicons name="swap-horizontal-outline" size={13} color="rgba(255,255,255,0.70)" />
-                <Text style={styles.custodyNextSwitchText}>
-                  {'  Next switch · '}
-                  <Text style={styles.custodyNextSwitchBold}>{formatSwitchDate(nextSwitch.date)}</Text>
-                  {nextSwitch.time ? `  ·  ${formatTime(nextSwitch.time)}` : ''}
-                </Text>
+          {/* Left accent bar */}
+          <View style={[styles.custodyAccentBar, { backgroundColor: ownerColor }]} />
+
+          {/* Content */}
+          <View style={styles.custodyContent}>
+            {/* Top row: avatar + text */}
+            <View style={styles.custodyTopRow}>
+              <View style={[styles.custodyAvatar, { backgroundColor: ownerColor }]}>
+                <Text style={styles.custodyAvatarText}>{todayOwner?.initials ?? '?'}</Text>
               </View>
-            </>
-          )}
+
+              <View style={styles.custodyTextStack}>
+                {isSwitch && (
+                  <View style={styles.switchBadge}>
+                    <Text style={styles.switchBadgeText}>SWITCH DAY</Text>
+                  </View>
+                )}
+                <Text style={styles.custodyLabel}>
+                  {isMyDay ? 'Your day' : `${todayOwner?.display_name ?? 'Co-parent'}'s day`}
+                </Text>
+                {coParentProfile && (
+                  <Text style={styles.custodySubLabel}>
+                    {isMyDay
+                      ? `${coParentProfile.display_name} has ${formatChildrenNames(childrenNames)} next`
+                      : `You have ${formatChildrenNames(childrenNames)} next`}
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            {/* Next switch — folded into card bottom */}
+            {nextSwitch && (
+              <>
+                <View style={styles.custodyDivider} />
+                <View style={styles.custodyNextSwitch}>
+                  <Ionicons name="swap-horizontal-outline" size={13} color={colors.textSubtle} />
+                  <Text style={styles.custodyNextSwitchText}>
+                    {'  Next switch · '}
+                    <Text style={styles.custodyNextSwitchBold}>{formatSwitchDate(nextSwitch.date)}</Text>
+                    {nextSwitch.time ? `  ·  ${formatTime(nextSwitch.time)}` : ''}
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
         </View>
 
         {/* ── Stats row ──────────────────────────────────────────────────── */}
@@ -456,21 +473,74 @@ const styles = StyleSheet.create({
 
   // ── Custody card
   custodyCard: {
-    borderRadius: radius.xl, padding: 24, marginBottom: 12,
-    ...shadow.hero,
+    flexDirection: 'row',
+    borderRadius: radius.xl,
+    marginBottom: 12,
+    overflow: 'hidden',
+    ...shadow.md,
+  },
+  custodyAccentBar: {
+    width: 4,
+  },
+  custodyContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+  },
+  custodyTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  custodyAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  custodyAvatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    fontFamily: font.bold,
+    color: colors.white,
+  },
+  custodyTextStack: {
+    flex: 1,
   },
   switchBadge: {
-    alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.25)',
-    borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 12,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.accent2Soft,
+    borderRadius: radius.sm,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginBottom: 5,
   },
-  switchBadgeText: { fontSize: 10, fontWeight: '700', fontFamily: font.bold, color: colors.white, letterSpacing: 1 },
-  custodyLabel: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: 'rgba(255,255,255,0.85)', marginBottom: 4 },
-  custodyInitials: { fontSize: 56, fontWeight: '800', fontFamily: font.extrabold, color: colors.white, marginVertical: 4 },
-  custodySubLabel: { fontSize: 13, fontFamily: font.regular, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
+  switchBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: font.bold,
+    color: colors.accent2,
+    letterSpacing: 0.8,
+  },
+  custodyLabel: {
+    fontSize: 17,
+    fontWeight: '600',
+    fontFamily: font.semibold,
+    color: colors.textPrimary,
+    marginBottom: 3,
+  },
+  custodySubLabel: {
+    fontSize: 13,
+    fontFamily: font.regular,
+    color: colors.textMuted,
+    lineHeight: 18,
+  },
   custodyDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.20)',
-    marginTop: 16,
+    backgroundColor: colors.borderHair,
+    marginTop: 14,
     marginBottom: 12,
   },
   custodyNextSwitch: {
@@ -480,11 +550,11 @@ const styles = StyleSheet.create({
   custodyNextSwitchText: {
     fontSize: 12,
     fontFamily: font.regular,
-    color: 'rgba(255,255,255,0.70)',
+    color: colors.textMuted,
   },
   custodyNextSwitchBold: {
     fontFamily: font.semibold,
-    color: 'rgba(255,255,255,0.90)',
+    color: colors.textSecondary,
   },
 
   // ── Stats row
