@@ -252,35 +252,28 @@ export default function DashboardScreen() {
           {/* Subtle owner-colour tint overlay */}
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: ownerColor, opacity: 0.08, borderRadius: radius.xl }]} />
 
-          {/* Left accent bar */}
-          <View style={[styles.custodyAccentBar, { backgroundColor: ownerColor }]} />
+          {/* Wide accent bar with initials */}
+          <View style={[styles.custodyAccentBar, { backgroundColor: ownerColor }]}>
+            <Text style={styles.custodyBarInitials}>{todayOwner?.initials ?? '?'}</Text>
+          </View>
 
           {/* Content */}
           <View style={styles.custodyContent}>
-            {/* Top row: avatar + text */}
-            <View style={styles.custodyTopRow}>
-              <View style={[styles.custodyAvatar, { backgroundColor: ownerColor }]}>
-                <Text style={styles.custodyAvatarText}>{todayOwner?.initials ?? '?'}</Text>
+            {isSwitch && (
+              <View style={styles.switchBadge}>
+                <Text style={styles.switchBadgeText}>SWITCH DAY</Text>
               </View>
-
-              <View style={styles.custodyTextStack}>
-                {isSwitch && (
-                  <View style={styles.switchBadge}>
-                    <Text style={styles.switchBadgeText}>SWITCH DAY</Text>
-                  </View>
-                )}
-                <Text style={styles.custodyLabel}>
-                  {isMyDay ? 'Your day' : `${todayOwner?.display_name ?? 'Co-parent'}'s day`}
-                </Text>
-                {coParentProfile && (
-                  <Text style={styles.custodySubLabel}>
-                    {isMyDay
-                      ? `${coParentProfile.display_name} has ${formatChildrenNames(childrenNames)} next`
-                      : `You have ${formatChildrenNames(childrenNames)} next`}
-                  </Text>
-                )}
-              </View>
-            </View>
+            )}
+            <Text style={styles.custodyLabel}>
+              {isMyDay ? 'Your day' : `${todayOwner?.display_name ?? 'Co-parent'}'s day`}
+            </Text>
+            {childrenNames.length > 0 && (
+              <Text style={styles.custodySubLabel}>
+                {isMyDay
+                  ? `You have ${formatChildrenNames(childrenNames)} today`
+                  : `${todayOwner?.display_name ?? 'Co-parent'} has ${formatChildrenNames(childrenNames)} today`}
+              </Text>
+            )}
 
             {/* Next switch — folded into card bottom */}
             {nextSwitch && (
@@ -480,34 +473,21 @@ const styles = StyleSheet.create({
     ...shadow.md,
   },
   custodyAccentBar: {
-    width: 4,
+    width: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  custodyBarInitials: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: font.bold,
+    color: 'rgba(255,255,255,0.90)',
+    letterSpacing: 0.5,
   },
   custodyContent: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingVertical: 18,
-  },
-  custodyTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  custodyAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  custodyAvatarText: {
-    fontSize: 16,
-    fontWeight: '700',
-    fontFamily: font.bold,
-    color: colors.white,
-  },
-  custodyTextStack: {
-    flex: 1,
+    paddingVertical: 16,
   },
   switchBadge: {
     alignSelf: 'flex-start',
