@@ -295,8 +295,8 @@ const styles = StyleSheet.create({
     // borderTopColor set inline
     marginTop: -1,
   },
-  tailMe:   { alignSelf: 'flex-end',   marginRight: 14 },
-  tailThem: { alignSelf: 'flex-start', marginLeft:  14 },
+  tailMe:   { alignSelf: 'flex-end',   marginRight: 4 },
+  tailThem: { alignSelf: 'flex-start', marginLeft:  4 },
 
   bubbleText: { fontSize: 15, fontFamily: font.regular, lineHeight: 20 },
   // text colours are now set inline with the dynamic bubble color
