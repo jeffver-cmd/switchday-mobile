@@ -249,13 +249,11 @@ export default function DashboardScreen() {
 
         {/* ── Custody card ───────────────────────────────────────────────── */}
         <View style={[styles.custodyCard, { backgroundColor: colors.surface }]}>
-          {/* Subtle owner-colour tint overlay */}
+          {/* Subtle owner-colour tint */}
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: ownerColor, opacity: 0.08, borderRadius: radius.xl }]} />
 
-          {/* Wide accent bar with initials */}
-          <View style={[styles.custodyAccentBar, { backgroundColor: ownerColor }]}>
-            <Text style={styles.custodyBarInitials}>{todayOwner?.initials ?? '?'}</Text>
-          </View>
+          {/* 4px accent bar */}
+          <View style={[styles.custodyAccentBar, { backgroundColor: ownerColor }]} />
 
           {/* Content */}
           <View style={styles.custodyContent}>
@@ -473,21 +471,12 @@ const styles = StyleSheet.create({
     ...shadow.md,
   },
   custodyAccentBar: {
-    width: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  custodyBarInitials: {
-    fontSize: 11,
-    fontWeight: '700',
-    fontFamily: font.bold,
-    color: 'rgba(255,255,255,0.90)',
-    letterSpacing: 0.5,
+    width: 4,
   },
   custodyContent: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 18,
   },
   switchBadge: {
     alignSelf: 'flex-start',
@@ -495,46 +484,30 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     paddingHorizontal: 7,
     paddingVertical: 2,
-    marginBottom: 5,
+    marginBottom: 6,
   },
   switchBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    fontFamily: font.bold,
-    color: colors.accent2,
-    letterSpacing: 0.8,
+    fontSize: 10, fontWeight: '700', fontFamily: font.bold,
+    color: colors.accent2, letterSpacing: 0.8,
   },
   custodyLabel: {
-    fontSize: 17,
-    fontWeight: '600',
-    fontFamily: font.semibold,
-    color: colors.textPrimary,
-    marginBottom: 3,
+    fontSize: 20, fontWeight: '700', fontFamily: font.bold,
+    color: colors.textPrimary, marginBottom: 3,
   },
   custodySubLabel: {
-    fontSize: 13,
-    fontFamily: font.regular,
-    color: colors.textMuted,
-    lineHeight: 18,
+    fontSize: 13, fontFamily: font.regular,
+    color: colors.textMuted, lineHeight: 18,
   },
   custodyDivider: {
-    height: 1,
-    backgroundColor: colors.borderHair,
-    marginTop: 14,
-    marginBottom: 12,
+    height: 1, backgroundColor: colors.borderHair,
+    marginTop: 14, marginBottom: 12,
   },
-  custodyNextSwitch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  custodyNextSwitch: { flexDirection: 'row', alignItems: 'center' },
   custodyNextSwitchText: {
-    fontSize: 12,
-    fontFamily: font.regular,
-    color: colors.textMuted,
+    fontSize: 12, fontFamily: font.regular, color: colors.textMuted,
   },
   custodyNextSwitchBold: {
-    fontFamily: font.semibold,
-    color: colors.textSecondary,
+    fontFamily: font.semibold, color: colors.textSecondary,
   },
 
   // ── Stats row
