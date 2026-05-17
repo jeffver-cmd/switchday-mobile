@@ -33,9 +33,13 @@ const sha256_hash = await Crypto.digestStringAsync(
 supabase.from('audit_log').insert({ actor_id, action, resource_type, resource_id, metadata, sha256_hash }).then(() => {})
 ```
 
-## Known broken write operations — Session 107 priority
+## Write operations status
 
-`src/lib/hooks/useExpenses.ts` — `approveExpense`, `declineExpense`, and `logExpense` still call the web API with Bearer auth and will fail with 401. These need the same direct-Supabase refactor that schedules received in Session 106.
+All write operations now use direct Supabase calls with `expo-crypto` audit logs:
+- `src/lib/api/schedules.ts` — createSchedule, scheduleAction, deleteSchedule (Session 106)
+- `src/lib/hooks/useExpenses.ts` — logExpense, approveExpense, declineExpense (Session 106)
+
+No more web API proxy calls in mobile.
 
 ## Database types
 

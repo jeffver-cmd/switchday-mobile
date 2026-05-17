@@ -25,52 +25,6 @@ export interface ExpensesData {
   expenses: Expense[]
 }
 
-// ─── api helpers ─────────────────────────────────────────────────────────────
-
-const API_BASE = 'https://switchday.app'
-
-async function authHeaders(): Promise<Record<string, string>> {
-  const { data: { session } } = await supabase.auth.getSession()
-  return {
-    'Content-Type': 'application/json',
-    ...(session ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
-  }
-}
-
-export async function approveExpense(id: string): Promise<{ error: string | null }> {
-  try {
-    const res = await fetch(`${API_BASE}/api/expenses/${id}/status`, {
-      method: 'PATCH',
-      headers: await authHeaders(),
-      body: JSON.stringify({ toStatus: 'approved' }),
-    })
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}))
-      return { error: (j as { error?: string }).error ?? `HTTP ${res.status}` }
-    }
-    return { error: null }
-  } catch {
-    return { error: 'network_error' }
-  }
-}
-
-export async function declineExpense(id: string): Promise<{ error: string | null }> {
-  try {
-    const res = await fetch(`${API_BASE}/api/expenses/${id}/status`, {
-      method: 'PATCH',
-      headers: await authHeaders(),
-      body: JSON.stringify({ toStatus: 'declined' }),
-    })
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}))
-      return { error: (j as { error?: string }).error ?? `HTTP ${res.status}` }
-    }
-    return { error: null }
-  } catch {
-    return { error: 'network_error' }
-  }
-}
-
 export interface NewExpenseInput {
   connectionId: string
   description: string
@@ -79,27 +33,197 @@ export interface NewExpenseInput {
   splitPercent: number
 }
 
+// ─── state machine ────────────────────────────────────────────────────────────
+
+const VALID_TRANSITIONS: Record<ExpenseStatus, ExpenseStatus[]> = {
+  requested: ['pending', 'declined'],
+  pending:   ['approved', 'disputed'],
+  approved:  ['paid', 'disputed'],
+  disputed:  ['pending', 'approved'],
+  paid:      [],
+  declined:  [],
+}
+
+// ─── audit helper ─────────────────────────────────────────────────────────────
+
+async function writeAuditLog(params: {
+  actorId:      string
+  action:       string
+  resourceType: string
+  resourceId:   string
+  metadata:     Record<string, unknown>
+}): Promise<void> {
+  const { actorId, action, resourceType, resourceId, metadata } = params
+  const payload = { actor_id: actorId, action, resource_id: resourceId, metadata }
+  const sha256_hash = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    JSON.stringify(payload),
+  )
+  // Fire-and-forget per AGENTS.md
+  supabase.from('audit_log').insert({
+    actor_id:      actorId,
+    action,
+    resource_type: resourceType,
+    resource_id:   resourceId,
+    metadata,
+    sha256_hash,
+  }).then(() => {})
+}
+
+// ─── write operations ─────────────────────────────────────────────────────────
+
+/**
+ * Log a new shared expense (status → 'pending').
+ * Writes: expenses row + expense_status_log (null → pending) + audit_log.
+ * Row sha256_hash matches the web's createExpense pattern for cross-platform
+ * integrity verification.
+ */
 export async function logExpense(input: NewExpenseInput): Promise<{ error: string | null }> {
-  try {
-    const res = await fetch(`${API_BASE}/api/expenses`, {
-      method: 'POST',
-      headers: await authHeaders(),
-      body: JSON.stringify({
-        connectionId:  input.connectionId,
-        description:   input.description,
-        amount:        input.amount,
-        category:      input.category,
-        splitPercent:  input.splitPercent,
-      }),
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { error: 'not_signed_in' }
+
+  if (!input.description?.trim())                           return { error: 'Description is required' }
+  if (input.amount <= 0)                                    return { error: 'Amount must be greater than 0' }
+  if (input.splitPercent < 0 || input.splitPercent > 100)  return { error: 'Split percent must be between 0 and 100' }
+
+  // Row integrity hash — matches web createExpense pattern
+  const sha256_hash = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    `${input.connectionId}|${session.user.id}|${input.description.trim()}|${input.amount}|${input.category}|${input.splitPercent}|${new Date().toISOString()}`,
+  )
+
+  const { data: expense, error: insertError } = await supabase
+    .from('expenses')
+    .insert({
+      connection_id:   input.connectionId,
+      submitted_by_id: session.user.id,
+      description:     input.description.trim(),
+      amount:          input.amount,
+      category:        input.category,
+      split_percent:   input.splitPercent,
+      status:          'pending' as ExpenseStatus,
+      sha256_hash,
     })
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}))
-      return { error: (j as { error?: string }).error ?? `HTTP ${res.status}` }
-    }
-    return { error: null }
-  } catch {
-    return { error: 'network_error' }
+    .select()
+    .single()
+
+  if (insertError || !expense) return { error: insertError?.message ?? 'Failed to log expense' }
+
+  // Status log: null → pending (fire-and-forget)
+  const statusLogHash = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    `${expense.id}|${session.user.id}|null|pending`,
+  )
+  supabase.from('expense_status_log').insert({
+    expense_id:    expense.id,
+    changed_by_id: session.user.id,
+    from_status:   null,
+    to_status:     'pending',
+    sha256_hash:   statusLogHash,
+  }).then(() => {})
+
+  writeAuditLog({
+    actorId:      session.user.id,
+    action:       'expense.created',
+    resourceType: 'expenses',
+    resourceId:   expense.id,
+    metadata:     { expense },
+  })
+
+  return { error: null }
+}
+
+/**
+ * Shared state machine transition. Enforces VALID_TRANSITIONS, permission
+ * rules (can't approve/dispute your own submission), and writes status_log +
+ * audit_log entries.
+ */
+async function transitionStatus(
+  id: string,
+  toStatus: ExpenseStatus,
+): Promise<{ error: string | null }> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { error: 'not_signed_in' }
+
+  // Fetch current row — RLS ensures caller is a connection member
+  const { data: expense, error: fetchErr } = await supabase
+    .from('expenses')
+    .select('id, status, submitted_by_id')
+    .eq('id', id)
+    .single()
+
+  if (fetchErr || !expense) return { error: 'Expense not found' }
+
+  // State machine
+  const allowedNext = VALID_TRANSITIONS[expense.status as ExpenseStatus] ?? []
+  if (!allowedNext.includes(toStatus)) {
+    return { error: `Cannot transition from "${expense.status}" to "${toStatus}"` }
   }
+
+  // Permission: can't approve or dispute your own submission
+  if (
+    (toStatus === 'approved' || toStatus === 'disputed') &&
+    expense.submitted_by_id === session.user.id
+  ) {
+    return { error: 'You cannot approve or dispute your own expense submission' }
+  }
+
+  // Only the submitter can mark as paid
+  if (toStatus === 'paid' && expense.submitted_by_id !== session.user.id) {
+    return { error: 'Only the submitter can mark an expense as paid' }
+  }
+
+  const now = new Date().toISOString()
+  const updatePayload: Record<string, unknown> = { status: toStatus }
+  if (toStatus === 'paid') {
+    updatePayload.payment_confirmed_at    = now
+    updatePayload.payment_confirmed_by_id = session.user.id
+  }
+
+  const { error: updateErr } = await supabase
+    .from('expenses')
+    .update(updatePayload)
+    .eq('id', id)
+
+  if (updateErr) return { error: updateErr.message }
+
+  // Status log (fire-and-forget)
+  const statusLogHash = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    `${id}|${session.user.id}|${expense.status}|${toStatus}`,
+  )
+  supabase.from('expense_status_log').insert({
+    expense_id:    id,
+    changed_by_id: session.user.id,
+    from_status:   expense.status as ExpenseStatus,
+    to_status:     toStatus,
+    sha256_hash:   statusLogHash,
+  }).then(() => {})
+
+  const actionMap: Partial<Record<ExpenseStatus, string>> = {
+    approved: 'expense.approved',
+    declined: 'expense.declined',
+  }
+  writeAuditLog({
+    actorId:      session.user.id,
+    action:       actionMap[toStatus] ?? 'expense.updated',
+    resourceType: 'expenses',
+    resourceId:   id,
+    metadata: {
+      before: { status: expense.status, submitted_by_id: expense.submitted_by_id },
+      after:  { status: toStatus },
+    },
+  })
+
+  return { error: null }
+}
+
+export async function approveExpense(id: string): Promise<{ error: string | null }> {
+  return transitionStatus(id, 'approved')
+}
+
+export async function declineExpense(id: string): Promise<{ error: string | null }> {
+  return transitionStatus(id, 'declined')
 }
 
 // ─── hook ────────────────────────────────────────────────────────────────────
@@ -156,7 +280,7 @@ export function useExpenses(statusFilter?: ExpenseStatus[]) {
       }))
 
       setData({ userId, connectionId: connection.id, expenses })
-    } catch (e) {
+    } catch {
       setError('load_failed')
     } finally {
       setLoading(false)
