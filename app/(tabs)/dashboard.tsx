@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useDashboard } from '@/lib/hooks/useDashboard'
+import { colors, radius, shadow, font } from '@/lib/theme'
 
 // ─── date helpers ────────────────────────────────────────────────────────────
 
@@ -68,7 +69,7 @@ export default function DashboardScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color="#374151" />
+        <ActivityIndicator size="large" color={colors.accent} />
       </SafeAreaView>
     )
   }
@@ -105,14 +106,14 @@ export default function DashboardScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerDate}>{formatHeaderDate()}</Text>
           <TouchableOpacity onPress={() => router.push('/settings')} style={styles.gearBtn}>
-            <Ionicons name="settings-outline" size={22} color="#374151" />
+            <Ionicons name="settings-outline" size={22} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -160,7 +161,7 @@ export default function DashboardScreen() {
             <Text style={styles.cardLabel}>NEEDS ATTENTION</Text>
             {unreadCount > 0 && (
               <TouchableOpacity style={styles.attentionRow} onPress={() => router.push('/(tabs)/messages')}>
-                <View style={[styles.attentionDot, { backgroundColor: '#3b82f6' }]} />
+                <View style={[styles.attentionDot, { backgroundColor: colors.info }]} />
                 <Text style={styles.attentionText}>
                   {unreadCount} unread {unreadCount === 1 ? 'message' : 'messages'}
                 </Text>
@@ -173,7 +174,7 @@ export default function DashboardScreen() {
                 style={styles.attentionRow}
                 onPress={() => router.push('/(tabs)/expenses')}
               >
-                <View style={[styles.attentionDot, { backgroundColor: '#f59e0b' }]} />
+                <View style={[styles.attentionDot, { backgroundColor: colors.warning }]} />
                 <Text style={styles.attentionText} numberOfLines={1}>
                   ${exp.amount.toFixed(2)} · {exp.description}
                 </Text>
@@ -225,72 +226,72 @@ export default function DashboardScreen() {
 // ─── styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb', paddingHorizontal: 24 },
+  container: { flex: 1, backgroundColor: colors.bg },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, paddingHorizontal: 24 },
   scroll: { paddingHorizontal: 16, paddingTop: 8 },
   bottomPad: { height: 32 },
 
   // Header
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  headerDate: { fontSize: 15, fontWeight: '600', color: '#374151' },
+  headerDate: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.textSecondary },
   gearBtn: { padding: 4 },
 
   // Custody card
   custodyCard: {
-    borderRadius: 20, padding: 24, marginBottom: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 3,
+    borderRadius: radius.xl, padding: 24, marginBottom: 12,
+    ...shadow.hero,
   },
   switchBadge: {
     alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.25)',
-    borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 12,
+    borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 12,
   },
-  switchBadgeText: { fontSize: 10, fontWeight: '700', color: '#ffffff', letterSpacing: 1 },
-  custodyLabel: { fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.85)', marginBottom: 4 },
-  custodyInitials: { fontSize: 56, fontWeight: '800', color: '#ffffff', marginVertical: 4 },
-  custodySubLabel: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
+  switchBadgeText: { fontSize: 10, fontWeight: '700', fontFamily: font.bold, color: colors.white, letterSpacing: 1 },
+  custodyLabel: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: 'rgba(255,255,255,0.85)', marginBottom: 4 },
+  custodyInitials: { fontSize: 56, fontWeight: '800', fontFamily: font.extrabold, color: colors.white, marginVertical: 4 },
+  custodySubLabel: { fontSize: 13, fontFamily: font.regular, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
 
   // Generic card
   card: {
-    backgroundColor: '#ffffff', borderRadius: 16, padding: 16, marginBottom: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1,
+    backgroundColor: colors.surface, borderRadius: radius.md, padding: 16, marginBottom: 12,
+    ...shadow.sm,
   },
-  cardLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8, marginBottom: 10 },
+  cardLabel: { fontSize: 11, fontWeight: '700', fontFamily: font.bold, color: colors.textSubtle, letterSpacing: 0.8, marginBottom: 10 },
 
   // Next switch
-  switchDateText: { fontSize: 22, fontWeight: '700', color: '#111827', marginBottom: 2 },
-  switchCountdown: { fontSize: 13, color: '#6b7280', marginBottom: 10 },
-  switchDetail: { fontSize: 14, color: '#374151', marginTop: 4 },
-  switchDetailMuted: { fontSize: 13, color: '#9ca3af', marginTop: 2, fontStyle: 'italic' },
+  switchDateText: { fontSize: 22, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, marginBottom: 2 },
+  switchCountdown: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, marginBottom: 10 },
+  switchDetail: { fontSize: 14, fontFamily: font.regular, color: colors.textSecondary, marginTop: 4 },
+  switchDetailMuted: { fontSize: 13, fontFamily: font.regular, color: colors.textSubtle, marginTop: 2, fontStyle: 'italic' },
 
   // Attention
   attentionRow: {
     flexDirection: 'row', alignItems: 'center', paddingVertical: 8,
-    borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+    borderBottomWidth: 1, borderBottomColor: colors.borderHair,
   },
   attentionDot: { width: 8, height: 8, borderRadius: 4, marginRight: 10 },
-  attentionText: { flex: 1, fontSize: 14, color: '#1f2937' },
-  attentionChevron: { fontSize: 18, color: '#d1d5db', marginLeft: 8 },
-  seeAllText: { fontSize: 13, color: '#6b7280', marginTop: 8, textAlign: 'center' },
+  attentionText: { flex: 1, fontSize: 14, fontFamily: font.regular, color: colors.textPrimary },
+  attentionChevron: { fontSize: 18, color: colors.textSubtle, marginLeft: 8 },
+  seeAllText: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, marginTop: 8, textAlign: 'center' },
 
   // Events
-  eventRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 },
-  eventDate: { fontSize: 12, fontWeight: '600', color: '#9ca3af', width: 84, paddingTop: 1 },
+  eventRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.borderHair, gap: 12 },
+  eventDate: { fontSize: 12, fontWeight: '600', fontFamily: font.semibold, color: colors.textSubtle, width: 84, paddingTop: 1 },
   eventInfo: { flex: 1 },
-  eventTitle: { fontSize: 14, fontWeight: '500', color: '#1f2937' },
-  eventTime: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  eventTitle: { fontSize: 14, fontWeight: '500', fontFamily: font.medium, color: colors.textPrimary },
+  eventTime: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, marginTop: 2 },
 
   // All clear
   allClearCard: {
-    backgroundColor: '#ffffff', borderRadius: 16, padding: 24,
+    backgroundColor: colors.surface, borderRadius: radius.md, padding: 24,
     alignItems: 'center', marginBottom: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1,
+    ...shadow.sm,
   },
-  allClearTitle: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 4 },
-  allClearSubtitle: { fontSize: 13, color: '#9ca3af', textAlign: 'center' },
+  allClearTitle: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 4 },
+  allClearSubtitle: { fontSize: 13, fontFamily: font.regular, color: colors.textSubtle, textAlign: 'center' },
 
   // Empty / error
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 8, textAlign: 'center' },
-  emptySubtitle: { fontSize: 14, color: '#6b7280', textAlign: 'center' },
-  retryBtn: { marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#1f2937', borderRadius: 10 },
-  retryText: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 8, textAlign: 'center' },
+  emptySubtitle: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted, textAlign: 'center' },
+  retryBtn: { marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.accent, borderRadius: radius.md },
+  retryText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
 })

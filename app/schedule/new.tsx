@@ -18,6 +18,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useState, useCallback, useMemo } from 'react'
 import { useSchedules } from '@/lib/hooks/useSchedules'
 import { createSchedule, scheduleAction } from '@/lib/api/schedules'
+import { colors, radius, font } from '@/lib/theme'
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -141,19 +142,19 @@ function DateField({ label, value, min, max, onChange }: DateFieldProps) {
 
 const df = StyleSheet.create({
   wrapper: { marginBottom: 0 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  label: { fontSize: 13, fontWeight: '600', fontFamily: font.semibold, color: colors.textSecondary, marginBottom: 6 },
   btn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#f9fafb', borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb',
+    backgroundColor: colors.surface2, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
     paddingHorizontal: 14, paddingVertical: 13,
   },
-  valueText: { fontSize: 15, color: '#1f2937' },
-  placeholderText: { fontSize: 15, color: '#9ca3af' },
-  chevron: { fontSize: 20, color: '#9ca3af' },
+  valueText: { fontSize: 15, fontFamily: font.regular, color: colors.textPrimary },
+  placeholderText: { fontSize: 15, fontFamily: font.regular, color: colors.textSubtle },
+  chevron: { fontSize: 20, fontFamily: font.regular, color: colors.textSubtle },
   iosBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
-  iosSheet: { backgroundColor: '#ffffff', borderTopLeftRadius: 16, borderTopRightRadius: 16 },
+  iosSheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   iosDone: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingTop: 12 },
-  iosDoneText: { fontSize: 17, fontWeight: '600', color: '#1f2937' },
+  iosDoneText: { fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.accent },
 })
 
 // ─── custom cycle editor ──────────────────────────────────────────────────────
@@ -181,7 +182,6 @@ function CustomCycleEditor({ sequence, onSequenceChange, cycleLen, onCycleLenCha
     if (cycleLen >= 56) return
     const newLen = cycleLen + 1
     onCycleLenChange(newLen)
-    // append the other from the last day
     const last = sequence[sequence.length - 1] ?? ownerA.id
     const next = last === ownerA.id ? ownerB.id : ownerA.id
     onSequenceChange([...sequence, next])
@@ -231,7 +231,7 @@ function CustomCycleEditor({ sequence, onSequenceChange, cycleLen, onCycleLenCha
       <View style={ce.legend}>
         <View style={ce.legendItem}>
           <View style={[ce.legendDot, { backgroundColor: ownerA.color }]} />
-          <Text style={ce.legendText}>{ownerA.initials} = {ownerA.id === ownerA.id ? 'You' : ''}</Text>
+          <Text style={ce.legendText}>{ownerA.initials} = You</Text>
         </View>
         <View style={ce.legendItem}>
           <View style={[ce.legendDot, { backgroundColor: ownerB.color }]} />
@@ -248,24 +248,24 @@ const ce = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 10,
   },
   stepBtn: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: '#f3f4f6',
+    width: 34, height: 34, borderRadius: radius.full, backgroundColor: colors.surface2,
     alignItems: 'center', justifyContent: 'center',
   },
-  stepBtnText: { fontSize: 20, color: '#374151', lineHeight: 24 },
-  stepLabel: { fontSize: 15, fontWeight: '600', color: '#1f2937', minWidth: 64, textAlign: 'center' },
-  splitLabel: { fontSize: 13, color: '#9ca3af', marginLeft: 'auto' },
+  stepBtnText: { fontSize: 20, fontFamily: font.regular, color: colors.textSecondary, lineHeight: 24 },
+  stepLabel: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, minWidth: 64, textAlign: 'center' },
+  splitLabel: { fontSize: 13, fontFamily: font.regular, color: colors.textSubtle, marginLeft: 'auto' },
   strip: { paddingVertical: 4, paddingHorizontal: 4, gap: 6 },
   cell: { alignItems: 'center', width: 48, gap: 4 },
   circle: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 40, height: 40, borderRadius: radius.full,
     alignItems: 'center', justifyContent: 'center',
   },
-  circleText: { fontSize: 13, fontWeight: '700', color: '#ffffff' },
-  dayNum: { fontSize: 10, color: '#6b7280' },
+  circleText: { fontSize: 13, fontWeight: '700', fontFamily: font.bold, color: colors.white },
+  dayNum: { fontSize: 10, fontFamily: font.regular, color: colors.textMuted },
   legend: { flexDirection: 'row', gap: 16, marginTop: 10 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 12, height: 12, borderRadius: 6 },
-  legendText: { fontSize: 12, color: '#6b7280' },
+  legendText: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted },
 })
 
 // ─── custom specific days editor ──────────────────────────────────────────────
@@ -330,7 +330,6 @@ function CustomSpecificEditor({ specificDays, onChange, startDate, endDate, owne
     onChange(next)
   }, [specificDays, ownerA.id, ownerB.id, onChange])
 
-  // count assignments
   const totalAssigned = Object.keys(specificDays).length
   const aCount = Object.values(specificDays).filter(id => id === ownerA.id).length
   const bCount = totalAssigned - aCount
@@ -398,11 +397,6 @@ function CustomSpecificEditor({ specificDays, onChange, startDate, endDate, owne
           <View style={[se.tallyDot, { backgroundColor: ownerB.color }]} />
           <Text style={se.tallyText}>{ownerB.initials}: {bCount} days</Text>
         </View>
-        <Text style={se.tallyUnassigned}>
-          Unassigned: {Object.keys(cells.filter(c => c.dateStr && c.dateStr >= startYMD && c.dateStr <= endYMD)).length - totalAssigned < 0
-            ? 0
-            : /* simple approach */ '—'}
-        </Text>
       </View>
     </View>
   )
@@ -412,32 +406,31 @@ const se = StyleSheet.create({
   container: { marginTop: 8 },
   monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   navBtn: { padding: 4 },
-  navArrow: { fontSize: 26, color: '#374151', fontWeight: '300', lineHeight: 30 },
-  navDisabled: { color: '#d1d5db' },
-  monthTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  navArrow: { fontSize: 26, fontFamily: font.regular, color: colors.textSecondary, fontWeight: '300', lineHeight: 30 },
+  navDisabled: { color: colors.textSubtle },
+  monthTitle: { fontSize: 16, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
   weekRow: { flexDirection: 'row', marginBottom: 4 },
   weekCell: { alignItems: 'center', paddingVertical: 2 },
-  weekLabel: { fontSize: 10, fontWeight: '600', color: '#9ca3af' },
+  weekLabel: { fontSize: 10, fontWeight: '600', fontFamily: font.semibold, color: colors.textSubtle },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { alignItems: 'center', justifyContent: 'center', padding: 2 },
   cellOut: { opacity: 0.25 },
   ownerCircle: {
-    width: 34, height: 34, borderRadius: 17,
+    width: 34, height: 34, borderRadius: radius.full,
     alignItems: 'center', justifyContent: 'center',
   },
-  ownerInitials: { fontSize: 12, fontWeight: '700', color: '#ffffff' },
+  ownerInitials: { fontSize: 12, fontWeight: '700', fontFamily: font.bold, color: colors.white },
   emptyCircle: {
-    width: 34, height: 34, borderRadius: 17, borderWidth: 1,
-    borderColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center',
+    width: 34, height: 34, borderRadius: radius.full, borderWidth: 1,
+    borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
   },
-  emptyCircleOut: { borderColor: '#f3f4f6' },
-  dayNum: { fontSize: 12, color: '#6b7280' },
-  dayNumOut: { color: '#d1d5db' },
+  emptyCircleOut: { borderColor: colors.borderHair },
+  dayNum: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted },
+  dayNumOut: { color: colors.textSubtle },
   tally: { flexDirection: 'row', gap: 12, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' },
   tallyItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   tallyDot: { width: 10, height: 10, borderRadius: 5 },
-  tallyText: { fontSize: 12, color: '#374151', fontWeight: '500' },
-  tallyUnassigned: { fontSize: 12, color: '#9ca3af' },
+  tallyText: { fontSize: 12, fontFamily: font.medium, color: colors.textSecondary, fontWeight: '500' },
 })
 
 // ─── main form screen ─────────────────────────────────────────────────────────
@@ -463,7 +456,6 @@ export default function NewScheduleScreen() {
   const coProfile    = data?.coParentProfile
   const connectionId = data?.connectionId
 
-  // Owner objects for custom editors
   const ownerA = useMemo(() => myProfile
     ? { id: myProfile.id, color: myProfile.color, initials: myProfile.initials }
     : null, [myProfile])
@@ -471,7 +463,6 @@ export default function NewScheduleScreen() {
     ? { id: coProfile.id, color: coProfile.color, initials: coProfile.initials }
     : null, [coProfile])
 
-  // When pattern changes to custom_cycle, initialise sequence with firstOwner or default split
   const handlePatternSelect = useCallback((p: UIPattern) => {
     setPattern(p)
     if (p === 'custom_cycle' && firstOwnerId && ownerA && ownerB) {
@@ -482,7 +473,6 @@ export default function NewScheduleScreen() {
     }
   }, [firstOwnerId, ownerA, ownerB])
 
-  // When first owner changes, also re-init cycle sequence
   const handleFirstOwner = useCallback((id: string) => {
     setFirstOwnerId(id)
     if (pattern === 'custom_cycle' && ownerA && ownerB) {
@@ -493,7 +483,6 @@ export default function NewScheduleScreen() {
     }
   }, [pattern, ownerA, ownerB])
 
-  // ── validation ──────────────────────────────────────────────────────────────
   function validate(): string | null {
     if (!name.trim())  return 'Schedule name is required'
     if (!pattern)      return 'Select a pattern'
@@ -506,12 +495,10 @@ export default function NewScheduleScreen() {
     return null
   }
 
-  // ── submit ──────────────────────────────────────────────────────────────────
   async function submit(andPropose: boolean) {
     const err = validate()
     if (err) { Alert.alert('Check form', err); return }
 
-    // Build pattern_data
     const isCustomCycle    = pattern === 'custom_cycle'
     const isCustomSpecific = pattern === 'custom_specific'
     const apiPattern       = isCustomCycle || isCustomSpecific ? 'custom' : pattern!
@@ -557,8 +544,6 @@ export default function NewScheduleScreen() {
     router.back()
   }
 
-  // ── render ──────────────────────────────────────────────────────────────────
-
   const showCustomEditor = pattern === 'custom_cycle' || pattern === 'custom_specific'
   const startMin = new Date()
   const endMin   = startDate ?? new Date()
@@ -566,7 +551,7 @@ export default function NewScheduleScreen() {
   if (profileLoading || !myProfile) {
     return (
       <SafeAreaView style={s.centered}>
-        <ActivityIndicator size="large" color="#374151" />
+        <ActivityIndicator size="large" color={colors.accent} />
       </SafeAreaView>
     )
   }
@@ -607,7 +592,7 @@ export default function NewScheduleScreen() {
           value={name}
           onChangeText={setName}
           placeholder="e.g. Summer 2026"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.textSubtle}
           maxLength={80}
         />
 
@@ -723,7 +708,7 @@ export default function NewScheduleScreen() {
               value={note}
               onChangeText={setNote}
               placeholder="Message to co-parent about this proposal…"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.textSubtle}
               multiline
               maxLength={500}
             />
@@ -734,7 +719,7 @@ export default function NewScheduleScreen() {
         {pattern && startDate && endDate && firstOwnerId && (
           <View style={s.footer}>
             {saving ? (
-              <ActivityIndicator size="large" color="#374151" style={{ marginVertical: 16 }} />
+              <ActivityIndicator size="large" color={colors.accent} style={{ marginVertical: 16 }} />
             ) : (
               <>
                 <TouchableOpacity style={[s.btn, s.btnPrimary]} onPress={() => submit(true)}>
@@ -757,43 +742,43 @@ export default function NewScheduleScreen() {
 // ─── styles ──────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
-  centered:  { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
-  errText:   { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 12 },
+  container: { flex: 1, backgroundColor: colors.surface },
+  centered:  { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  errText:   { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 12 },
   backLink:  { paddingHorizontal: 20, paddingVertical: 10 },
-  backLinkText: { color: '#3b82f6', fontSize: 15 },
+  backLinkText: { color: colors.accent, fontSize: 15, fontFamily: font.regular },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+    borderBottomWidth: 1, borderBottomColor: colors.borderHair,
   },
   cancelBtn: { width: 64 },
-  cancelText: { fontSize: 16, color: '#6b7280' },
-  title: { fontSize: 17, fontWeight: '600', color: '#111827' },
+  cancelText: { fontSize: 16, fontFamily: font.regular, color: colors.textMuted },
+  title: { fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary },
 
   form: { paddingHorizontal: 20, paddingTop: 20 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 16 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginTop: 24, marginBottom: 10 },
-  optional: { fontWeight: '400', color: '#9ca3af' },
+  label: { fontSize: 13, fontWeight: '600', fontFamily: font.semibold, color: colors.textSecondary, marginBottom: 6, marginTop: 16 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, marginTop: 24, marginBottom: 10 },
+  optional: { fontWeight: '400', fontFamily: font.regular, color: colors.textSubtle },
 
   input: {
-    backgroundColor: '#f9fafb', borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb',
-    paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: '#1f2937',
+    backgroundColor: colors.surface2, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, fontFamily: font.regular, color: colors.textPrimary,
   },
   noteInput: { minHeight: 80, textAlignVertical: 'top' },
 
   // Pattern grid
   patternGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   patternCard: {
-    width: '47%', borderRadius: 12, borderWidth: 1.5, borderColor: '#e5e7eb',
-    backgroundColor: '#f9fafb', paddingHorizontal: 12, paddingVertical: 12,
+    width: '47%', borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border,
+    backgroundColor: colors.surface2, paddingHorizontal: 12, paddingVertical: 12,
   },
-  patternCardActive: { borderColor: '#1f2937', backgroundColor: '#f0f0f0' },
-  patternLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 2 },
-  patternLabelActive: { color: '#111827' },
-  patternSub: { fontSize: 11, color: '#9ca3af' },
-  patternSubActive: { color: '#6b7280' },
+  patternCardActive: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
+  patternLabel: { fontSize: 13, fontWeight: '600', fontFamily: font.semibold, color: colors.textSecondary, marginBottom: 2 },
+  patternLabelActive: { color: colors.accent },
+  patternSub: { fontSize: 11, fontFamily: font.regular, color: colors.textSubtle },
+  patternSubActive: { color: colors.textMuted },
 
   // Date range
   dateRow: { flexDirection: 'row', gap: 10 },
@@ -802,21 +787,21 @@ const s = StyleSheet.create({
   // Owner selector
   ownerRow: { flexDirection: 'row', gap: 12 },
   ownerCard: {
-    flex: 1, borderRadius: 14, borderWidth: 1.5, borderColor: '#e5e7eb',
-    backgroundColor: '#f9fafb', alignItems: 'center', paddingVertical: 16, gap: 8,
+    flex: 1, borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.border,
+    backgroundColor: colors.surface2, alignItems: 'center', paddingVertical: 16, gap: 8,
   },
   ownerAvatar: {
-    width: 48, height: 48, borderRadius: 24,
+    width: 48, height: 48, borderRadius: radius.full,
     alignItems: 'center', justifyContent: 'center',
   },
-  ownerInitials: { fontSize: 17, fontWeight: '700', color: '#ffffff' },
-  ownerName: { fontSize: 13, fontWeight: '500', color: '#374151' },
+  ownerInitials: { fontSize: 17, fontWeight: '700', fontFamily: font.bold, color: colors.white },
+  ownerName: { fontSize: 13, fontWeight: '500', fontFamily: font.medium, color: colors.textSecondary },
 
   // Footer
   footer: { marginTop: 28, gap: 10 },
-  btn: { borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
-  btnPrimary: { backgroundColor: '#1f2937' },
-  btnPrimaryText: { color: '#ffffff', fontWeight: '700', fontSize: 15 },
-  btnGhost: { backgroundColor: '#f3f4f6' },
-  btnGhostText: { color: '#374151', fontWeight: '600', fontSize: 15 },
+  btn: { borderRadius: radius.md, paddingVertical: 15, alignItems: 'center' },
+  btnPrimary: { backgroundColor: colors.accent },
+  btnPrimaryText: { color: colors.white, fontWeight: '700', fontFamily: font.bold, fontSize: 15 },
+  btnGhost: { backgroundColor: colors.surface2 },
+  btnGhostText: { color: colors.textSecondary, fontWeight: '600', fontFamily: font.semibold, fontSize: 15 },
 })

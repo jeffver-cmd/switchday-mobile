@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { colors, radius, shadow, font } from '@/lib/theme'
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -36,8 +37,12 @@ const FILTER_TABS: { key: FilterTab; label: string }[] = [
 // ─── constants ───────────────────────────────────────────────────────────────
 
 const STATUS_COLORS: Record<ExpenseStatus, string> = {
-  requested: '#f59e0b', pending: '#3b82f6', approved: '#10b981',
-  paid: '#6b7280', disputed: '#ef4444', declined: '#9ca3af',
+  requested: colors.warning,
+  pending:   colors.info,
+  approved:  colors.success,
+  paid:      colors.textMuted as string,
+  disputed:  colors.danger,
+  declined:  colors.textSubtle as string,
 }
 const STATUS_LABELS: Record<ExpenseStatus, string> = {
   requested: 'Requested', pending: 'Pending', approved: 'Approved',
@@ -59,7 +64,6 @@ function usePortalExpenses() {
       if (!session) { setError('not_signed_in'); setLoading(false); return }
       const userId = session.user.id
 
-      // Get connection_id from children table
       const { data: childRow } = await supabase
         .from('children').select('connection_id')
         .eq('auth_user_id', userId).maybeSingle()
@@ -115,7 +119,7 @@ export default function PortalExpensesScreen() {
   if (loading) {
     return (
       <SafeAreaView style={S.centered}>
-        <ActivityIndicator size="large" color="#374151" />
+        <ActivityIndicator size="large" color={colors.accent} />
       </SafeAreaView>
     )
   }
@@ -161,7 +165,7 @@ export default function PortalExpensesScreen() {
         <FlatList
           data={filtered}
           keyExtractor={e => e.id}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />}
           contentContainerStyle={S.list}
           renderItem={({ item: exp }) => (
             <View style={S.card}>
@@ -191,34 +195,34 @@ export default function PortalExpensesScreen() {
 // ─── styles ──────────────────────────────────────────────────────────────────
 
 const S = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  centered:  { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb', paddingHorizontal: 24 },
-  errorText: { fontSize: 14, color: '#ef4444', textAlign: 'center', marginBottom: 12 },
-  retryBtn:  { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#1f2937', borderRadius: 10 },
-  retryText: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
+  container: { flex: 1, backgroundColor: colors.bg },
+  centered:  { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, paddingHorizontal: 24 },
+  errorText: { fontSize: 14, fontFamily: font.regular, color: colors.danger, textAlign: 'center', marginBottom: 12 },
+  retryBtn:  { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.accent, borderRadius: radius.md },
+  retryText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
 
   headerRow:  { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
-  headerTitle:{ fontSize: 22, fontWeight: '700', color: '#111827' },
+  headerTitle:{ fontSize: 22, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
 
   filterRow: { flexDirection: 'row', paddingHorizontal: 16, paddingBottom: 12, gap: 8 },
-  filterTab: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: '#f3f4f6' },
-  filterTabActive: { backgroundColor: '#111827' },
-  filterTabText:   { fontSize: 13, fontWeight: '500', color: '#6b7280' },
-  filterTabTextActive: { color: '#ffffff' },
+  filterTab: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.full, backgroundColor: colors.surface2 },
+  filterTabActive: { backgroundColor: colors.accent },
+  filterTabText:   { fontSize: 13, fontWeight: '500', fontFamily: font.medium, color: colors.textMuted },
+  filterTabTextActive: { color: colors.white },
 
   emptyBox:  { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  emptyTitle:{ fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 8 },
-  emptySubtitle: { fontSize: 13, color: '#9ca3af', textAlign: 'center' },
+  emptyTitle:{ fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 8 },
+  emptySubtitle: { fontSize: 13, fontFamily: font.regular, color: colors.textSubtle, textAlign: 'center' },
 
   list: { paddingHorizontal: 16, paddingBottom: 32 },
-  card: { backgroundColor: '#ffffff', borderRadius: 16, padding: 16, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1 },
+  card: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 16, marginBottom: 10, ...shadow.sm },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 },
   cardLeft:{ flex: 1, marginRight: 12 },
   cardRight: { alignItems: 'flex-end', gap: 6 },
-  description: { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 3 },
-  meta: { fontSize: 12, color: '#9ca3af' },
-  amount: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  statusText:  { fontSize: 11, fontWeight: '700' },
-  split: { fontSize: 12, color: '#9ca3af' },
+  description: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 3 },
+  meta: { fontSize: 12, fontFamily: font.regular, color: colors.textSubtle },
+  amount: { fontSize: 18, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm },
+  statusText:  { fontSize: 11, fontWeight: '700', fontFamily: font.bold },
+  split: { fontSize: 12, fontFamily: font.regular, color: colors.textSubtle },
 })

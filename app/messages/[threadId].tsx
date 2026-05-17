@@ -8,12 +8,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  SafeAreaView as RNSafeAreaView,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useMessages, sendMessage, Message } from '@/lib/hooks/useMessages'
+import { colors, radius, font } from '@/lib/theme'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -152,7 +152,7 @@ export default function ConversationScreen() {
         {/* Messages */}
         {loading ? (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color="#374151" />
+            <ActivityIndicator size="large" color={colors.accent} />
           </View>
         ) : error ? (
           <View style={styles.centered}>
@@ -188,7 +188,7 @@ export default function ConversationScreen() {
             value={text}
             onChangeText={setText}
             placeholder="Message…"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.textSubtle}
             multiline
             maxLength={2000}
             returnKeyType="default"
@@ -200,7 +200,7 @@ export default function ConversationScreen() {
             activeOpacity={0.8}
           >
             {sending ? (
-              <ActivityIndicator size="small" color="#ffffff" />
+              <ActivityIndicator size="small" color={colors.white} />
             ) : (
               <Text style={styles.sendBtnText}>↑</Text>
             )}
@@ -214,10 +214,10 @@ export default function ConversationScreen() {
 // ─── styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
+  container: { flex: 1, backgroundColor: colors.surface },
   flex: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  errorText: { fontSize: 14, color: '#6b7280' },
+  errorText: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted },
 
   // Header
   header: {
@@ -226,11 +226,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: colors.borderHair,
   },
   backBtn: { padding: 8, width: 44 },
-  backArrow: { fontSize: 28, color: '#374151', fontWeight: '300', lineHeight: 30 },
-  headerTitle: { flex: 1, fontSize: 16, fontWeight: '600', color: '#111827', textAlign: 'center' },
+  backArrow: { fontSize: 28, fontFamily: font.regular, color: colors.textSecondary, fontWeight: '300', lineHeight: 30 },
+  headerTitle: { flex: 1, fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, textAlign: 'center' },
   headerRight: { width: 44 },
 
   // Messages
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
 
   // Day separator
   daySep: { alignItems: 'center', marginVertical: 12 },
-  daySepText: { fontSize: 12, color: '#9ca3af', fontWeight: '500' },
+  daySepText: { fontSize: 12, fontFamily: font.regular, color: colors.textSubtle, fontWeight: '500' },
 
   // Bubbles
   bubbleRow: { marginVertical: 1, maxWidth: '80%' },
@@ -246,14 +246,14 @@ const styles = StyleSheet.create({
   bubbleRowThem: { alignSelf: 'flex-start', alignItems: 'flex-start' },
 
   bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9 },
-  bubbleMe: { backgroundColor: '#1f2937', borderBottomRightRadius: 4 },
-  bubbleThem: { backgroundColor: '#f3f4f6', borderBottomLeftRadius: 4 },
+  bubbleMe: { backgroundColor: colors.accent, borderBottomRightRadius: 4 },
+  bubbleThem: { backgroundColor: colors.surface2, borderBottomLeftRadius: 4 },
 
-  bubbleText: { fontSize: 15, lineHeight: 20 },
-  bubbleTextMe: { color: '#ffffff' },
-  bubbleTextThem: { color: '#1f2937' },
+  bubbleText: { fontSize: 15, fontFamily: font.regular, lineHeight: 20 },
+  bubbleTextMe: { color: colors.white },
+  bubbleTextThem: { color: colors.textPrimary },
 
-  bubbleTime: { fontSize: 11, color: '#9ca3af', marginTop: 3, marginHorizontal: 4 },
+  bubbleTime: { fontSize: 11, fontFamily: font.regular, color: colors.textSubtle, marginTop: 3, marginHorizontal: 4 },
   bubbleTimeMe: { textAlign: 'right' },
   bubbleTimeThem: { textAlign: 'left' },
 
@@ -265,28 +265,29 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingBottom: Platform.OS === 'ios' ? 24 : 10,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-    backgroundColor: '#ffffff',
+    borderTopColor: colors.borderHair,
+    backgroundColor: colors.surface,
     gap: 8,
   },
   input: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.surface2,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#1f2937',
+    fontFamily: font.regular,
+    color: colors.textPrimary,
     maxHeight: 120,
   },
   sendBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#1f2937',
+    width: 40, height: 40, borderRadius: radius.full,
+    backgroundColor: colors.accent,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 2,
   },
-  sendBtnDisabled: { backgroundColor: '#d1d5db' },
-  sendBtnText: { color: '#ffffff', fontSize: 20, fontWeight: '700', lineHeight: 22 },
+  sendBtnDisabled: { backgroundColor: colors.border },
+  sendBtnText: { color: colors.white, fontSize: 20, fontWeight: '700', fontFamily: font.bold, lineHeight: 22 },
 
-  sendError: { fontSize: 12, color: '#ef4444', textAlign: 'center', paddingHorizontal: 16, paddingBottom: 4 },
+  sendError: { fontSize: 12, fontFamily: font.regular, color: colors.danger, textAlign: 'center', paddingHorizontal: 16, paddingBottom: 4 },
 })

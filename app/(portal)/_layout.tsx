@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import { colors, font } from '@/lib/theme'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -15,13 +16,13 @@ export default function PortalLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopColor: '#f3f4f6',
+          backgroundColor: colors.surface,
+          borderTopColor: colors.borderHair,
           borderTopWidth: 1,
         },
-        tabBarActiveTintColor: '#111827',
-        tabBarInactiveTintColor: '#9ca3af',
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.textSubtle,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '500', fontFamily: font.medium },
       }}
     >
       <Tabs.Screen

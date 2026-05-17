@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useThreads, ThreadSummary } from '@/lib/hooks/useThreads'
+import { colors, radius, font } from '@/lib/theme'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ function ThreadRow({ item, onPress }: ThreadRowProps) {
       {/* Avatar / type icon */}
       <View style={styles.avatarWrap}>
         <View style={[styles.avatar, hasUnread && styles.avatarUnread]}>
-          <Text style={styles.avatarText}>
+          <Text style={[styles.avatarText, hasUnread && styles.avatarTextUnread]}>
             {item.topic.charAt(0).toUpperCase()}
           </Text>
         </View>
@@ -86,7 +87,7 @@ export default function MessagesScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color="#374151" />
+        <ActivityIndicator size="large" color={colors.accent} />
       </SafeAreaView>
     )
   }
@@ -109,7 +110,7 @@ export default function MessagesScreen() {
       <FlatList
         data={data?.threads ?? []}
         keyExtractor={item => item.id}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />}
         contentContainerStyle={styles.list}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         renderItem={({ item }) => (
@@ -133,46 +134,47 @@ export default function MessagesScreen() {
 // ─── styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', paddingHorizontal: 24 },
+  container: { flex: 1, backgroundColor: colors.surface },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, paddingHorizontal: 24 },
 
-  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  heading: { fontSize: 24, fontWeight: '700', color: '#111827' },
+  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.borderHair },
+  heading: { fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
 
   list: { flexGrow: 1 },
-  separator: { height: 1, backgroundColor: '#f3f4f6', marginLeft: 76 },
+  separator: { height: 1, backgroundColor: colors.borderHair, marginLeft: 76 },
 
   // Thread row
   row: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center' },
   avatarWrap: { marginRight: 12 },
   avatar: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: '#e5e7eb',
+    width: 48, height: 48, borderRadius: radius.full,
+    backgroundColor: colors.surface2,
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarUnread: { backgroundColor: '#1f2937' },
-  avatarText: { fontSize: 18, fontWeight: '700', color: '#374151' },
+  avatarUnread: { backgroundColor: colors.accent },
+  avatarText: { fontSize: 18, fontWeight: '700', fontFamily: font.bold, color: colors.textSecondary },
+  avatarTextUnread: { color: colors.white },
 
   rowContent: { flex: 1 },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 },
-  topic: { fontSize: 15, fontWeight: '500', color: '#1f2937', flex: 1, marginRight: 8 },
-  topicBold: { fontWeight: '700' },
-  time: { fontSize: 12, color: '#9ca3af' },
+  topic: { fontSize: 15, fontWeight: '500', fontFamily: font.medium, color: colors.textPrimary, flex: 1, marginRight: 8 },
+  topicBold: { fontWeight: '700', fontFamily: font.bold },
+  time: { fontSize: 12, fontFamily: font.regular, color: colors.textSubtle },
 
   rowBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
-  preview: { fontSize: 13, color: '#9ca3af', flex: 1, marginRight: 8 },
-  previewBold: { color: '#374151', fontWeight: '500' },
+  preview: { fontSize: 13, fontFamily: font.regular, color: colors.textSubtle, flex: 1, marginRight: 8 },
+  previewBold: { color: colors.textSecondary, fontWeight: '500', fontFamily: font.medium },
 
   badge: {
-    backgroundColor: '#1f2937', borderRadius: 10,
+    backgroundColor: colors.accent, borderRadius: radius.full,
     minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5,
   },
-  badgeText: { fontSize: 11, fontWeight: '700', color: '#ffffff' },
+  badgeText: { fontSize: 11, fontWeight: '700', fontFamily: font.bold, color: colors.white },
 
-  typeLabel: { fontSize: 11, color: '#d1d5db', marginTop: 1 },
+  typeLabel: { fontSize: 11, fontFamily: font.regular, color: colors.textSubtle, marginTop: 1 },
 
   // Empty
   emptyBox: { paddingVertical: 60, alignItems: 'center', paddingHorizontal: 32 },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 8, textAlign: 'center' },
-  emptySubtitle: { fontSize: 13, color: '#6b7280', textAlign: 'center' },
+  emptyTitle: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 8, textAlign: 'center' },
+  emptySubtitle: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, textAlign: 'center' },
 })

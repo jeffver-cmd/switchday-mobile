@@ -6,6 +6,7 @@ import { type EventSubscription } from 'expo-modules-core'
 import { useRouter } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { registerForPushNotificationsAsync } from '@/lib/notifications'
+import { colors, font } from '@/lib/theme'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -45,15 +46,16 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopColor: '#f3f4f6',
+          backgroundColor: colors.surface,
+          borderTopColor: colors.borderHair,
           borderTopWidth: 1,
         },
-        tabBarActiveTintColor: '#111827',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.textSubtle,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '500',
+          fontFamily: font.medium,
         },
       }}
     >

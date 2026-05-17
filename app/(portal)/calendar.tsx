@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { colors, radius, shadow, font } from '@/lib/theme'
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -66,7 +67,6 @@ function usePortalCalendar(year: number, month: number) {
       if (!session) { setError('not_signed_in'); setLoading(false); return }
       const userId = session.user.id
 
-      // Child lookup → connection_id
       const { data: childRow } = await supabase
         .from('children').select('id, connection_id')
         .eq('auth_user_id', userId).maybeSingle()
@@ -76,7 +76,6 @@ function usePortalCalendar(year: number, month: number) {
 
       const { start, end } = monthBounds(year, month)
 
-      // Parallel: schedule, events, all non-self profiles (parents)
       const [schedResult, evResult, profResult] = await Promise.all([
         supabase
           .from('custody_schedule_current')
@@ -201,7 +200,7 @@ export default function PortalCalendarScreen() {
     <SafeAreaView style={S.container}>
       <ScrollView
         contentContainerStyle={S.scroll}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
         {/* Month header */}
@@ -227,7 +226,7 @@ export default function PortalCalendarScreen() {
         {/* Grid */}
         {loading ? (
           <View style={[S.loadingBox, { height: CELL * 6 }]}>
-            <ActivityIndicator size="large" color="#374151" />
+            <ActivityIndicator size="large" color={colors.accent} />
           </View>
         ) : error ? (
           <View style={S.emptyBox}>
@@ -308,44 +307,44 @@ export default function PortalCalendarScreen() {
 // ─── styles ──────────────────────────────────────────────────────────────────
 
 const S = StyleSheet.create({
-  container:  { flex: 1, backgroundColor: '#f9fafb' },
+  container:  { flex: 1, backgroundColor: colors.bg },
   scroll:     { paddingHorizontal: 16, paddingTop: 8 },
   monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingHorizontal: 4 },
   navBtn:     { padding: 4 },
-  navArrow:   { fontSize: 28, color: '#374151', fontWeight: '300', lineHeight: 32 },
-  monthTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  navArrow:   { fontSize: 28, fontFamily: font.regular, color: colors.textSecondary, fontWeight: '300', lineHeight: 32 },
+  monthTitle: { fontSize: 18, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
   weekRow:    { flexDirection: 'row', marginBottom: 4 },
   weekCell:   { alignItems: 'center', paddingVertical: 4 },
-  weekLabel:  { fontSize: 11, fontWeight: '600', color: '#9ca3af', letterSpacing: 0.5 },
+  weekLabel:  { fontSize: 11, fontWeight: '600', fontFamily: font.semibold, color: colors.textSubtle, letterSpacing: 0.5 },
   grid:       { flexDirection: 'row', flexWrap: 'wrap' },
   loadingBox: { alignItems: 'center', justifyContent: 'center' },
   emptyBox:   { paddingVertical: 40, alignItems: 'center', paddingHorizontal: 24 },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: '#111827', textAlign: 'center', marginBottom: 8 },
-  emptySubtitle: { fontSize: 13, color: '#6b7280', textAlign: 'center' },
-  dayCell:    { alignItems: 'center', borderRadius: 8, paddingVertical: 4, overflow: 'hidden', position: 'relative' },
-  dayCellSelected: { borderWidth: 1.5, borderColor: '#374151' },
-  switchStripe: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, borderTopLeftRadius: 8, borderTopRightRadius: 8 },
-  dayNumWrap: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  todayCircle: { backgroundColor: '#1f2937' },
-  dayNum:     { fontSize: 13, fontWeight: '500', color: '#1f2937' },
-  todayNum:   { color: '#ffffff', fontWeight: '700' },
-  selNum:     { fontWeight: '700' },
-  switchLabel: { fontSize: 9, color: '#6b7280', marginTop: 1 },
+  emptyTitle: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, textAlign: 'center', marginBottom: 8 },
+  emptySubtitle: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, textAlign: 'center' },
+  dayCell:    { alignItems: 'center', borderRadius: radius.sm, paddingVertical: 4, overflow: 'hidden', position: 'relative' },
+  dayCellSelected: { borderWidth: 1.5, borderColor: colors.accent },
+  switchStripe: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, borderTopLeftRadius: radius.sm, borderTopRightRadius: radius.sm },
+  dayNumWrap: { width: 26, height: 26, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  todayCircle: { backgroundColor: colors.accent },
+  dayNum:     { fontSize: 13, fontWeight: '500', fontFamily: font.medium, color: colors.textPrimary },
+  todayNum:   { color: colors.white, fontWeight: '700', fontFamily: font.bold },
+  selNum:     { fontWeight: '700', fontFamily: font.bold },
+  switchLabel: { fontSize: 9, fontFamily: font.regular, color: colors.textMuted, marginTop: 1 },
   dotsRow:    { flexDirection: 'row', gap: 2, marginTop: 2 },
   dot:        { width: 4, height: 4, borderRadius: 2 },
-  legend:     { flexDirection: 'row', gap: 16, paddingVertical: 12, paddingHorizontal: 4, marginTop: 4, borderTopWidth: 1, borderTopColor: '#e5e7eb', marginBottom: 4 },
+  legend:     { flexDirection: 'row', gap: 16, paddingVertical: 12, paddingHorizontal: 4, marginTop: 4, borderTopWidth: 1, borderTopColor: colors.border, marginBottom: 4 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendSwatch: { width: 14, height: 14, borderRadius: 3 },
-  legendSwitch: { fontSize: 14, color: '#6b7280' },
-  legendLabel: { fontSize: 12, color: '#6b7280' },
+  legendSwitch: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted },
+  legendLabel: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted },
 })
 
 const detailS = StyleSheet.create({
-  card: { backgroundColor: '#ffffff', borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1 },
-  dateLabel: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 12 },
-  none: { fontSize: 13, color: '#9ca3af', fontStyle: 'italic' },
-  row: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 10 },
+  card: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 16, marginBottom: 12, ...shadow.sm },
+  dateLabel: { fontSize: 15, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, marginBottom: 12 },
+  none: { fontSize: 13, fontFamily: font.regular, color: colors.textSubtle, fontStyle: 'italic' },
+  row: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.borderHair, gap: 10 },
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 3 },
-  title: { fontSize: 14, fontWeight: '500', color: '#1f2937' },
-  meta: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  title: { fontSize: 14, fontWeight: '500', fontFamily: font.medium, color: colors.textPrimary },
+  meta: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, marginTop: 2 },
 })

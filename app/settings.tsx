@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '@/lib/supabase'
 import { useSettings } from '@/lib/hooks/useSettings'
+import { colors, radius, shadow, font } from '@/lib/theme'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -50,7 +51,7 @@ export default function SettingsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color="#374151" />
+        <ActivityIndicator size="large" color={colors.accent} />
       </SafeAreaView>
     )
   }
@@ -70,7 +71,7 @@ export default function SettingsScreen() {
       {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={22} color="#374151" />
+          <Ionicons name="chevron-back" size={22} color={colors.textSecondary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
         <View style={styles.backBtn} />
@@ -91,11 +92,11 @@ export default function SettingsScreen() {
               <Text style={styles.profileName}>{myProfile.display_name}</Text>
               <View style={[
                 styles.planBadge,
-                { backgroundColor: myProfile.plan === 'pro' ? '#111827' : '#e5e7eb' },
+                { backgroundColor: myProfile.plan === 'pro' ? colors.accent : colors.surface2 },
               ]}>
                 <Text style={[
                   styles.planBadgeText,
-                  { color: myProfile.plan === 'pro' ? '#ffffff' : '#6b7280' },
+                  { color: myProfile.plan === 'pro' ? colors.white : colors.textMuted },
                 ]}>
                   {myProfile.plan === 'pro' ? 'Pro' : 'Free'}
                 </Text>
@@ -129,7 +130,7 @@ export default function SettingsScreen() {
         <Text style={styles.sectionLabel}>SWITCH DEFAULTS</Text>
         <View style={styles.card}>
           <View style={styles.infoRow}>
-            <Ionicons name="time-outline" size={18} color="#9ca3af" style={styles.infoIcon} />
+            <Ionicons name="time-outline" size={18} color={colors.textSubtle} style={styles.infoIcon} />
             <Text style={styles.infoLabel}>Switch time</Text>
             <Text style={styles.infoValue}>
               {switchTime ? formatTime(switchTime) : 'Not set'}
@@ -137,7 +138,7 @@ export default function SettingsScreen() {
           </View>
           {switchTimezone && (
             <View style={[styles.infoRow, styles.infoRowBorderless]}>
-              <Ionicons name="globe-outline" size={18} color="#9ca3af" style={styles.infoIcon} />
+              <Ionicons name="globe-outline" size={18} color={colors.textSubtle} style={styles.infoIcon} />
               <Text style={styles.infoLabel}>Timezone</Text>
               <Text style={styles.infoValue}>{switchTimezone}</Text>
             </View>
@@ -148,15 +149,15 @@ export default function SettingsScreen() {
         <Text style={styles.sectionLabel}>ACCOUNT</Text>
         <View style={styles.card}>
           <TouchableOpacity style={styles.actionRow} onPress={handleBilling}>
-            <Ionicons name="card-outline" size={20} color="#374151" style={styles.actionIcon} />
+            <Ionicons name="card-outline" size={20} color={colors.textSecondary} style={styles.actionIcon} />
             <Text style={styles.actionText}>Manage Billing</Text>
-            <Ionicons name="open-outline" size={16} color="#9ca3af" />
+            <Ionicons name="open-outline" size={16} color={colors.textSubtle} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.actionRow, styles.actionRowBorderless, styles.actionRowDestructive]}
+            style={[styles.actionRow, styles.actionRowBorderless]}
             onPress={handleSignOut}
           >
-            <Ionicons name="log-out-outline" size={20} color="#ef4444" style={styles.actionIcon} />
+            <Ionicons name="log-out-outline" size={20} color={colors.danger} style={styles.actionIcon} />
             <Text style={styles.actionTextDestructive}>Sign Out</Text>
           </TouchableOpacity>
         </View>
@@ -170,9 +171,9 @@ export default function SettingsScreen() {
 // ─── styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container:  { flex: 1, backgroundColor: '#f9fafb' },
-  centered:   { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb', paddingHorizontal: 24 },
-  errorText:  { fontSize: 14, color: '#ef4444', textAlign: 'center' },
+  container:  { flex: 1, backgroundColor: colors.bg },
+  centered:   { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, paddingHorizontal: 24 },
+  errorText:  { fontSize: 14, fontFamily: font.regular, color: colors.danger, textAlign: 'center' },
 
   // Header
   headerRow: {
@@ -180,60 +181,58 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12,
   },
   backBtn:     { width: 32, alignItems: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
+  headerTitle: { fontSize: 17, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
 
   // Scroll
   scroll:        { paddingHorizontal: 16, paddingTop: 8 },
   sectionLabel:  {
-    fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8,
+    fontSize: 11, fontWeight: '700', fontFamily: font.bold, color: colors.textSubtle, letterSpacing: 0.8,
     marginTop: 20, marginBottom: 8, marginLeft: 4,
   },
   bottomPad: { height: 40 },
 
   // Card
   card: {
-    backgroundColor: '#ffffff', borderRadius: 16, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 4, elevation: 1,
+    backgroundColor: colors.surface, borderRadius: radius.md, overflow: 'hidden',
+    ...shadow.sm,
   },
 
   // Profile row
   profileRow:  { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },
   avatarCircle: {
-    width: 48, height: 48, borderRadius: 24,
+    width: 48, height: 48, borderRadius: radius.full,
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarText:  { fontSize: 20, fontWeight: '700', color: '#ffffff' },
+  avatarText:  { fontSize: 20, fontWeight: '700', fontFamily: font.bold, color: colors.white },
   profileInfo: { flex: 1, gap: 6 },
-  profileName: { fontSize: 16, fontWeight: '600', color: '#111827' },
+  profileName: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary },
 
   // Plan badge
-  planBadge:     { alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  planBadgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+  planBadge:     { alignSelf: 'flex-start', borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3 },
+  planBadgeText: { fontSize: 11, fontWeight: '700', fontFamily: font.bold, letterSpacing: 0.5 },
 
   // Connected pill
   connectedPill: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' },
-  connectedDot:  { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10b981' },
-  connectedText: { fontSize: 12, color: '#10b981', fontWeight: '600' },
+  connectedDot:  { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success },
+  connectedText: { fontSize: 12, fontFamily: font.semibold, color: colors.success, fontWeight: '600' },
 
   // Info rows
   infoRow: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13,
-    borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+    borderBottomWidth: 1, borderBottomColor: colors.borderHair,
   },
   infoRowBorderless: { borderBottomWidth: 0 },
   infoIcon:  { marginRight: 10 },
-  infoLabel: { flex: 1, fontSize: 14, color: '#374151' },
-  infoValue: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
+  infoLabel: { flex: 1, fontSize: 14, fontFamily: font.regular, color: colors.textSecondary },
+  infoValue: { fontSize: 14, fontFamily: font.medium, color: colors.textMuted, fontWeight: '500' },
 
   // Action rows
   actionRow: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 15,
-    borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+    borderBottomWidth: 1, borderBottomColor: colors.borderHair,
   },
   actionRowBorderless:  { borderBottomWidth: 0 },
-  actionRowDestructive: { },
   actionIcon:           { marginRight: 12 },
-  actionText:           { flex: 1, fontSize: 15, color: '#111827' },
-  actionTextDestructive:{ flex: 1, fontSize: 15, color: '#ef4444', fontWeight: '500' },
+  actionText:           { flex: 1, fontSize: 15, fontFamily: font.regular, color: colors.textPrimary },
+  actionTextDestructive:{ flex: 1, fontSize: 15, fontFamily: font.medium, color: colors.danger, fontWeight: '500' },
 })

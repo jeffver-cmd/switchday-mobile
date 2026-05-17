@@ -24,16 +24,17 @@ import {
   NewExpenseInput,
 } from '@/lib/hooks/useExpenses'
 import type { ExpenseStatus, ExpenseCategory } from '@/lib/types/database'
+import { colors, radius, shadow, font } from '@/lib/theme'
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
 const STATUS_COLORS: Record<ExpenseStatus, string> = {
-  requested: '#f59e0b',
-  pending:   '#3b82f6',
-  approved:  '#10b981',
-  paid:      '#6b7280',
-  disputed:  '#ef4444',
-  declined:  '#9ca3af',
+  requested: colors.warning,
+  pending:   colors.info,
+  approved:  colors.success,
+  paid:      colors.textMuted as string,
+  disputed:  colors.danger,
+  declined:  colors.textSubtle as string,
 }
 
 const STATUS_LABELS: Record<ExpenseStatus, string> = {
@@ -194,7 +195,7 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
           <Text style={modal.title}>Log Expense</Text>
           <TouchableOpacity onPress={handleSave} style={modal.saveBtn} disabled={saving}>
             {saving
-              ? <ActivityIndicator size="small" color="#1f2937" />
+              ? <ActivityIndicator size="small" color={colors.accent} />
               : <Text style={modal.saveText}>Save</Text>
             }
           </TouchableOpacity>
@@ -210,7 +211,7 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
               value={description}
               onChangeText={setDescription}
               placeholder="e.g. Soccer registration"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.textSubtle}
             />
 
             <Text style={modal.label}>Amount ($)</Text>
@@ -219,7 +220,7 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
               value={amount}
               onChangeText={setAmount}
               placeholder="0.00"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.textSubtle}
               keyboardType="decimal-pad"
             />
 
@@ -229,7 +230,7 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
               value={split}
               onChangeText={setSplit}
               placeholder="50"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.textSubtle}
               keyboardType="number-pad"
             />
 
@@ -314,7 +315,7 @@ export default function ExpensesScreen() {
       {/* List */}
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#374151" />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       ) : error === 'no_connection' ? (
         <View style={styles.centered}>
@@ -325,7 +326,7 @@ export default function ExpensesScreen() {
         <FlatList
           data={data?.expenses ?? []}
           keyExtractor={item => item.id}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           renderItem={({ item }) => (
@@ -365,34 +366,34 @@ export default function ExpensesScreen() {
 // ─── styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+  container: { flex: 1, backgroundColor: colors.bg },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
 
   // Header
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12,
-    backgroundColor: '#f9fafb',
+    backgroundColor: colors.bg,
   },
-  heading: { fontSize: 24, fontWeight: '700', color: '#111827' },
+  heading: { fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
   logBtn: {
-    backgroundColor: '#1f2937', borderRadius: 10,
+    backgroundColor: colors.accent, borderRadius: radius.md,
     paddingHorizontal: 14, paddingVertical: 7,
   },
-  logBtnText: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
+  logBtnText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
 
   // Tabs
   tabs: {
     flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, gap: 8,
   },
   tab: {
-    flex: 1, paddingVertical: 7, borderRadius: 8,
-    backgroundColor: '#ffffff', alignItems: 'center',
+    flex: 1, paddingVertical: 7, borderRadius: radius.sm,
+    backgroundColor: colors.surface, alignItems: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 2, elevation: 1,
   },
-  tabActive: { backgroundColor: '#1f2937' },
-  tabText: { fontSize: 12, fontWeight: '600', color: '#6b7280' },
-  tabTextActive: { color: '#ffffff' },
+  tabActive: { backgroundColor: colors.accent },
+  tabText: { fontSize: 12, fontWeight: '600', fontFamily: font.semibold, color: colors.textMuted },
+  tabTextActive: { color: colors.white },
 
   // List
   list: { paddingHorizontal: 16, paddingTop: 4, flexGrow: 1 },
@@ -400,65 +401,65 @@ const styles = StyleSheet.create({
 
   // Expense row
   expenseRow: {
-    backgroundColor: '#ffffff', borderRadius: 14, padding: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 1,
+    backgroundColor: colors.surface, borderRadius: radius.md, padding: 14,
+    ...shadow.sm,
   },
   expenseMain: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   expenseLeft: { flex: 1 },
-  expenseDesc: { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 3 },
-  expenseMeta: { fontSize: 12, color: '#9ca3af' },
-  expenseNote: { fontSize: 12, color: '#6b7280', fontStyle: 'italic', marginTop: 3 },
+  expenseDesc: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 3 },
+  expenseMeta: { fontSize: 12, fontFamily: font.regular, color: colors.textSubtle },
+  expenseNote: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, fontStyle: 'italic', marginTop: 3 },
   expenseRight: { alignItems: 'flex-end', gap: 4 },
-  expenseAmount: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  expenseShare: { fontSize: 11, color: '#6b7280' },
-  statusBadge: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
-  statusText: { fontSize: 11, fontWeight: '700' },
+  expenseAmount: { fontSize: 16, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
+  expenseShare: { fontSize: 11, fontFamily: font.regular, color: colors.textMuted },
+  statusBadge: { borderRadius: radius.sm, paddingHorizontal: 7, paddingVertical: 3 },
+  statusText: { fontSize: 11, fontWeight: '700', fontFamily: font.bold },
 
   // Expanded
-  expenseActions: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  splitDetail: { fontSize: 12, color: '#6b7280', marginBottom: 10 },
+  expenseActions: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.borderHair },
+  splitDetail: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, marginBottom: 10 },
   actionBtns: { flexDirection: 'row', gap: 10 },
-  actionBtn: { flex: 1, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  approveBtn: { backgroundColor: '#ecfdf5' },
-  approveBtnText: { fontSize: 14, fontWeight: '600', color: '#10b981' },
-  declineBtn: { backgroundColor: '#fef2f2' },
-  declineBtnText: { fontSize: 14, fontWeight: '600', color: '#ef4444' },
+  actionBtn: { flex: 1, borderRadius: radius.md, paddingVertical: 10, alignItems: 'center' },
+  approveBtn: { backgroundColor: colors.successSoft },
+  approveBtnText: { fontSize: 14, fontWeight: '600', fontFamily: font.semibold, color: colors.success },
+  declineBtn: { backgroundColor: colors.dangerSoft },
+  declineBtnText: { fontSize: 14, fontWeight: '600', fontFamily: font.semibold, color: colors.danger },
 
   // Empty
   emptyBox: { paddingVertical: 60, alignItems: 'center', paddingHorizontal: 32 },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 8, textAlign: 'center' },
-  emptySubtitle: { fontSize: 13, color: '#6b7280', textAlign: 'center' },
+  emptyTitle: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 8, textAlign: 'center' },
+  emptySubtitle: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, textAlign: 'center' },
 })
 
 const modal = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
+  container: { flex: 1, backgroundColor: colors.surface },
   flex: { flex: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+    borderBottomWidth: 1, borderBottomColor: colors.borderHair,
   },
   closeBtn: { width: 64 },
-  closeText: { fontSize: 16, color: '#6b7280' },
-  title: { fontSize: 17, fontWeight: '600', color: '#111827' },
+  closeText: { fontSize: 16, fontFamily: font.regular, color: colors.textMuted },
+  title: { fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary },
   saveBtn: { width: 64, alignItems: 'flex-end' },
-  saveText: { fontSize: 16, fontWeight: '600', color: '#1f2937' },
+  saveText: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.accent },
   form: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
   errText: {
-    color: '#ef4444', fontSize: 13, marginBottom: 12,
-    backgroundColor: '#fef2f2', borderRadius: 8, padding: 10,
+    color: colors.danger, fontSize: 13, fontFamily: font.regular, marginBottom: 12,
+    backgroundColor: colors.dangerSoft, borderRadius: radius.sm, padding: 10,
   },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 16 },
+  label: { fontSize: 13, fontWeight: '600', fontFamily: font.semibold, color: colors.textSecondary, marginBottom: 6, marginTop: 16 },
   input: {
-    backgroundColor: '#f9fafb', borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb',
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#1f2937',
+    backgroundColor: colors.surface2, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: font.regular, color: colors.textPrimary,
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   chip: {
-    borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb',
+    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
     paddingHorizontal: 12, paddingVertical: 7,
   },
-  chipActive: { backgroundColor: '#1f2937', borderColor: '#1f2937' },
-  chipText: { fontSize: 13, fontWeight: '500', color: '#6b7280' },
-  chipTextActive: { color: '#ffffff' },
+  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  chipText: { fontSize: 13, fontWeight: '500', fontFamily: font.medium, color: colors.textMuted },
+  chipTextActive: { color: colors.white },
 })

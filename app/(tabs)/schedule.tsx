@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router'
 import { useState, useCallback, useMemo } from 'react'
 import { useSchedules } from '@/lib/hooks/useSchedules'
 import { scheduleAction, deleteSchedule, Schedule, ScheduleStatus } from '@/lib/api/schedules'
+import { colors, radius, shadow, font } from '@/lib/theme'
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -26,11 +27,11 @@ const PATTERN_LABELS: Record<string, string> = {
 }
 
 const STATUS_COLORS: Record<ScheduleStatus, string> = {
-  draft:      '#9ca3af',
-  proposed:   '#3b82f6',
-  accepted:   '#10b981',
-  declined:   '#ef4444',
-  superseded: '#d1d5db',
+  draft:      colors.textSubtle as string,
+  proposed:   colors.info,
+  accepted:   colors.success,
+  declined:   colors.danger,
+  superseded: 'rgba(26,26,24,0.20)',
 }
 
 const STATUS_LABELS: Record<ScheduleStatus, string> = {
@@ -132,7 +133,7 @@ function ScheduleCard({ schedule, userId, coParentName, onRefresh, onProposeRepl
 
       {/* Actions */}
       {busy ? (
-        <View style={card.busyRow}><ActivityIndicator size="small" color="#374151" /></View>
+        <View style={card.busyRow}><ActivityIndicator size="small" color={colors.accent} /></View>
       ) : (
         <>
           {/* Draft — I created */}
@@ -188,7 +189,7 @@ function ScheduleCard({ schedule, userId, coParentName, onRefresh, onProposeRepl
                 value={declineReason}
                 onChangeText={setDeclineReason}
                 placeholder="Reason (optional)"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.textSubtle}
                 multiline
               />
               <View style={card.actions}>
@@ -256,7 +257,7 @@ export default function ScheduleScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color="#374151" />
+        <ActivityIndicator size="large" color={colors.accent} />
       </SafeAreaView>
     )
   }
@@ -285,7 +286,7 @@ export default function ScheduleScreen() {
 
       <ScrollView
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
         {/* Incoming proposals */}
@@ -364,8 +365,8 @@ export default function ScheduleScreen() {
 // ─── styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb', paddingHorizontal: 24 },
+  container: { flex: 1, backgroundColor: colors.bg },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, paddingHorizontal: 24 },
   scroll: { paddingHorizontal: 16, paddingTop: 4 },
   bottomPad: { height: 32 },
 
@@ -373,54 +374,54 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12,
   },
-  heading: { fontSize: 24, fontWeight: '700', color: '#111827' },
-  addBtn: { backgroundColor: '#1f2937', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 7 },
-  addBtnText: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
+  heading: { fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
+  addBtn: { backgroundColor: colors.accent, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 7 },
+  addBtnText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
 
   section: { marginBottom: 8 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8, marginBottom: 8, marginTop: 4 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', fontFamily: font.bold, color: colors.textSubtle, letterSpacing: 0.8, marginBottom: 8, marginTop: 4 },
 
   emptyBox: { paddingVertical: 60, alignItems: 'center', paddingHorizontal: 32 },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 8, textAlign: 'center' },
-  emptySubtitle: { fontSize: 13, color: '#6b7280', textAlign: 'center' },
+  emptyTitle: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 8, textAlign: 'center' },
+  emptySubtitle: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, textAlign: 'center' },
 
   historyToggle: { paddingVertical: 10 },
-  historyToggleText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
+  historyToggleText: { fontSize: 14, fontWeight: '600', fontFamily: font.semibold, color: colors.textMuted },
 })
 
 const card = StyleSheet.create({
   container: {
-    backgroundColor: '#ffffff', borderRadius: 16, padding: 16, marginBottom: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 4, elevation: 2,
+    backgroundColor: colors.surface, borderRadius: radius.md, padding: 16, marginBottom: 12,
+    ...shadow.sm,
   },
   header: { marginBottom: 12 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  name: { fontSize: 16, fontWeight: '700', color: '#111827', flex: 1, marginRight: 8 },
-  badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  badgeText: { fontSize: 11, fontWeight: '700' },
-  meta: { fontSize: 13, color: '#6b7280', marginBottom: 2 },
-  dates: { fontSize: 12, color: '#9ca3af' },
-  note: { fontSize: 13, color: '#6b7280', fontStyle: 'italic', marginTop: 6 },
-  declineNote: { fontSize: 12, color: '#ef4444', marginTop: 4 },
+  name: { fontSize: 16, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, flex: 1, marginRight: 8 },
+  badge: { borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeText: { fontSize: 11, fontWeight: '700', fontFamily: font.bold },
+  meta: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, marginBottom: 2 },
+  dates: { fontSize: 12, fontFamily: font.regular, color: colors.textSubtle },
+  note: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, fontStyle: 'italic', marginTop: 6 },
+  declineNote: { fontSize: 12, fontFamily: font.regular, color: colors.danger, marginTop: 4 },
 
   busyRow: { alignItems: 'center', paddingVertical: 8 },
 
   actions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  btn: { flex: 1, minWidth: 100, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  btnPrimary: { backgroundColor: '#1f2937' },
-  btnPrimaryText: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
-  btnGreen: { backgroundColor: '#10b981' },
-  btnRed: { backgroundColor: '#ef4444' },
-  btnGhost: { backgroundColor: '#f3f4f6' },
-  btnGhostText: { color: '#374151', fontWeight: '600', fontSize: 14 },
+  btn: { flex: 1, minWidth: 100, borderRadius: radius.md, paddingVertical: 10, alignItems: 'center' },
+  btnPrimary: { backgroundColor: colors.accent },
+  btnPrimaryText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
+  btnGreen: { backgroundColor: colors.success },
+  btnRed: { backgroundColor: colors.danger },
+  btnGhost: { backgroundColor: colors.surface2 },
+  btnGhostText: { color: colors.textSecondary, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
 
   waitingRow: { flex: 1, justifyContent: 'center' },
-  waitingText: { fontSize: 13, color: '#9ca3af', fontStyle: 'italic' },
+  waitingText: { fontSize: 13, fontFamily: font.regular, color: colors.textSubtle, fontStyle: 'italic' },
 
   declineForm: { marginTop: 8 },
   declineInput: {
-    backgroundColor: '#f9fafb', borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb',
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#1f2937',
+    backgroundColor: colors.surface2, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: font.regular, color: colors.textPrimary,
     marginBottom: 10, minHeight: 60,
   },
 })

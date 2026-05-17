@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useMemo } from 'react'
 import { useCalendar, CalendarEvent } from '@/lib/hooks/useCalendar'
+import { colors, radius, shadow, font } from '@/lib/theme'
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -150,7 +151,7 @@ export default function CalendarScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
         {/* Month header */}
@@ -176,7 +177,7 @@ export default function CalendarScreen() {
         {/* Calendar grid */}
         {loading ? (
           <View style={[styles.loadingBox, { height: CELL * 6 }]}>
-            <ActivityIndicator size="large" color="#374151" />
+            <ActivityIndicator size="large" color={colors.accent} />
           </View>
         ) : error === 'no_connection' ? (
           <View style={styles.emptyBox}>
@@ -288,7 +289,7 @@ export default function CalendarScreen() {
 // ─── styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+  container: { flex: 1, backgroundColor: colors.bg },
   scroll: { paddingHorizontal: 16, paddingTop: 8 },
   bottomPad: { height: 32 },
 
@@ -301,32 +302,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   navBtn: { padding: 4 },
-  navArrow: { fontSize: 28, color: '#374151', fontWeight: '300', lineHeight: 32 },
-  monthTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  navArrow: { fontSize: 28, fontFamily: font.regular, color: colors.textSecondary, fontWeight: '300', lineHeight: 32 },
+  monthTitle: { fontSize: 18, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
 
   // Weekday labels
   weekRow: { flexDirection: 'row', marginBottom: 4 },
   weekCell: { alignItems: 'center', paddingVertical: 4 },
-  weekLabel: { fontSize: 11, fontWeight: '600', color: '#9ca3af', letterSpacing: 0.5 },
+  weekLabel: { fontSize: 11, fontWeight: '600', fontFamily: font.semibold, color: colors.textSubtle, letterSpacing: 0.5 },
 
   // Grid
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   loadingBox: { alignItems: 'center', justifyContent: 'center' },
   emptyBox: { paddingVertical: 40, alignItems: 'center', paddingHorizontal: 24 },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: '#111827', textAlign: 'center', marginBottom: 8 },
-  emptySubtitle: { fontSize: 13, color: '#6b7280', textAlign: 'center' },
+  emptyTitle: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, textAlign: 'center', marginBottom: 8 },
+  emptySubtitle: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, textAlign: 'center' },
 
   // Day cell
   dayCell: {
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: radius.sm,
     paddingVertical: 4,
     overflow: 'hidden',
     position: 'relative',
   },
   dayCellSelected: {
     borderWidth: 1.5,
-    borderColor: '#374151',
+    borderColor: colors.accent,
   },
 
   // Switch stripe — thin bar at top of cell
@@ -336,25 +337,25 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 3,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
+    borderTopLeftRadius: radius.sm,
+    borderTopRightRadius: radius.sm,
   },
 
   // Day number
   dayNumWrap: {
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
   },
-  todayCircle: { backgroundColor: '#1f2937' },
-  dayNum: { fontSize: 13, fontWeight: '500', color: '#1f2937' },
-  todayNum: { color: '#ffffff', fontWeight: '700' },
-  selectedNum: { fontWeight: '700' },
+  todayCircle: { backgroundColor: colors.accent },
+  dayNum: { fontSize: 13, fontWeight: '500', fontFamily: font.medium, color: colors.textPrimary },
+  todayNum: { color: colors.white, fontWeight: '700', fontFamily: font.bold },
+  selectedNum: { fontWeight: '700', fontFamily: font.bold },
 
-  switchLabel: { fontSize: 9, color: '#6b7280', marginTop: 1 },
+  switchLabel: { fontSize: 9, fontFamily: font.regular, color: colors.textMuted, marginTop: 1 },
 
   // Event dots
   dotsRow: { flexDirection: 'row', gap: 2, marginTop: 2 },
@@ -368,39 +369,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     marginTop: 4,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: colors.border,
     marginBottom: 4,
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendSwatch: { width: 14, height: 14, borderRadius: 3 },
-  legendSwitch: { fontSize: 14, color: '#6b7280' },
-  legendLabel: { fontSize: 12, color: '#6b7280' },
+  legendSwitch: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted },
+  legendLabel: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted },
 })
 
 const detailStyles = StyleSheet.create({
   container: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 1,
+    ...shadow.sm,
   },
-  dateLabel: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 12 },
-  noEvents: { fontSize: 13, color: '#9ca3af', fontStyle: 'italic' },
+  dateLabel: { fontSize: 15, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, marginBottom: 12 },
+  noEvents: { fontSize: 13, fontFamily: font.regular, color: colors.textSubtle, fontStyle: 'italic' },
   eventRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: colors.borderHair,
     gap: 10,
   },
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 3 },
   eventInfo: { flex: 1 },
-  eventTitle: { fontSize: 14, fontWeight: '500', color: '#1f2937' },
-  eventMeta: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  eventTitle: { fontSize: 14, fontWeight: '500', fontFamily: font.medium, color: colors.textPrimary },
+  eventMeta: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, marginTop: 2 },
 })
