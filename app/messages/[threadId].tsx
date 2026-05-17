@@ -54,11 +54,7 @@ function Bubble({ msg, isMe, showTime, myColor }: BubbleProps) {
   const bgColor = isMe ? myColor : RECEIVED_COLOR
 
   return (
-    <View style={[
-      styles.bubbleRow,
-      isMe ? styles.bubbleRowMe : styles.bubbleRowThem,
-      showTime && styles.bubbleRowLast,
-    ]}>
+    <View style={[styles.bubbleRow, isMe ? styles.bubbleRowMe : styles.bubbleRowThem]}>
       {/* bubbleWrap: overflow visible so the diamond tip (rotated past layout bounds) shows */}
       <View style={styles.bubbleWrap}>
         {/* Bubble — rendered first (below in paint order) */}
@@ -68,15 +64,7 @@ function Bubble({ msg, isMe, showTime, myColor }: BubbleProps) {
           </Text>
         </View>
 
-        {/* Tail — CSS border triangle, only on the last message in a run.
-            width:0/height:0 + border trick = a clean ▼ nib below the bubble. */}
-        {showTime && (
-          <View style={[
-            styles.tail,
-            isMe ? styles.tailMe : styles.tailThem,
-            { borderTopColor: bgColor },
-          ]} />
-        )}
+        {/* TODO S106: bubble tail — needs react-native-svg for web-parity teardrop shape */}
       </View>
       {showTime && (
         <Text style={[styles.bubbleTime, isMe ? styles.bubbleTimeMe : styles.bubbleTimeThem]}>
@@ -269,7 +257,7 @@ const styles = StyleSheet.create({
   bubbleRow: { marginTop: 1, marginBottom: 2, maxWidth: '80%' },
   bubbleRowMe: { alignSelf: 'flex-end', alignItems: 'flex-end' },
   bubbleRowThem: { alignSelf: 'flex-start', alignItems: 'flex-start' },
-  bubbleRowLast: { marginBottom: 12 },  // extra space for the tail + run separation
+  bubbleRowLast: { marginBottom: 8 },
 
   bubbleWrap: {},
 
@@ -278,25 +266,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
-
-  // CSS border triangle: width/height 0 + borderTop gives a clean ▼ nib.
-  // marginTop: -1 closes the 1-px gap between the bubble's rounded bottom and the triangle top.
-  // borderTopColor is set inline to match the bubble's bgColor.
-  tail: {
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-    borderLeftWidth: 6,
-    borderLeftColor: 'transparent',
-    borderRightWidth: 6,
-    borderRightColor: 'transparent',
-    borderTopWidth: 9,
-    // borderTopColor set inline
-    marginTop: -1,
-  },
-  tailMe:   { alignSelf: 'flex-end',   marginRight: 4 },
-  tailThem: { alignSelf: 'flex-start', marginLeft:  4 },
 
   bubbleText: { fontSize: 15, fontFamily: font.regular, lineHeight: 20 },
   // text colours are now set inline with the dynamic bubble color
