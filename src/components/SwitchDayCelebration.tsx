@@ -135,13 +135,31 @@ export default function SwitchDayCelebration({ switchDate, checklistItems = [], 
     outputRange: [C_NAVY, C_DBLUE, C_TEAL, C_TGREEN, C_FGREEN],
   })
 
-  // Keep a ref to the pulse loop so we can stop it on unmount
-  const pulseRef = useRef<Animated.CompositeAnimation | null>(null)
+  // Pulse active flag — lets cleanup stop recursion without needing a ref to the animation
+  const pulseActive = useRef(false)
+  // Haptic timeout refs for cleanup
+  const hapticTimers = useRef<ReturnType<typeof setTimeout>[]>([])
 
   // ── Entry ────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+    // Escalating haptic buzz over ~1.5 s — Light build → Medium → Heavy peak
+    const schedule: [number, () => Promise<void>][] = [
+      [0,    () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)],
+      [120,  () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)],
+      [240,  () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)],
+      [380,  () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)],
+      [520,  () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)],
+      [660,  () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)],
+      [800,  () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)],
+      [950,  () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)],
+      [1100, () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)],
+      [1250, () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)],
+      [1400, () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)],
+    ]
+    hapticTimers.current = schedule.map(([ms, fn]) =>
+      setTimeout(() => fn().catch(() => {}), ms),
+    )
 
     // Native-thread entrance
     Animated.parallel([
@@ -150,24 +168,30 @@ export default function SwitchDayCelebration({ switchDate, checklistItems = [], 
       Animated.spring(cardScale, { toValue: 1, useNativeDriver: true, speed: 12, bounciness: 8 }),
     ]).start()
 
-    // Colour wash: navy → forest-green over 3.5s, then pulse forever
+    // Colour wash: navy → forest-green over 3.5 s, then smooth reverse-pulse forever
+    pulseActive.current = true
+
+    function startPulse() {
+      if (!pulseActive.current) return
+      Animated.sequence([
+        Animated.timing(colorPct, { toValue: 0, duration: 2500, useNativeDriver: false, easing: Easing.inOut(Easing.sin) }),
+        Animated.timing(colorPct, { toValue: 1, duration: 2500, useNativeDriver: false, easing: Easing.inOut(Easing.sin) }),
+      ]).start(({ finished }) => {
+        if (finished) startPulse()
+      })
+    }
+
     Animated.timing(colorPct, {
       toValue: 1, duration: 3500,
       easing: Easing.linear,
       useNativeDriver: false,
-    }).start(() => {
-      const pulse = Animated.loop(
-        Animated.sequence([
-          Animated.timing(colorPct, { toValue: 0, duration: 2500, useNativeDriver: false, easing: Easing.inOut(Easing.sin) }),
-          Animated.timing(colorPct, { toValue: 1, duration: 2500, useNativeDriver: false, easing: Easing.inOut(Easing.sin) }),
-        ]),
-      )
-      pulseRef.current = pulse
-      pulse.start()
+    }).start(({ finished }) => {
+      if (finished) startPulse()
     })
 
     return () => {
-      pulseRef.current?.stop()
+      pulseActive.current = false
+      hapticTimers.current.forEach(clearTimeout)
     }
   }, [])
 
@@ -182,12 +206,10 @@ export default function SwitchDayCelebration({ switchDate, checklistItems = [], 
     if (dismissing) return
     setDismissing(true)
 
-    pulseRef.current?.stop()
+    pulseActive.current = false
+    hapticTimers.current.forEach(clearTimeout)
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
-    setTimeout(() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {})
-    }, 100)
 
     Animated.timing(backdropOpacity, {
       toValue: 0, duration: 600, delay: 200, useNativeDriver: true,
