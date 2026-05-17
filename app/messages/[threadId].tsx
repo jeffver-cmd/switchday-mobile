@@ -68,15 +68,13 @@ function Bubble({ msg, isMe, showTime, myColor }: BubbleProps) {
           </Text>
         </View>
 
-        {/* Tail — rendered second (paints on top). A 14×14 square rotated 45° creates a
-            diamond nib. marginTop: -7 pulls it up into the bubble so the two same-colour
-            shapes merge seamlessly; only the bottom tip (~10 px) pokes out below.
-            Only on the last message in a consecutive run (showTime === true). */}
+        {/* Tail — CSS border triangle, only on the last message in a run.
+            width:0/height:0 + border trick = a clean ▼ nib below the bubble. */}
         {showTime && (
           <View style={[
             styles.tail,
             isMe ? styles.tailMe : styles.tailThem,
-            { backgroundColor: bgColor },
+            { borderTopColor: bgColor },
           ]} />
         )}
       </View>
@@ -273,27 +271,32 @@ const styles = StyleSheet.create({
   bubbleRowThem: { alignSelf: 'flex-start', alignItems: 'flex-start' },
   bubbleRowLast: { marginBottom: 12 },  // extra space for the tail + run separation
 
-  // overflow: 'visible' lets the rotated diamond's tip (which extends 2–3 px past the
-  // layout box) render on iOS without clipping.
-  bubbleWrap: { overflow: 'visible' },
+  bubbleWrap: {},
 
   bubble: {
-    borderRadius: 18,   // uniform — matches web (tail is a separate element, not corner clipping)
+    borderRadius: 18,   // uniform — matches web
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
 
-  // Tail: 14×14 square rotated 45° = diamond nib.
-  // marginTop: -7 pulls it up so 7 px overlap with the bubble (same colour = seamless merge).
-  // The remaining ~10 px of the diamond tip visually extends below the bubble.
+  // CSS border triangle: width/height 0 + borderTop gives a clean ▼ nib.
+  // marginTop: -1 closes the 1-px gap between the bubble's rounded bottom and the triangle top.
+  // borderTopColor is set inline to match the bubble's bgColor.
   tail: {
-    width: 14,
-    height: 14,
-    marginTop: -7,
-    transform: [{ rotate: '45deg' }],
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 6,
+    borderLeftColor: 'transparent',
+    borderRightWidth: 6,
+    borderRightColor: 'transparent',
+    borderTopWidth: 9,
+    // borderTopColor set inline
+    marginTop: -1,
   },
-  tailMe:   { alignSelf: 'flex-end',   marginRight: 10 },
-  tailThem: { alignSelf: 'flex-start', marginLeft:  10 },
+  tailMe:   { alignSelf: 'flex-end',   marginRight: 14 },
+  tailThem: { alignSelf: 'flex-start', marginLeft:  14 },
 
   bubbleText: { fontSize: 15, fontFamily: font.regular, lineHeight: 20 },
   // text colours are now set inline with the dynamic bubble color
