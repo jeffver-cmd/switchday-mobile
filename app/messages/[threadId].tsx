@@ -289,8 +289,8 @@ const styles = StyleSheet.create({
 
   // Tail is absolutely positioned within the paddingBottom area of bubbleWrap
   tail: { position: 'absolute', bottom: 0 },
-  tailMe:   { right: 10 },
-  tailThem: { left: 10 },
+  tailMe:   { right: 7 },
+  tailThem: { left: 13 },
 
   bubble: {
     borderRadius: 18,   // uniform — matches web
