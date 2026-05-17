@@ -256,10 +256,7 @@ export default function DashboardScreen() {
 
         {/* ── Custody card ───────────────────────────────────────────────── */}
         <View style={[styles.custodyCard, { backgroundColor: colors.surface }]}>
-          {/* Subtle owner-colour tint */}
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: ownerColor, opacity: 0.08, borderRadius: radius.xl }]} />
-
-          {/* 4px accent bar */}
+          {/* 6px accent bar */}
           <View style={[styles.custodyAccentBar, { backgroundColor: ownerColor }]} />
 
           {/* Content */}
@@ -478,7 +475,7 @@ const styles = StyleSheet.create({
     ...shadow.md,
   },
   custodyAccentBar: {
-    width: 4,
+    width: 6,
   },
   custodyContent: {
     flex: 1,
