@@ -11,7 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useState, useEffect } from 'react'
-import * as SecureStore from 'expo-secure-store'
 import { useDashboard } from '@/lib/hooks/useDashboard'
 import { colors, radius, shadow, font } from '@/lib/theme'
 import SwitchDayCelebration from '@/components/SwitchDayCelebration'
@@ -176,6 +175,11 @@ const sectionStyles = StyleSheet.create({
 
 // ─── screen ──────────────────────────────────────────────────────────────────
 
+// Module-level guard — persists across component remounts and hot-reloads
+// so the celebration never shows more than once per JS session per date.
+// Resets only on full app restart (acceptable — one show per session is right).
+let _celebrationShownDate: string | null = null
+
 export default function DashboardScreen() {
   const router = useRouter()
   const { data, loading, error, refresh } = useDashboard()
@@ -186,16 +190,9 @@ export default function DashboardScreen() {
   useEffect(() => {
     if (!data?.isSwitch) return
     const today = new Date().toISOString().split('T')[0]
-    SecureStore.getItemAsync(`switchday:celebration:${today}`)
-      .then(seen => {
-        if (!seen) {
-          // Write immediately — before showing — so hot-reloads during the
-          // animation don't re-trigger it
-          SecureStore.setItemAsync(`switchday:celebration:${today}`, '1').catch(() => {})
-          setShowCelebration(true)
-        }
-      })
-      .catch(() => { setShowCelebration(true) })
+    if (_celebrationShownDate === today) return
+    _celebrationShownDate = today
+    setShowCelebration(true)
   }, [data?.isSwitch])
 
   if (loading) {

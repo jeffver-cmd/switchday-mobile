@@ -219,11 +219,9 @@ export default function CalendarScreen() {
                     <View style={[styles.switchStripe, { backgroundColor: ownerColor }]} />
                   )}
 
-                  {/* Day number — collapsable={false} prevents Android from
-                      collapsing this layer, which causes white text to vanish
-                      on the navy todayCircle background after navigation */}
                   <View
                     collapsable={false}
+                    renderToHardwareTextureAndroid
                     style={[
                       styles.dayNumWrap,
                       isToday ? styles.todayCircle : null,
@@ -322,12 +320,12 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, textAlign: 'center', marginBottom: 8 },
   emptySubtitle: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, textAlign: 'center' },
 
-  // Day cell
+  // Day cell — no overflow:hidden; that clipping layer on Android prevents
+  // child text from being recomposited when the tab re-focuses
   dayCell: {
     alignItems: 'center',
     borderRadius: radius.sm,
     paddingVertical: 4,
-    overflow: 'hidden',
     position: 'relative',
   },
   dayCellSelected: {
