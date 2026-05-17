@@ -31,6 +31,23 @@ export interface UpcomingEvent {
   category: string
 }
 
+export interface RecentThread {
+  id: string
+  topic: string
+  threadType: string
+  lastMessageAt: string | null
+  lastMessageBody: string | null
+  unreadCount: number
+}
+
+export interface RecentExpense {
+  id: string
+  description: string
+  amount: number
+  status: string
+  submittedAt: string
+}
+
 export interface DashboardData {
   userId: string
   myProfile: Profile
@@ -42,6 +59,8 @@ export interface DashboardData {
   pendingExpenses: PendingExpense[]
   pendingExpenseCount: number
   upcomingEvents: UpcomingEvent[]
+  recentThreads: RecentThread[]
+  recentExpenses: RecentExpense[]
 }
 
 export function useDashboard() {
@@ -89,6 +108,8 @@ export function useDashboard() {
         unreadResult,
         expensesResult,
         eventsResult,
+        threadsResult,
+        recentExpensesResult,
       ] = await Promise.all([
         supabase
           .from('profiles')
@@ -134,6 +155,22 @@ export function useDashboard() {
           .lte('start_date', in14)
           .order('start_date', { ascending: true })
           .limit(5),
+
+        // Recent threads — top 3 by last message
+        supabase
+          .from('message_threads')
+          .select('id, topic, thread_type, last_message_at')
+          .eq('connection_id', connection.id)
+          .order('last_message_at', { ascending: false, nullsFirst: false })
+          .limit(3),
+
+        // Recent expenses — any status, most recent first
+        supabase
+          .from('expenses')
+          .select('id, description, amount, status, submitted_at')
+          .eq('connection_id', connection.id)
+          .order('submitted_at', { ascending: false })
+          .limit(3),
       ])
 
       const profiles = profilesResult.data ?? []
@@ -142,24 +179,49 @@ export function useDashboard() {
 
       if (!myProfile) { setError('Profile not found'); setLoading(false); return }
 
-      // 4. Resolve next switch time (override > connection default)
+      // 4. Resolve next switch time + thread details in parallel
       const nextSwitchRow = nextSwitchResult.data?.[0] ?? null
-      let nextSwitch: NextSwitch | null = null
+      const threadIds = (threadsResult.data ?? []).map(t => t.id)
 
+      const [overrideResult, lastMsgsResult, threadUnreadResult] = await Promise.all([
+        nextSwitchRow
+          ? supabase
+              .from('switch_time_overrides')
+              .select('switch_time, location')
+              .eq('connection_id', connection.id)
+              .eq('date', nextSwitchRow.date)
+              .eq('status', 'approved')
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+
+        threadIds.length > 0
+          ? supabase
+              .from('messages')
+              .select('thread_id, body, sent_at')
+              .in('thread_id', threadIds)
+              .order('sent_at', { ascending: false })
+              .limit(threadIds.length * 3)
+          : Promise.resolve({ data: [] }),
+
+        threadIds.length > 0
+          ? supabase
+              .from('messages')
+              .select('thread_id')
+              .in('thread_id', threadIds)
+              .neq('sender_id', userId)
+              .is('read_at', null)
+          : Promise.resolve({ data: [] }),
+      ])
+
+      // Build next switch
+      let nextSwitch: NextSwitch | null = null
       if (nextSwitchRow) {
         let resolvedTime = connection.switch_time
           ? connection.switch_time.slice(0, 5)
           : null
         let resolvedLocation: string | null = null
 
-        const { data: override } = await supabase
-          .from('switch_time_overrides')
-          .select('switch_time, location')
-          .eq('connection_id', connection.id)
-          .eq('date', nextSwitchRow.date)
-          .eq('status', 'approved')
-          .maybeSingle()
-
+        const override = overrideResult.data
         if (override) {
           resolvedTime = override.switch_time.slice(0, 5)
           resolvedLocation = override.location ?? null
@@ -174,6 +236,26 @@ export function useDashboard() {
         }
       }
 
+      // Build recent threads
+      const lastMsgMap: Record<string, string> = {}
+      for (const msg of (lastMsgsResult.data ?? [])) {
+        if (!lastMsgMap[msg.thread_id]) {
+          lastMsgMap[msg.thread_id] = msg.body
+        }
+      }
+      const threadUnreadMap: Record<string, number> = {}
+      for (const msg of (threadUnreadResult.data ?? [])) {
+        threadUnreadMap[msg.thread_id] = (threadUnreadMap[msg.thread_id] ?? 0) + 1
+      }
+      const recentThreads: RecentThread[] = (threadsResult.data ?? []).map(t => ({
+        id: t.id,
+        topic: t.topic ?? 'Conversation',
+        threadType: t.thread_type ?? 'co_parent',
+        lastMessageAt: t.last_message_at,
+        lastMessageBody: lastMsgMap[t.id] ?? null,
+        unreadCount: threadUnreadMap[t.id] ?? 0,
+      }))
+
       setData({
         userId,
         myProfile: myProfile as Profile,
@@ -185,6 +267,14 @@ export function useDashboard() {
         pendingExpenses: (expensesResult.data ?? []) as PendingExpense[],
         pendingExpenseCount: expensesResult.data?.length ?? 0,
         upcomingEvents: (eventsResult.data ?? []) as UpcomingEvent[],
+        recentThreads,
+        recentExpenses: (recentExpensesResult.data ?? []).map(e => ({
+          id: e.id,
+          description: e.description,
+          amount: e.amount,
+          status: e.status,
+          submittedAt: e.submitted_at,
+        })) as RecentExpense[],
       })
     } catch (e) {
       setError('Failed to load dashboard')
