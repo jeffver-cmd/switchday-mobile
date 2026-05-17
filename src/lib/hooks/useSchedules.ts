@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../supabase'
-import type { Schedule } from '../api/schedules'
+import type { Schedule } from '../types/database'
 
 // ─── types ───────────────────────────────────────────────────────────────────
 

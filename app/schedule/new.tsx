@@ -17,7 +17,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useState, useCallback, useMemo } from 'react'
 import { useSchedules } from '@/lib/hooks/useSchedules'
-import { createSchedule, scheduleAction } from '@/lib/api/schedules'
+import { createSchedule, scheduleAction, type SchedulePattern } from '@/lib/api/schedules'
 import { colors, radius, font } from '@/lib/theme'
 
 // ─── types ───────────────────────────────────────────────────────────────────
@@ -516,7 +516,7 @@ export default function NewScheduleScreen() {
     setSaving(true)
     const { data: created, error: createErr } = await createSchedule({
       name: name.trim(),
-      pattern: apiPattern as import('@/lib/api/schedules').SchedulePattern,
+      pattern: apiPattern as SchedulePattern,
       start_date: toYMD(startDate!),
       end_date:   toYMD(endDate!),
       pattern_data: patternData,

@@ -27,6 +27,19 @@ export type ImportStatus = 'processing' | 'complete' | 'failed'
 export type UserPlan = 'free' | 'pro' | 'standard' | 'premium'
 export type AccountStatus = 'active' | 'closed'
 
+/** JSON blob stored in parenting_schedules.pattern_data */
+export interface PatternData {
+  first_week_owner_id: string
+  owner_sequence?: string[]
+  cycle_length?: number
+  specific_days?: Record<string, string>
+}
+
+/** Convenience alias — parenting_schedules row with a typed pattern_data */
+export type Schedule = Omit<Database['public']['Tables']['parenting_schedules']['Row'], 'pattern_data'> & {
+  pattern_data: PatternData
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -759,33 +772,35 @@ export interface Database {
            note: string | null
            supersedes_id: string | null
            created_at: string
-           updated_at: string
-         }
-         Insert: {
-           id?: string
-           connection_id: string
-           created_by_id: string
-           name: string
-           pattern: SchedulePattern
-           start_date: string
-           end_date: string
-           pattern_data?: Json
-           status?: ScheduleStatus
-           note?: string | null
-           supersedes_id?: string | null
-         }
-         Update: {
-           name?: string
-           pattern?: SchedulePattern
-           start_date?: string
-           end_date?: string
-           pattern_data?: Json
-           status?: ScheduleStatus
-           proposed_at?: string | null
-           responded_at?: string | null
-           responded_by_id?: string | null
-           decline_reason?: string | null
-           note?: string | null
+            updated_at: string
+            sha256_hash: string | null
+            tsa_token: string | null
+          }
+          Insert: {
+            id?: string
+            connection_id: string
+            created_by_id: string
+            name: string
+            pattern: SchedulePattern
+            start_date: string
+            end_date: string
+            pattern_data?: Json
+            status?: ScheduleStatus
+            note?: string | null
+            supersedes_id?: string | null
+          }
+          Update: {
+            name?: string
+            pattern?: SchedulePattern
+            start_date?: string
+            end_date?: string
+            pattern_data?: Json
+            status?: ScheduleStatus
+            proposed_at?: string | null
+            responded_at?: string | null
+            responded_by_id?: string | null
+            decline_reason?: string | null
+            note?: string | null
            supersedes_id?: string | null
          }
          Relationships: []
@@ -1273,6 +1288,28 @@ export interface Database {
           mime_type?: string | null
         }
         Update: Record<string, never>
+        Relationships: []
+      }
+      expo_push_tokens: {
+        Row: {
+          id: string
+          user_id: string
+          token: string
+          platform: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          token: string
+          platform?: string | null
+          updated_at?: string
+        }
+        Update: {
+          token?: string
+          platform?: string | null
+          updated_at?: string
+        }
         Relationships: []
       }
     }
