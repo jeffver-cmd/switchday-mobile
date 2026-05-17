@@ -177,11 +177,9 @@ export default function DashboardScreen() {
   const [showCelebration, setShowCelebration] = useState(false)
 
   useEffect(() => {
-    if (!data?.isSwitch) return
-    const today = new Date().toISOString().split('T')[0]
-    SecureStore.getItemAsync(`switchday:celebration:${today}`)
-      .then(seen => { if (!seen) setShowCelebration(true) })
-      .catch(() => { setShowCelebration(true) }) // show if storage unavailable
+    if (!data) return
+    // PREVIEW MODE: always show, bypass switch-day check and seen-key
+    setShowCelebration(true)
   }, [data?.isSwitch])
 
   if (loading) {
@@ -215,7 +213,7 @@ export default function DashboardScreen() {
   const {
     myProfile, coParentProfile, todayOwnerId, isSwitch, nextSwitch,
     unreadCount, pendingExpenseCount, upcomingEvents,
-    recentThreads, recentExpenses,
+    recentThreads, recentExpenses, checklistItems,
   } = data
 
   const todayOwner = todayOwnerId === myProfile.id ? myProfile : coParentProfile
@@ -425,6 +423,7 @@ export default function DashboardScreen() {
       {showCelebration && (
         <SwitchDayCelebration
           switchDate={new Date().toISOString().split('T')[0]}
+          checklistItems={checklistItems}
           onDismiss={() => setShowCelebration(false)}
         />
       )}

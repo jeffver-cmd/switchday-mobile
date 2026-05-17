@@ -61,6 +61,7 @@ export interface DashboardData {
   upcomingEvents: UpcomingEvent[]
   recentThreads: RecentThread[]
   recentExpenses: RecentExpense[]
+  checklistItems: string[]
 }
 
 export function useDashboard() {
@@ -110,6 +111,7 @@ export function useDashboard() {
         eventsResult,
         threadsResult,
         recentExpensesResult,
+        checklistResult,
       ] = await Promise.all([
         supabase
           .from('profiles')
@@ -171,6 +173,14 @@ export function useDashboard() {
           .eq('connection_id', connection.id)
           .order('submitted_at', { ascending: false })
           .limit(3),
+
+        // Switch day packing checklist
+        supabase
+          .from('switch_checklist_items')
+          .select('item_text, sort_order')
+          .eq('connection_id', connection.id)
+          .eq('active', true)
+          .order('sort_order', { ascending: true }),
       ])
 
       const profiles = profilesResult.data ?? []
@@ -275,6 +285,7 @@ export function useDashboard() {
           status: e.status,
           submittedAt: e.submitted_at,
         })) as RecentExpense[],
+        checklistItems: (checklistResult.data ?? []).map(r => r.item_text as string),
       })
     } catch (e) {
       setError('Failed to load dashboard')
