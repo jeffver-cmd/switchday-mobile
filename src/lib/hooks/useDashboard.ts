@@ -62,6 +62,7 @@ export interface DashboardData {
   recentThreads: RecentThread[]
   recentExpenses: RecentExpense[]
   checklistItems: string[]
+  childrenNames: string[]
 }
 
 export function useDashboard() {
@@ -112,6 +113,7 @@ export function useDashboard() {
         threadsResult,
         recentExpensesResult,
         checklistResult,
+        childrenResult,
       ] = await Promise.all([
         supabase
           .from('profiles')
@@ -181,6 +183,13 @@ export function useDashboard() {
           .eq('connection_id', connection.id)
           .eq('active', true)
           .order('sort_order', { ascending: true }),
+
+        // Children names
+        supabase
+          .from('children')
+          .select('name')
+          .eq('connection_id', connection.id)
+          .order('created_at', { ascending: true }),
       ])
 
       const profiles = profilesResult.data ?? []
@@ -286,6 +295,7 @@ export function useDashboard() {
           submittedAt: e.submitted_at,
         })) as RecentExpense[],
         checklistItems: (checklistResult.data ?? []).map(r => r.item_text as string),
+        childrenNames: (childrenResult.data ?? []).map(r => r.name as string),
       })
     } catch (e) {
       setError('Failed to load dashboard')

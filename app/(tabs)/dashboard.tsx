@@ -63,6 +63,13 @@ function formatEventDate(dateStr: string): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
+function formatChildrenNames(names: string[]): string {
+  if (names.length === 0) return 'the kids'
+  if (names.length === 1) return names[0]
+  if (names.length === 2) return `${names[0]} & ${names[1]}`
+  return `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}`
+}
+
 function formatThreadTime(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
@@ -177,9 +184,11 @@ export default function DashboardScreen() {
   const [showCelebration, setShowCelebration] = useState(false)
 
   useEffect(() => {
-    if (!data) return
-    // PREVIEW MODE: always show, bypass switch-day check and seen-key
-    setShowCelebration(true)
+    if (!data?.isSwitch) return
+    const today = new Date().toISOString().split('T')[0]
+    SecureStore.getItemAsync(`switchday:celebration:${today}`)
+      .then(seen => { if (!seen) setShowCelebration(true) })
+      .catch(() => { setShowCelebration(true) })
   }, [data?.isSwitch])
 
   if (loading) {
@@ -213,7 +222,7 @@ export default function DashboardScreen() {
   const {
     myProfile, coParentProfile, todayOwnerId, isSwitch, nextSwitch,
     unreadCount, pendingExpenseCount, upcomingEvents,
-    recentThreads, recentExpenses, checklistItems,
+    recentThreads, recentExpenses, checklistItems, childrenNames,
   } = data
 
   const todayOwner = todayOwnerId === myProfile.id ? myProfile : coParentProfile
@@ -252,8 +261,8 @@ export default function DashboardScreen() {
           {coParentProfile && (
             <Text style={styles.custodySubLabel}>
               {isMyDay
-                ? `${coParentProfile.display_name} has the kids next`
-                : `You have the kids next`}
+                ? `${coParentProfile.display_name} has ${formatChildrenNames(childrenNames)} next`
+                : `You have ${formatChildrenNames(childrenNames)} next`}
             </Text>
           )}
 
