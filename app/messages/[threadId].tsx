@@ -39,19 +39,43 @@ function formatDaySeparator(iso: string): string {
 
 // ─── message bubble ──────────────────────────────────────────────────────────
 
+// Matches the web's hardcoded received-bubble colour (#A8A49C)
+const RECEIVED_COLOR = '#A8A49C'
+
 interface BubbleProps {
   msg: Message
   isMe: boolean
   showTime: boolean
+  /** Current user's profile color — used to tint their sent bubbles */
+  myColor: string
 }
 
-function Bubble({ msg, isMe, showTime }: BubbleProps) {
+function Bubble({ msg, isMe, showTime, myColor }: BubbleProps) {
+  const bgColor = isMe ? myColor : RECEIVED_COLOR
+
   return (
-    <View style={[styles.bubbleRow, isMe ? styles.bubbleRowMe : styles.bubbleRowThem]}>
-      <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-        <Text style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextThem]}>
-          {msg.body}
-        </Text>
+    <View style={[
+      styles.bubbleRow,
+      isMe ? styles.bubbleRowMe : styles.bubbleRowThem,
+      showTime && styles.bubbleRowLast,
+    ]}>
+      {/* bubbleWrap lets the tail sit behind the bubble in the same stacking context */}
+      <View style={styles.bubbleWrap}>
+        {/* Tail — rendered FIRST so the bubble paints on top and covers its upper half.
+            Only on the last message in a consecutive run (showTime === true). */}
+        {showTime && (
+          <View style={[
+            styles.tail,
+            isMe ? styles.tailMe : styles.tailThem,
+            { backgroundColor: bgColor },
+          ]} />
+        )}
+        {/* Bubble — uniform 18 px radius, matching the web */}
+        <View style={[styles.bubble, { backgroundColor: bgColor }]}>
+          <Text style={[styles.bubbleText, { color: isMe ? '#ffffff' : colors.textPrimary }]}>
+            {msg.body}
+          </Text>
+        </View>
       </View>
       {showTime && (
         <Text style={[styles.bubbleTime, isMe ? styles.bubbleTimeMe : styles.bubbleTimeThem]}>
@@ -168,7 +192,7 @@ export default function ConversationScreen() {
             renderItem={({ item }) =>
               item.type === 'sep'
                 ? <DaySep label={item.label} />
-                : <Bubble msg={item.msg} isMe={item.isMe} showTime={item.showTime} />
+                : <Bubble msg={item.msg} isMe={item.isMe} showTime={item.showTime} myColor={data?.myColor ?? colors.accent} />
             }
             contentContainerStyle={styles.messageList}
             showsVerticalScrollIndicator={false}
@@ -241,19 +265,37 @@ const styles = StyleSheet.create({
   daySepText: { fontSize: 12, fontFamily: font.regular, color: colors.textSubtle, fontWeight: '500' },
 
   // Bubbles
-  bubbleRow: { marginVertical: 1, maxWidth: '80%' },
+  bubbleRow: { marginTop: 1, marginBottom: 2, maxWidth: '80%' },
   bubbleRowMe: { alignSelf: 'flex-end', alignItems: 'flex-end' },
   bubbleRowThem: { alignSelf: 'flex-start', alignItems: 'flex-start' },
+  bubbleRowLast: { marginBottom: 12 },  // extra space for the tail + run separation
 
-  bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9 },
-  bubbleMe: { backgroundColor: colors.accent, borderBottomRightRadius: 4 },
-  bubbleThem: { backgroundColor: colors.surface2, borderBottomLeftRadius: 4 },
+  // bubbleWrap holds the bubble + absolute tail so the bubble paints over the tail's top half
+  bubbleWrap: {},
+
+  bubble: {
+    borderRadius: 18,        // uniform — matches web (tail is separate, not corner clipping)
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+
+  // Tail: a 14×14 square rotated 45° = diamond shape.
+  // Rendered before the bubble in JSX so the bubble covers the top half.
+  // Only the diamond's bottom tip (~6 px) pokes out below the bubble.
+  tail: {
+    position: 'absolute',
+    bottom: -4,              // sit slightly below the bubble bottom edge
+    width: 14,
+    height: 14,
+    transform: [{ rotate: '45deg' }],
+  },
+  tailMe:   { right: 14 },  // sent: nib at bottom-right
+  tailThem: { left: 14 },   // received: nib at bottom-left
 
   bubbleText: { fontSize: 15, fontFamily: font.regular, lineHeight: 20 },
-  bubbleTextMe: { color: colors.white },
-  bubbleTextThem: { color: colors.textPrimary },
+  // text colours are now set inline with the dynamic bubble color
 
-  bubbleTime: { fontSize: 11, fontFamily: font.regular, color: colors.textSubtle, marginTop: 3, marginHorizontal: 4 },
+  bubbleTime: { fontSize: 11, fontFamily: font.regular, color: colors.textSubtle, marginTop: 6, marginHorizontal: 4 },
   bubbleTimeMe: { textAlign: 'right' },
   bubbleTimeThem: { textAlign: 'left' },
 
@@ -272,8 +314,10 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     backgroundColor: colors.surface2,
-    borderRadius: 20,
-    paddingHorizontal: 16,
+    borderRadius: radius.md,   // 12 px — closer to web's 10 px
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 15,
     fontFamily: font.regular,
@@ -281,12 +325,11 @@ const styles = StyleSheet.create({
     maxHeight: 120,
   },
   sendBtn: {
-    width: 40, height: 40, borderRadius: radius.full,
+    width: 44, height: 44, borderRadius: 10,   // matches web: 44×44, borderRadius 10
     backgroundColor: colors.accent,
     alignItems: 'center', justifyContent: 'center',
-    marginBottom: 2,
   },
-  sendBtnDisabled: { backgroundColor: colors.border },
+  sendBtnDisabled: { backgroundColor: colors.surface2 },
   sendBtnText: { color: colors.white, fontSize: 20, fontWeight: '700', lineHeight: 22 },
 
   sendError: { fontSize: 12, fontFamily: font.regular, color: colors.danger, textAlign: 'center', paddingHorizontal: 16, paddingBottom: 4 },

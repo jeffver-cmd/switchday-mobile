@@ -16,6 +16,7 @@ export interface Message {
 
 export interface MessagesData {
   userId: string
+  myColor: string   // current user's profile color — used to tint sent bubbles
   messages: Message[]
 }
 
@@ -90,14 +91,23 @@ export function useMessages(threadId: string) {
       const userId = session.user.id
       userIdRef.current = userId
 
-      const { data: rows, error: err } = await supabase
-        .from('messages')
-        .select('id, thread_id, connection_id, sender_id, body, sent_at, read_at')
-        .eq('thread_id', threadId)
-        .order('sent_at', { ascending: true })
-        .limit(200)
+      const [{ data: rows, error: err }, { data: profileRow }] = await Promise.all([
+        supabase
+          .from('messages')
+          .select('id, thread_id, connection_id, sender_id, body, sent_at, read_at')
+          .eq('thread_id', threadId)
+          .order('sent_at', { ascending: true })
+          .limit(200),
+        supabase
+          .from('profiles')
+          .select('color')
+          .eq('id', userId)
+          .maybeSingle(),
+      ])
 
       if (err) { setError(err.message); setLoading(false); return }
+
+      const myColor = (profileRow as { color?: string } | null)?.color ?? '#5B6B8A'
 
       const messages: Message[] = (rows ?? []).map(r => ({
         id: r.id,
@@ -109,7 +119,7 @@ export function useMessages(threadId: string) {
         readAt: r.read_at,
       }))
 
-      setData({ userId, messages })
+      setData({ userId, myColor, messages })
 
       // Mark unread messages as read
       await markThreadRead(threadId, userId)
