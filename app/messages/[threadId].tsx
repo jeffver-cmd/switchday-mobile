@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import Svg, { Path } from 'react-native-svg'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useMessages, sendMessage, Message } from '@/lib/hooks/useMessages'
@@ -54,18 +55,43 @@ function Bubble({ msg, isMe, showTime, myColor }: BubbleProps) {
   const bgColor = isMe ? myColor : RECEIVED_COLOR
 
   return (
-    <View style={[styles.bubbleRow, isMe ? styles.bubbleRowMe : styles.bubbleRowThem]}>
-      {/* bubbleWrap: overflow visible so the diamond tip (rotated past layout bounds) shows */}
-      <View style={styles.bubbleWrap}>
-        {/* Bubble — rendered first (below in paint order) */}
+    <View style={[
+      styles.bubbleRow,
+      isMe ? styles.bubbleRowMe : styles.bubbleRowThem,
+      showTime && styles.bubbleRowLast,
+    ]}>
+      {/*
+        paddingBottom: 9 when tail is shown — gives the tail room below the
+        bubble without overflow clipping. SVG is absolutely positioned at
+        bottom: 0, so it sits in that 9px gap and overlaps the bottom ~3px
+        of the bubble (where it connects seamlessly).
+      */}
+      <View style={[styles.bubbleWrap, showTime && { paddingBottom: 9 }]}>
         <View style={[styles.bubble, { backgroundColor: bgColor }]}>
           <Text style={[styles.bubbleText, { color: isMe ? '#ffffff' : colors.textPrimary }]}>
             {msg.body}
           </Text>
         </View>
 
-        {/* TODO S106: bubble tail — needs react-native-svg for web-parity teardrop shape */}
+        {/* Teardrop tail — same SVG paths as web, shown on last message of each run */}
+        {showTime && (
+          <Svg
+            width={10}
+            height={12}
+            viewBox="0 0 10 12"
+            style={[
+              styles.tail,
+              isMe ? styles.tailMe : styles.tailThem,
+            ]}
+          >
+            {isMe
+              ? <Path d="M -1 0 L 10 0 C 8 4, 7 9, 9 12 C 5 10, 0 5, -1 0 Z" fill={bgColor} />
+              : <Path d="M 11 0 L 0 0 C 2 4, 3 9, 1 12 C 5 10, 10 5, 11 0 Z" fill={bgColor} />
+            }
+          </Svg>
+        )}
       </View>
+
       {showTime && (
         <Text style={[styles.bubbleTime, isMe ? styles.bubbleTimeMe : styles.bubbleTimeThem]}>
           {formatBubbleTime(msg.sentAt)}
@@ -260,6 +286,11 @@ const styles = StyleSheet.create({
   bubbleRowLast: { marginBottom: 8 },
 
   bubbleWrap: {},
+
+  // Tail is absolutely positioned within the paddingBottom area of bubbleWrap
+  tail: { position: 'absolute', bottom: 0 },
+  tailMe:   { right: 10 },
+  tailThem: { left: 10 },
 
   bubble: {
     borderRadius: 18,   // uniform — matches web
