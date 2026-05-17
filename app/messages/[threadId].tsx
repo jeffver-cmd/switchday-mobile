@@ -59,9 +59,18 @@ function Bubble({ msg, isMe, showTime, myColor }: BubbleProps) {
       isMe ? styles.bubbleRowMe : styles.bubbleRowThem,
       showTime && styles.bubbleRowLast,
     ]}>
-      {/* bubbleWrap lets the tail sit behind the bubble in the same stacking context */}
+      {/* bubbleWrap: overflow visible so the diamond tip (rotated past layout bounds) shows */}
       <View style={styles.bubbleWrap}>
-        {/* Tail — rendered FIRST so the bubble paints on top and covers its upper half.
+        {/* Bubble — rendered first (below in paint order) */}
+        <View style={[styles.bubble, { backgroundColor: bgColor }]}>
+          <Text style={[styles.bubbleText, { color: isMe ? '#ffffff' : colors.textPrimary }]}>
+            {msg.body}
+          </Text>
+        </View>
+
+        {/* Tail — rendered second (paints on top). A 14×14 square rotated 45° creates a
+            diamond nib. marginTop: -7 pulls it up into the bubble so the two same-colour
+            shapes merge seamlessly; only the bottom tip (~10 px) pokes out below.
             Only on the last message in a consecutive run (showTime === true). */}
         {showTime && (
           <View style={[
@@ -70,12 +79,6 @@ function Bubble({ msg, isMe, showTime, myColor }: BubbleProps) {
             { backgroundColor: bgColor },
           ]} />
         )}
-        {/* Bubble — uniform 18 px radius, matching the web */}
-        <View style={[styles.bubble, { backgroundColor: bgColor }]}>
-          <Text style={[styles.bubbleText, { color: isMe ? '#ffffff' : colors.textPrimary }]}>
-            {msg.body}
-          </Text>
-        </View>
       </View>
       {showTime && (
         <Text style={[styles.bubbleTime, isMe ? styles.bubbleTimeMe : styles.bubbleTimeThem]}>
@@ -270,27 +273,27 @@ const styles = StyleSheet.create({
   bubbleRowThem: { alignSelf: 'flex-start', alignItems: 'flex-start' },
   bubbleRowLast: { marginBottom: 12 },  // extra space for the tail + run separation
 
-  // bubbleWrap holds the bubble + absolute tail so the bubble paints over the tail's top half
-  bubbleWrap: {},
+  // overflow: 'visible' lets the rotated diamond's tip (which extends 2–3 px past the
+  // layout box) render on iOS without clipping.
+  bubbleWrap: { overflow: 'visible' },
 
   bubble: {
-    borderRadius: 18,        // uniform — matches web (tail is separate, not corner clipping)
+    borderRadius: 18,   // uniform — matches web (tail is a separate element, not corner clipping)
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
 
-  // Tail: a 14×14 square rotated 45° = diamond shape.
-  // Rendered before the bubble in JSX so the bubble covers the top half.
-  // Only the diamond's bottom tip (~6 px) pokes out below the bubble.
+  // Tail: 14×14 square rotated 45° = diamond nib.
+  // marginTop: -7 pulls it up so 7 px overlap with the bubble (same colour = seamless merge).
+  // The remaining ~10 px of the diamond tip visually extends below the bubble.
   tail: {
-    position: 'absolute',
-    bottom: -4,              // sit slightly below the bubble bottom edge
     width: 14,
     height: 14,
+    marginTop: -7,
     transform: [{ rotate: '45deg' }],
   },
-  tailMe:   { right: 14 },  // sent: nib at bottom-right
-  tailThem: { left: 14 },   // received: nib at bottom-left
+  tailMe:   { alignSelf: 'flex-end',   marginRight: 10 },
+  tailThem: { alignSelf: 'flex-start', marginLeft:  10 },
 
   bubbleText: { fontSize: 15, fontFamily: font.regular, lineHeight: 20 },
   // text colours are now set inline with the dynamic bubble color
