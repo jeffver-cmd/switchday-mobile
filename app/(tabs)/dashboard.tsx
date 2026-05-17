@@ -187,7 +187,14 @@ export default function DashboardScreen() {
     if (!data?.isSwitch) return
     const today = new Date().toISOString().split('T')[0]
     SecureStore.getItemAsync(`switchday:celebration:${today}`)
-      .then(seen => { if (!seen) setShowCelebration(true) })
+      .then(seen => {
+        if (!seen) {
+          // Write immediately — before showing — so hot-reloads during the
+          // animation don't re-trigger it
+          SecureStore.setItemAsync(`switchday:celebration:${today}`, '1').catch(() => {})
+          setShowCelebration(true)
+        }
+      })
       .catch(() => { setShowCelebration(true) })
   }, [data?.isSwitch])
 
