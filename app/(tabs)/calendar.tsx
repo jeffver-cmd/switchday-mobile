@@ -219,11 +219,16 @@ export default function CalendarScreen() {
                     <View style={[styles.switchStripe, { backgroundColor: ownerColor }]} />
                   )}
 
-                  {/* Day number */}
-                  <View style={[
-                    styles.dayNumWrap,
-                    isToday ? styles.todayCircle : null,
-                  ]}>
+                  {/* Day number — collapsable={false} prevents Android from
+                      collapsing this layer, which causes white text to vanish
+                      on the navy todayCircle background after navigation */}
+                  <View
+                    collapsable={false}
+                    style={[
+                      styles.dayNumWrap,
+                      isToday ? styles.todayCircle : null,
+                    ]}
+                  >
                     <Text style={[
                       styles.dayNum,
                       isToday ? styles.todayNum : null,
