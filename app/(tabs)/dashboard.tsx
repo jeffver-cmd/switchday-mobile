@@ -10,8 +10,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import { useState, useEffect } from 'react'
+import * as SecureStore from 'expo-secure-store'
 import { useDashboard } from '@/lib/hooks/useDashboard'
 import { colors, radius, shadow, font } from '@/lib/theme'
+import SwitchDayCelebration from '@/components/SwitchDayCelebration'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -169,6 +172,17 @@ const sectionStyles = StyleSheet.create({
 export default function DashboardScreen() {
   const router = useRouter()
   const { data, loading, error, refresh } = useDashboard()
+
+  // ── Switch day celebration ─────────────────────────────────────────────
+  const [showCelebration, setShowCelebration] = useState(false)
+
+  useEffect(() => {
+    if (!data?.isSwitch) return
+    const today = new Date().toISOString().split('T')[0]
+    SecureStore.getItemAsync(`switchday:celebration:${today}`)
+      .then(seen => { if (!seen) setShowCelebration(true) })
+      .catch(() => { setShowCelebration(true) }) // show if storage unavailable
+  }, [data?.isSwitch])
 
   if (loading) {
     return (
@@ -406,6 +420,14 @@ export default function DashboardScreen() {
 
         <View style={styles.bottomPad} />
       </ScrollView>
+
+      {/* Switch day celebration — shown once per switch day */}
+      {showCelebration && (
+        <SwitchDayCelebration
+          switchDate={new Date().toISOString().split('T')[0]}
+          onDismiss={() => setShowCelebration(false)}
+        />
+      )}
     </SafeAreaView>
   )
 }
