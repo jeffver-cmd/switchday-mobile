@@ -1,38 +1,34 @@
 /**
  * SwitchDayCelebration — mobile port of the web SwitchDayCelebration.
  *
- * Visual layers (web parity):
- *   - Warm orange card with color-wash entrance (dark amber → bright orange)
+ * Uses React Native's built-in Animated API (NOT react-native-reanimated)
+ * so it works in Expo Go without a custom dev build.
+ *
+ * Visual layers:
+ *   - Warm orange card with dark-amber → bright-orange color wash on entry
  *   - 5 randomly positioned twinkling ✦ / ◆ art-deco stars
- *   - Dismiss: Framer-style scale explosion (1 → 1.06 → 22) + fade out
- *   - Semi-opaque dark backdrop fades in/out
+ *   - Dismiss: scale explosion (1 → 1.06 → 22) + fade out
+ *   - Semi-opaque dark backdrop fades in / out
  *
- * Skipped from web version:
- *   - Spinning conic-gradient border comet (no conic-gradient in RN)
- *
- * Haptics (3 moments):
+ * Haptics:
  *   1. Card appears     → notificationAsync(Success)
  *   2. "Got it" tapped  → impactAsync(Medium)
- *   3. Card explodes    → impactAsync(Heavy) at +100ms
+ *   3. Card explodes    → impactAsync(Heavy) at +100 ms
  *
- * Once-per-day guard: caller is responsible (dashboard.tsx reads SecureStore
- * before rendering this component). On dismiss this component writes the
- * seen-key so the dashboard won't show it again today.
+ * Once-per-day guard is handled by the caller (dashboard.tsx).
+ * On dismiss this component writes the seen-key via expo-secure-store.
  */
 
-import React, { useState, useEffect, useMemo } from 'react'
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSequence,
-  withRepeat,
-  withDelay,
-  runOnJS,
+import React, { useRef, useState, useEffect, useMemo } from 'react'
+import {
+  Animated,
   Easing,
-  interpolateColor,
-} from 'react-native-reanimated'
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import * as Haptics from 'expo-haptics'
 import * as SecureStore from 'expo-secure-store'
 import { font, radius } from '@/lib/theme'
@@ -44,12 +40,6 @@ interface Props {
   onDismiss: () => void
 }
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
-
-function seenKey(dateStr: string) {
-  return `switchday:celebration:${dateStr}`
-}
-
 interface StarConfig {
   top: number
   left: number
@@ -59,44 +49,60 @@ interface StarConfig {
   char: string
 }
 
+// ─── helpers ──────────────────────────────────────────────────────────────────
+
+function seenKey(dateStr: string) {
+  return `switchday:celebration:${dateStr}`
+}
+
 function makeStars(): StarConfig[] {
   return Array.from({ length: 5 }, () => ({
     top:   5  + Math.random() * 78,
     left:  5  + Math.random() * 78,
     size:  Math.round(11 + Math.random() * 9),
-    delay: Math.random() * 1200,       // ms
-    dur:   2200 + Math.random() * 1000, // ms per half-cycle
+    delay: Math.random() * 1200,
+    dur:   2200 + Math.random() * 1000,
     char:  Math.random() > 0.5 ? '✦' : '◆',
   }))
 }
 
-// ─── star component ───────────────────────────────────────────────────────────
+// ─── Star ─────────────────────────────────────────────────────────────────────
 
 function Star({ config }: { config: StarConfig }) {
-  const opacity = useSharedValue(0.2)
+  const opacity = useRef(new Animated.Value(0.2)).current
 
   useEffect(() => {
-    opacity.value = withDelay(
-      config.delay,
-      withRepeat(
-        withSequence(
-          withTiming(0.78, { duration: config.dur }),
-          withTiming(0.18, { duration: config.dur }),
-        ),
-        -1,
-        false,
-      ),
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(config.delay),
+        Animated.timing(opacity, {
+          toValue: 0.78,
+          duration: config.dur,
+          useNativeDriver: false,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.18,
+          duration: config.dur,
+          useNativeDriver: false,
+          easing: Easing.inOut(Easing.sin),
+        }),
+      ]),
     )
+    loop.start()
+    return () => loop.stop()
   }, [])
-
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value }))
 
   return (
     <Animated.Text
       style={[
         styles.star,
-        { top: `${config.top}%`, left: `${config.left}%`, fontSize: config.size },
-        style,
+        {
+          top:      `${config.top}%` as any,
+          left:     `${config.left}%` as any,
+          fontSize: config.size,
+          opacity,
+        },
       ]}
     >
       {config.char}
@@ -109,7 +115,6 @@ function Star({ config }: { config: StarConfig }) {
 export default function SwitchDayCelebration({ switchDate, onDismiss }: Props) {
   const [dismissing, setDismissing] = useState(false)
 
-  // Memoised star configs — stable across renders
   const stars = useMemo(makeStars, [])
 
   const dateLabel = useMemo(() =>
@@ -120,80 +125,89 @@ export default function SwitchDayCelebration({ switchDate, onDismiss }: Props) {
 
   // ── Animated values ──────────────────────────────────────────────────────
 
-  // Backdrop
-  const backdropOpacity = useSharedValue(0)
+  // Backdrop — opacity only; safe for native driver
+  const backdropOpacity = useRef(new Animated.Value(0)).current
 
-  // Card
-  const cardColorPct = useSharedValue(0)   // 0 = dark amber, 1 = bright orange
-  const cardScale    = useSharedValue(0.93)
-  const cardOpacity  = useSharedValue(0)
+  // Card — color + scale + opacity; useNativeDriver: false for color
+  const cardColorPct = useRef(new Animated.Value(0)).current
+  const cardScale    = useRef(new Animated.Value(0.93)).current
+  const cardOpacity  = useRef(new Animated.Value(0)).current
 
-  // ── Entry animations on mount ────────────────────────────────────────────
+  // Interpolated card background color (color wash entrance)
+  const cardBg = cardColorPct.interpolate({
+    inputRange:  [0, 1],
+    outputRange: ['rgba(180, 82, 12, 0.97)', 'rgba(255, 120, 45, 0.97)'],
+  })
+
+  // ── Entry animations ─────────────────────────────────────────────────────
 
   useEffect(() => {
-    // Haptic on appear
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
 
-    // Backdrop fade in
-    backdropOpacity.value = withTiming(1, { duration: 350 })
-
-    // Card entrance
-    cardScale.value   = withTiming(1, { duration: 380, easing: Easing.out(Easing.back(1.4)) })
-    cardOpacity.value = withTiming(1, { duration: 280 })
-
-    // Color wash: dark amber → bright orange over 1.4s
-    cardColorPct.value = withTiming(1, { duration: 1400, easing: Easing.out(Easing.quad) })
+    Animated.parallel([
+      // Backdrop
+      Animated.timing(backdropOpacity, {
+        toValue: 1, duration: 350, useNativeDriver: false,
+      }),
+      // Card slide-in with slight overshoot
+      Animated.spring(cardScale, {
+        toValue: 1, useNativeDriver: false,
+        speed: 14, bounciness: 6,
+      }),
+      Animated.timing(cardOpacity, {
+        toValue: 1, duration: 280, useNativeDriver: false,
+      }),
+      // Color wash
+      Animated.timing(cardColorPct, {
+        toValue: 1, duration: 1400,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: false,
+      }),
+    ]).start()
   }, [])
 
   // ── Dismiss ──────────────────────────────────────────────────────────────
-
-  function handleAnimationComplete() {
-    SecureStore.setItemAsync(seenKey(switchDate), '1').catch(() => {})
-    onDismiss()
-  }
 
   function handleDismiss() {
     if (dismissing) return
     setDismissing(true)
 
-    // Haptics: medium on tap, heavy as card begins to explode
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
     setTimeout(() => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {})
     }, 100)
 
     // Backdrop fades out
-    backdropOpacity.value = withDelay(200, withTiming(0, { duration: 650 }))
+    Animated.delay(200)
+    Animated.timing(backdropOpacity, {
+      toValue: 0, duration: 650, delay: 200, useNativeDriver: false,
+    }).start()
 
-    // Card scale explosion then complete
-    cardScale.value = withSequence(
-      withTiming(1.06, { duration: 240, easing: Easing.out(Easing.quad) }),
-      withTiming(22,   { duration: 860, easing: Easing.in(Easing.quad) }),
-    )
-    cardOpacity.value = withDelay(
-      140,
-      withTiming(0, { duration: 700, easing: Easing.in(Easing.quad) }, (finished) => {
-        'worklet'
-        if (finished) runOnJS(handleAnimationComplete)()
+    // Card: bounce up then explode
+    Animated.sequence([
+      Animated.timing(cardScale, {
+        toValue: 1.06, duration: 240,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: false,
       }),
-    )
+      Animated.timing(cardScale, {
+        toValue: 22, duration: 860,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: false,
+      }),
+    ]).start()
+
+    Animated.timing(cardOpacity, {
+      toValue: 0, duration: 700, delay: 140,
+      easing: Easing.in(Easing.quad),
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      if (finished) {
+        SecureStore.setItemAsync(seenKey(switchDate), '1').catch(() => {})
+        onDismiss()
+      }
+    })
   }
-
-  // ── Animated styles ──────────────────────────────────────────────────────
-
-  const backdropStyle = useAnimatedStyle(() => ({
-    opacity: backdropOpacity.value,
-  }))
-
-  const cardStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: cardScale.value }],
-    opacity: cardOpacity.value,
-    backgroundColor: interpolateColor(
-      cardColorPct.value,
-      [0, 1],
-      ['rgba(180, 82, 12, 0.97)', 'rgba(255, 120, 45, 0.97)'],
-    ),
-  }))
 
   // ── Render ───────────────────────────────────────────────────────────────
 
@@ -206,12 +220,21 @@ export default function SwitchDayCelebration({ switchDate, onDismiss }: Props) {
       onRequestClose={handleDismiss}
     >
       {/* Backdrop */}
-      <Animated.View style={[styles.backdrop, backdropStyle]} />
+      <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
 
-      {/* Centered content */}
+      {/* Centering layer */}
       <View style={styles.centeredContainer} pointerEvents="box-none">
-        <Animated.View style={[styles.card, cardStyle]}>
-          {/* Stars */}
+        <Animated.View
+          style={[
+            styles.card,
+            {
+              backgroundColor: cardBg,
+              opacity: cardOpacity,
+              transform: [{ scale: cardScale }],
+            },
+          ]}
+        >
+          {/* Twinkling stars */}
           {!dismissing && stars.map((star, i) => (
             <Star key={i} config={star} />
           ))}
@@ -219,19 +242,14 @@ export default function SwitchDayCelebration({ switchDate, onDismiss }: Props) {
           {/* Content */}
           <View style={styles.content}>
 
-            {/* Heading */}
             <Text style={styles.heading}>Switch Day</Text>
 
-            {/* Date */}
             <Text style={styles.dateLabel}>{dateLabel}</Text>
 
-            {/* Divider */}
             <View style={styles.divider} />
 
-            {/* Tagline */}
             <Text style={styles.tagline}>Today is the handoff.</Text>
 
-            {/* Dismiss button */}
             <TouchableOpacity
               onPress={handleDismiss}
               disabled={dismissing}
@@ -251,13 +269,11 @@ export default function SwitchDayCelebration({ switchDate, onDismiss }: Props) {
 // ─── styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  // Backdrop — absolutely fills the screen behind the card
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.52)',
   },
 
-  // Full-screen centering layer (no background — backdrop is separate)
   centeredContainer: {
     flex: 1,
     alignItems: 'center',
@@ -265,7 +281,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
 
-  // Card
   card: {
     width: '100%',
     borderRadius: 24,
@@ -273,7 +288,6 @@ const styles = StyleSheet.create({
     paddingTop: 48,
     paddingBottom: 44,
     overflow: 'hidden',
-    // Shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 24 },
     shadowOpacity: 0.32,
@@ -281,14 +295,12 @@ const styles = StyleSheet.create({
     elevation: 20,
   },
 
-  // Star (absolutely positioned within card)
   star: {
     position: 'absolute',
     color: 'rgba(255, 255, 255, 0.70)',
     lineHeight: 20,
   },
 
-  // Content wrapper — sits above stars via zIndex
   content: {
     zIndex: 1,
     alignItems: 'center',
