@@ -281,7 +281,8 @@ interface SpecificEditorProps {
 
 function CustomSpecificEditor({ specificDays, onChange, startDate, endDate, ownerA, ownerB }: SpecificEditorProps) {
   const { width } = useWindowDimensions()
-  const CELL = Math.floor((width - 48) / 7)
+  // form paddingHorizontal: 20 each side = 40px; 6 gaps of 2px = 12px; total = 52px
+  const CELL = Math.floor((width - 52) / 7)
 
   const startYM = { year: startDate.getFullYear(), month: startDate.getMonth() }
   const endYM   = { year: endDate.getFullYear(),   month: endDate.getMonth() }
@@ -348,7 +349,7 @@ function CustomSpecificEditor({ specificDays, onChange, startDate, endDate, owne
       </View>
 
       {/* Weekday labels */}
-      <View style={se.weekRow}>
+      <View style={[se.weekRow, { gap: 2 }]}>
         {WEEKDAYS.map(wd => (
           <View key={wd} style={[se.weekCell, { width: CELL }]}>
             <Text style={se.weekLabel}>{wd}</Text>
@@ -356,36 +357,38 @@ function CustomSpecificEditor({ specificDays, onChange, startDate, endDate, owne
         ))}
       </View>
 
-      {/* Grid */}
-      <View style={se.grid}>
-        {cells.map((cell, i) => {
-          if (!cell.day || !cell.dateStr) {
-            return <View key={`b${i}`} style={[se.cell, { width: CELL, height: CELL }]} />
-          }
-          const outOfRange = cell.dateStr < startYMD || cell.dateStr > endYMD
-          const ownerId = specificDays[cell.dateStr]
-          const owner = ownerId === ownerA.id ? ownerA : ownerId === ownerB.id ? ownerB : null
+      {/* Grid — explicit rows so ScrollView can measure height correctly */}
+      {Array.from({ length: Math.ceil(cells.length / 7) }).map((_, rowIdx) => (
+        <View key={rowIdx} style={[se.gridRow, { gap: 2, marginBottom: 2 }]}>
+          {cells.slice(rowIdx * 7, (rowIdx + 1) * 7).map((cell, colIdx) => {
+            if (!cell.day || !cell.dateStr) {
+              return <View key={`b${colIdx}`} style={[se.cell, { width: CELL, height: CELL }]} />
+            }
+            const outOfRange = cell.dateStr < startYMD || cell.dateStr > endYMD
+            const ownerId = specificDays[cell.dateStr]
+            const owner = ownerId === ownerA.id ? ownerA : ownerId === ownerB.id ? ownerB : null
 
-          return (
-            <TouchableOpacity
-              key={cell.dateStr}
-              style={[se.cell, { width: CELL, height: CELL }, outOfRange && se.cellOut]}
-              onPress={() => !outOfRange && tapDay(cell.dateStr!)}
-              activeOpacity={outOfRange ? 1 : 0.7}
-            >
-              {owner ? (
-                <View style={[se.ownerCircle, { backgroundColor: owner.color }]}>
-                  <Text style={se.ownerInitials}>{owner.initials}</Text>
-                </View>
-              ) : (
-                <View style={[se.emptyCircle, outOfRange && se.emptyCircleOut]}>
-                  <Text style={[se.dayNum, outOfRange && se.dayNumOut]}>{cell.day}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          )
-        })}
-      </View>
+            return (
+              <TouchableOpacity
+                key={cell.dateStr}
+                style={[se.cell, { width: CELL, height: CELL }, outOfRange && se.cellOut]}
+                onPress={() => !outOfRange && tapDay(cell.dateStr!)}
+                activeOpacity={outOfRange ? 1 : 0.7}
+              >
+                {owner ? (
+                  <View style={[se.ownerCircle, { backgroundColor: owner.color }]}>
+                    <Text style={se.ownerInitials}>{owner.initials}</Text>
+                  </View>
+                ) : (
+                  <View style={[se.emptyCircle, outOfRange && se.emptyCircleOut]}>
+                    <Text style={[se.dayNum, outOfRange && se.dayNumOut]}>{cell.day}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+      ))}
 
       {/* Tally */}
       <View style={se.tally}>
@@ -412,7 +415,7 @@ const se = StyleSheet.create({
   weekRow: { flexDirection: 'row', marginBottom: 4 },
   weekCell: { alignItems: 'center', paddingVertical: 2 },
   weekLabel: { fontSize: 10, fontWeight: '600', fontFamily: font.semibold, color: colors.textSubtle },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  gridRow: { flexDirection: 'row' },
   cell: { alignItems: 'center', justifyContent: 'center', padding: 2 },
   cellOut: { opacity: 0.25 },
   ownerCircle: {
@@ -443,6 +446,7 @@ export default function NewScheduleScreen() {
   // ── form state ──────────────────────────────────────────────────────────────
   const [name, setName]               = useState('')
   const [pattern, setPattern]         = useState<UIPattern | null>(null)
+  const [showPatternPicker, setShowPatternPicker] = useState(false)
   const [startDate, setStartDate]     = useState<Date | null>(null)
   const [endDate, setEndDate]         = useState<Date | null>(null)
   const [firstOwnerId, setFirstOwnerId] = useState<string | null>(null)
@@ -598,22 +602,50 @@ export default function NewScheduleScreen() {
 
         {/* ── Pattern ── */}
         <Text style={s.label}>Pattern</Text>
-        <View style={s.patternGrid}>
-          {PATTERN_OPTIONS.map(opt => (
-            <TouchableOpacity
-              key={opt.key}
-              style={[s.patternCard, pattern === opt.key && s.patternCardActive]}
-              onPress={() => handlePatternSelect(opt.key)}
-            >
-              <Text style={[s.patternLabel, pattern === opt.key && s.patternLabelActive]}>
-                {opt.label}
+        <TouchableOpacity style={s.patternSelect} onPress={() => setShowPatternPicker(true)}>
+          {pattern ? (
+            <View style={s.patternSelectFilled}>
+              <Text style={s.patternSelectValue}>
+                {PATTERN_OPTIONS.find(o => o.key === pattern)?.label}
               </Text>
-              <Text style={[s.patternSub, pattern === opt.key && s.patternSubActive]}>
-                {opt.sub}
+              <Text style={s.patternSelectSub}>
+                {PATTERN_OPTIONS.find(o => o.key === pattern)?.sub}
               </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+            </View>
+          ) : (
+            <Text style={s.patternSelectPlaceholder}>Select a pattern…</Text>
+          )}
+          <Text style={s.patternSelectChevron}>›</Text>
+        </TouchableOpacity>
+
+        {/* Pattern picker sheet */}
+        <Modal visible={showPatternPicker} transparent animationType="slide" onRequestClose={() => setShowPatternPicker(false)}>
+          <TouchableOpacity style={s.pickerBackdrop} activeOpacity={1} onPress={() => setShowPatternPicker(false)}>
+            <View style={s.pickerSheet}>
+              <View style={s.pickerHeader}>
+                <Text style={s.pickerTitle}>Schedule pattern</Text>
+                <TouchableOpacity onPress={() => setShowPatternPicker(false)} hitSlop={12}>
+                  <Text style={s.pickerDone}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              {PATTERN_OPTIONS.map((opt, idx) => (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[s.pickerRow, idx === PATTERN_OPTIONS.length - 1 && s.pickerRowLast]}
+                  onPress={() => { handlePatternSelect(opt.key); setShowPatternPicker(false) }}
+                >
+                  <View style={s.pickerRowContent}>
+                    <Text style={s.pickerRowLabel}>{opt.label}</Text>
+                    <Text style={s.pickerRowSub}>{opt.sub}</Text>
+                  </View>
+                  {pattern === opt.key && (
+                    <Text style={s.pickerCheck}>✓</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {/* ── Date range ── */}
         {pattern && (
@@ -768,17 +800,41 @@ const s = StyleSheet.create({
   },
   noteInput: { minHeight: 80, textAlignVertical: 'top' },
 
-  // Pattern grid
-  patternGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  patternCard: {
-    width: '47%', borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border,
-    backgroundColor: colors.surface2, paddingHorizontal: 12, paddingVertical: 12,
+  // Pattern select button
+  patternSelect: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.surface2, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 14, paddingVertical: 13, marginTop: 4,
   },
-  patternCardActive: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
-  patternLabel: { fontSize: 13, fontWeight: '600', fontFamily: font.semibold, color: colors.textSecondary, marginBottom: 2 },
-  patternLabelActive: { color: colors.accent },
-  patternSub: { fontSize: 11, fontFamily: font.regular, color: colors.textSubtle },
-  patternSubActive: { color: colors.textMuted },
+  patternSelectFilled: { flex: 1 },
+  patternSelectValue: { fontSize: 15, fontFamily: font.medium, fontWeight: '500', color: colors.textPrimary },
+  patternSelectSub: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, marginTop: 1 },
+  patternSelectPlaceholder: { flex: 1, fontSize: 15, fontFamily: font.regular, color: colors.textSubtle },
+  patternSelectChevron: { fontSize: 20, color: colors.textSubtle, marginLeft: 8 },
+
+  // Pattern picker sheet
+  pickerBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.25)' },
+  pickerSheet: {
+    backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg,
+    paddingBottom: 32,
+  },
+  pickerHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 16,
+    borderBottomWidth: 1, borderBottomColor: colors.borderHair,
+  },
+  pickerTitle: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary },
+  pickerDone: { fontSize: 16, fontFamily: font.semibold, fontWeight: '600', color: colors.accent },
+  pickerRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: colors.borderHair,
+  },
+  pickerRowLast: { borderBottomWidth: 0 },
+  pickerRowContent: { flex: 1 },
+  pickerRowLabel: { fontSize: 15, fontFamily: font.medium, fontWeight: '500', color: colors.textPrimary },
+  pickerRowSub: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, marginTop: 1 },
+  pickerCheck: { fontSize: 17, color: colors.accent, fontWeight: '700', marginLeft: 12 },
 
   // Date range
   dateRow: { flexDirection: 'row', gap: 10 },

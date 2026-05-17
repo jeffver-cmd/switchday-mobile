@@ -113,8 +113,8 @@ export default function CalendarScreen() {
   const { data, loading, error, refresh } = useCalendar(year, month)
   const { width } = useWindowDimensions()
 
-  // cell size: full width minus horizontal padding (16 each side), divided by 7
-  const CELL = Math.floor((width - 32) / 7)
+  // cell size: full width minus horizontal padding (32) minus 6 column gaps of 2px each (12), divided by 7
+  const CELL = Math.floor((width - 32 - 12) / 7)
 
   function prevMonth() {
     if (month === 0) { setYear(y => y - 1); setMonth(11) }
@@ -207,7 +207,7 @@ export default function CalendarScreen() {
                     styles.dayCell,
                     { width: CELL, height: CELL },
                     hasSchedule && ownerColor
-                      ? { backgroundColor: ownerColor + '28' }  // 16% opacity tint
+                      ? { backgroundColor: ownerColor + '22' }  // 13% opacity tint
                       : null,
                     isSel ? styles.dayCellSelected : null,
                   ]}
@@ -306,12 +306,12 @@ const styles = StyleSheet.create({
   monthTitle: { fontSize: 18, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
 
   // Weekday labels
-  weekRow: { flexDirection: 'row', marginBottom: 4 },
+  weekRow: { flexDirection: 'row', gap: 2, marginBottom: 4 },
   weekCell: { alignItems: 'center', paddingVertical: 4 },
   weekLabel: { fontSize: 11, fontWeight: '600', fontFamily: font.semibold, color: colors.textSubtle, letterSpacing: 0.5 },
 
   // Grid
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 2 },
   loadingBox: { alignItems: 'center', justifyContent: 'center' },
   emptyBox: { paddingVertical: 40, alignItems: 'center', paddingHorizontal: 24 },
   emptyTitle: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, textAlign: 'center', marginBottom: 8 },

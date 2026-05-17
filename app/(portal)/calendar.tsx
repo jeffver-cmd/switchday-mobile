@@ -170,7 +170,7 @@ export default function PortalCalendarScreen() {
 
   const { data, loading, error, refresh } = usePortalCalendar(year, month)
   const { width } = useWindowDimensions()
-  const CELL = Math.floor((width - 32) / 7)
+  const CELL = Math.floor((width - 32 - 12) / 7)
 
   function prevMonth() {
     if (month === 0) { setYear(y => y - 1); setMonth(11) }
@@ -253,7 +253,7 @@ export default function PortalCalendarScreen() {
                   key={cell.dateStr}
                   style={[
                     S.dayCell, { width: CELL, height: CELL },
-                    dd?.ownerId && oc ? { backgroundColor: oc + '28' } : null,
+                    dd?.ownerId && oc ? { backgroundColor: oc + '22' } : null,
                     isSel ? S.dayCellSelected : null,
                   ]}
                   onPress={() => setSelected(isSel ? null : cell.dateStr)}
@@ -313,10 +313,10 @@ const S = StyleSheet.create({
   navBtn:     { padding: 4 },
   navArrow:   { fontSize: 28, fontFamily: font.regular, color: colors.textSecondary, fontWeight: '300', lineHeight: 32 },
   monthTitle: { fontSize: 18, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
-  weekRow:    { flexDirection: 'row', marginBottom: 4 },
+  weekRow:    { flexDirection: 'row', gap: 2, marginBottom: 4 },
   weekCell:   { alignItems: 'center', paddingVertical: 4 },
   weekLabel:  { fontSize: 11, fontWeight: '600', fontFamily: font.semibold, color: colors.textSubtle, letterSpacing: 0.5 },
-  grid:       { flexDirection: 'row', flexWrap: 'wrap' },
+  grid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 2 },
   loadingBox: { alignItems: 'center', justifyContent: 'center' },
   emptyBox:   { paddingVertical: 40, alignItems: 'center', paddingHorizontal: 24 },
   emptyTitle: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, textAlign: 'center', marginBottom: 8 },
