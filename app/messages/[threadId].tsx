@@ -39,8 +39,8 @@ function formatDaySeparator(iso: string): string {
 
 // ─── message bubble ──────────────────────────────────────────────────────────
 
-// Warm cream — matches web's var(--color-surface-2)
-const RECEIVED_COLOR = colors.surface2  // #F0EEE9
+// Slightly darker warm gray — matches web's received bubble color
+const RECEIVED_COLOR = '#D9D3CA'
 
 interface BubbleProps {
   msg: Message
