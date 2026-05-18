@@ -39,7 +39,7 @@ export default function LoginScreen() {
 
     setLoading(false)
     if (childRow) {
-      router.replace('/(portal)/calendar')
+      router.replace('/(portal)/home')
     } else {
       router.replace('/(tabs)/dashboard')
     }

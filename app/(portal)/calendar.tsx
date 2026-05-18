@@ -84,12 +84,13 @@ function usePortalCalendar(year: number, month: number) {
       const userId = session.user.id
 
       const { data: childRow } = await supabase
-        .from('children').select('id, connection_id')
+        .from('children').select('id, connection_id, parent_nicknames')
         .eq('auth_user_id', userId).maybeSingle()
 
       if (!childRow?.connection_id) { setError('no_child_record'); setLoading(false); return }
       const connectionId = childRow.connection_id
       const childId      = childRow.id
+      const nicknames    = (childRow.parent_nicknames ?? {}) as Record<string, string>
 
       const { start, end } = monthBounds(year, month)
 
@@ -122,7 +123,10 @@ function usePortalCalendar(year: number, month: number) {
           .order('created_at', { ascending: true }),
       ])
 
-      const parents  = (profResult.data ?? []) as ParentProfile[]
+      const parents: ParentProfile[] = (profResult.data ?? []).map(p => ({
+        ...p,
+        display_name: nicknames[p.id]?.trim() || p.display_name,
+      }))
       const colorMap: Record<string, string> = {}
       for (const p of parents) colorMap[p.id] = p.color ?? '#6b7280'
 

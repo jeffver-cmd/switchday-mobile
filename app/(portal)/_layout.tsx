@@ -31,6 +31,10 @@ function PortalTabs() {
       }}
     >
       <Tabs.Screen
+        name="home"
+        options={{ title: 'Home', tabBarIcon: tabIcon('home', 'home-outline') }}
+      />
+      <Tabs.Screen
         name="calendar"
         options={{ title: 'Calendar', tabBarIcon: tabIcon('calendar', 'calendar-outline') }}
       />
