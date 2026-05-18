@@ -253,7 +253,7 @@ export default function ConversationScreen() {
 // ─── styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   errorText: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted },
@@ -309,31 +309,32 @@ const styles = StyleSheet.create({
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 14,
     borderTopWidth: 1,
     borderTopColor: colors.borderHair,
     backgroundColor: colors.surface,
-    gap: 8,
+    gap: 10,
   },
   input: {
     flex: 1,
     backgroundColor: colors.surface2,
-    borderRadius: radius.md,   // 12 px — closer to web's 10 px
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     fontSize: 15,
     fontFamily: font.regular,
     color: colors.textPrimary,
     maxHeight: 120,
   },
   sendBtn: {
-    width: 44, height: 44, borderRadius: 10,   // matches web: 44×44, borderRadius 10
+    width: 44, height: 44, borderRadius: 10,
     backgroundColor: colors.accent,
     alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
   },
   sendBtnDisabled: { backgroundColor: colors.surface2 },
   sendBtnText: { color: colors.white, fontSize: 20, fontWeight: '700', lineHeight: 22 },

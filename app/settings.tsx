@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   // Profile row
   profileRow:  { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },
   avatarCircle: {
-    width: 48, height: 48, borderRadius: radius.full,
+    width: 48, height: 48, borderRadius: radius.md,
     alignItems: 'center', justifyContent: 'center',
   },
   avatarText:  { fontSize: 20, fontWeight: '700', fontFamily: font.bold, color: colors.white },

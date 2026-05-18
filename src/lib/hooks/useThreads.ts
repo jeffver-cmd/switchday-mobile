@@ -45,27 +45,25 @@ export function useThreads() {
 
       if (!connection) { setError('no_connection'); setLoading(false); return }
 
-      // Get threads the user participates in (for this connection)
-      const { data: participantRows } = await supabase
-        .from('thread_participants')
-        .select('thread_id')
-        .eq('user_id', userId)
+      // Query message_threads directly by connection_id.
+      // RLS handles access: co_parent threads are visible via is_connection_member;
+      // family/child_parent threads are visible via thread_participants participant policy.
+      // This avoids a thread_participants lookup that would miss co_parent threads
+      // (which often have no participant rows).
+      const { data: threadRows } = await supabase
+        .from('message_threads')
+        .select('id, connection_id, topic, thread_type, last_message_at')
+        .eq('connection_id', connection.id)
+        .neq('thread_type', 'archived')
+        .order('last_message_at', { ascending: false, nullsFirst: false })
 
-      const threadIds = (participantRows ?? []).map(r => r.thread_id)
+      const threadIds = (threadRows ?? []).map(r => r.id)
 
       if (threadIds.length === 0) {
         setData({ userId, connectionId: connection.id, threads: [] })
         setLoading(false)
         return
       }
-
-      // Get thread details
-      const { data: threadRows } = await supabase
-        .from('message_threads')
-        .select('id, connection_id, topic, thread_type, last_message_at')
-        .in('id', threadIds)
-        .eq('connection_id', connection.id)
-        .order('last_message_at', { ascending: false, nullsFirst: false })
 
       const threads = threadRows ?? []
 

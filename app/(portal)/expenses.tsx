@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { colors, radius, shadow, font } from '@/lib/theme'
+import { usePortal } from '@/lib/context/PortalContext'
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -107,6 +108,7 @@ function formatDate(iso: string) {
 
 export default function PortalExpensesScreen() {
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
+  const { theme } = usePortal()
   const { expenses, loading, error, refresh } = usePortalExpenses()
 
   const filtered = expenses.filter(e => {
@@ -118,17 +120,17 @@ export default function PortalExpensesScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={S.centered}>
-        <ActivityIndicator size="large" color={colors.accent} />
+      <SafeAreaView style={[S.centered, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator size="large" color={theme.accent} />
       </SafeAreaView>
     )
   }
 
   if (error) {
     return (
-      <SafeAreaView style={S.centered}>
-        <Text style={S.errorText}>Could not load expenses</Text>
-        <TouchableOpacity onPress={refresh} style={S.retryBtn}>
+      <SafeAreaView style={[S.centered, { backgroundColor: theme.bg }]}>
+        <Text style={[S.errorText, { color: colors.danger }]}>Could not load expenses</Text>
+        <TouchableOpacity onPress={refresh} style={[S.retryBtn, { backgroundColor: theme.accent }]}>
           <Text style={S.retryText}>Try again</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -136,46 +138,49 @@ export default function PortalExpensesScreen() {
   }
 
   return (
-    <SafeAreaView style={S.container}>
+    <SafeAreaView style={[S.container, { backgroundColor: theme.bg }]}>
       <View style={S.headerRow}>
-        <Text style={S.headerTitle}>Expenses</Text>
+        <Text style={[S.headerTitle, { color: theme.textPrimary }]}>Expenses</Text>
       </View>
 
       {/* Filter tabs */}
       <View style={S.filterRow}>
-        {FILTER_TABS.map(tab => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[S.filterTab, activeTab === tab.key && S.filterTabActive]}
-            onPress={() => setActiveTab(tab.key)}
-          >
-            <Text style={[S.filterTabText, activeTab === tab.key && S.filterTabTextActive]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {FILTER_TABS.map(tab => {
+          const isActive = activeTab === tab.key
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[S.filterTab, { backgroundColor: isActive ? theme.accent : theme.surface2 }]}
+              onPress={() => setActiveTab(tab.key)}
+            >
+              <Text style={[S.filterTabText, { color: isActive ? '#fff' : theme.textMuted }]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          )
+        })}
       </View>
 
       {filtered.length === 0 ? (
         <View style={S.emptyBox}>
-          <Text style={S.emptyTitle}>No expenses</Text>
-          <Text style={S.emptySubtitle}>Shared expenses will appear here.</Text>
+          <Text style={[S.emptyTitle, { color: theme.textPrimary }]}>No expenses</Text>
+          <Text style={[S.emptySubtitle, { color: theme.textMuted }]}>Shared expenses will appear here.</Text>
         </View>
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={e => e.id}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={theme.accent} />}
           contentContainerStyle={S.list}
           renderItem={({ item: exp }) => (
-            <View style={S.card}>
+            <View style={[S.card, { backgroundColor: theme.surface }]}>
               <View style={S.cardTop}>
                 <View style={S.cardLeft}>
-                  <Text style={S.description} numberOfLines={2}>{exp.description}</Text>
-                  <Text style={S.meta}>{formatDate(exp.submittedAt)} · {exp.category}</Text>
+                  <Text style={[S.description, { color: theme.textPrimary }]} numberOfLines={2}>{exp.description}</Text>
+                  <Text style={[S.meta, { color: theme.textMuted }]}>{formatDate(exp.submittedAt)} · {exp.category}</Text>
                 </View>
                 <View style={S.cardRight}>
-                  <Text style={S.amount}>${exp.amount.toFixed(2)}</Text>
+                  <Text style={[S.amount, { color: theme.textPrimary }]}>${exp.amount.toFixed(2)}</Text>
                   <View style={[S.statusBadge, { backgroundColor: STATUS_COLORS[exp.status] + '20' }]}>
                     <Text style={[S.statusText, { color: STATUS_COLORS[exp.status] }]}>
                       {STATUS_LABELS[exp.status]}
@@ -183,7 +188,7 @@ export default function PortalExpensesScreen() {
                   </View>
                 </View>
               </View>
-              <Text style={S.split}>Split: {exp.splitPercent}% / {100 - exp.splitPercent}%</Text>
+              <Text style={[S.split, { color: theme.textMuted }]}>Split: {exp.splitPercent}% / {100 - exp.splitPercent}%</Text>
             </View>
           )}
         />
@@ -195,34 +200,32 @@ export default function PortalExpensesScreen() {
 // ─── styles ──────────────────────────────────────────────────────────────────
 
 const S = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  centered:  { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, paddingHorizontal: 24 },
-  errorText: { fontSize: 14, fontFamily: font.regular, color: colors.danger, textAlign: 'center', marginBottom: 12 },
-  retryBtn:  { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.accent, borderRadius: radius.md },
-  retryText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
+  container: { flex: 1 },
+  centered:  { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  errorText: { fontSize: 14, fontFamily: font.regular, textAlign: 'center', marginBottom: 12 },
+  retryBtn:  { paddingHorizontal: 20, paddingVertical: 10, borderRadius: radius.md },
+  retryText: { color: '#fff', fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
 
   headerRow:  { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
-  headerTitle:{ fontSize: 22, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
+  headerTitle:{ fontSize: 22, fontWeight: '700', fontFamily: font.bold },
 
   filterRow: { flexDirection: 'row', paddingHorizontal: 16, paddingBottom: 12, gap: 8 },
-  filterTab: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.full, backgroundColor: colors.surface2 },
-  filterTabActive: { backgroundColor: colors.accent },
-  filterTabText:   { fontSize: 13, fontWeight: '500', fontFamily: font.medium, color: colors.textMuted },
-  filterTabTextActive: { color: colors.white },
+  filterTab: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.full },
+  filterTabText:   { fontSize: 13, fontWeight: '500', fontFamily: font.medium },
 
   emptyBox:  { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  emptyTitle:{ fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 8 },
-  emptySubtitle: { fontSize: 13, fontFamily: font.regular, color: colors.textSubtle, textAlign: 'center' },
+  emptyTitle:{ fontSize: 16, fontWeight: '600', fontFamily: font.semibold, marginBottom: 8 },
+  emptySubtitle: { fontSize: 13, fontFamily: font.regular, textAlign: 'center' },
 
   list: { paddingHorizontal: 16, paddingBottom: 32 },
-  card: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 16, marginBottom: 10, ...shadow.sm },
+  card: { borderRadius: radius.md, padding: 16, marginBottom: 10, ...shadow.sm },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 },
   cardLeft:{ flex: 1, marginRight: 12 },
   cardRight: { alignItems: 'flex-end', gap: 6 },
-  description: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 3 },
-  meta: { fontSize: 12, fontFamily: font.regular, color: colors.textSubtle },
-  amount: { fontSize: 18, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
+  description: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, marginBottom: 3 },
+  meta: { fontSize: 12, fontFamily: font.regular },
+  amount: { fontSize: 18, fontWeight: '700', fontFamily: font.bold },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm },
   statusText:  { fontSize: 11, fontWeight: '700', fontFamily: font.bold },
-  split: { fontSize: 12, fontFamily: font.regular, color: colors.textSubtle },
+  split: { fontSize: 12, fontFamily: font.regular },
 })

@@ -419,12 +419,12 @@ const se = StyleSheet.create({
   cell: { alignItems: 'center', justifyContent: 'center', padding: 2 },
   cellOut: { opacity: 0.25 },
   ownerCircle: {
-    width: 34, height: 34, borderRadius: radius.full,
+    width: 34, height: 34, borderRadius: radius.md,
     alignItems: 'center', justifyContent: 'center',
   },
   ownerInitials: { fontSize: 12, fontWeight: '700', fontFamily: font.bold, color: colors.white },
   emptyCircle: {
-    width: 34, height: 34, borderRadius: radius.full, borderWidth: 1,
+    width: 34, height: 34, borderRadius: radius.md, borderWidth: 1,
     borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
   },
   emptyCircleOut: { borderColor: colors.borderHair },
@@ -847,7 +847,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.surface2, alignItems: 'center', paddingVertical: 16, gap: 8,
   },
   ownerAvatar: {
-    width: 48, height: 48, borderRadius: radius.full,
+    width: 48, height: 48, borderRadius: radius.md,
     alignItems: 'center', justifyContent: 'center',
   },
   ownerInitials: { fontSize: 17, fontWeight: '700', fontFamily: font.bold, color: colors.white },

@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router'
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { colors, radius, font } from '@/lib/theme'
+import { usePortal } from '@/lib/context/PortalContext'
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -136,21 +137,22 @@ function formatRelTime(iso: string | null): string {
 
 export default function PortalMessagesScreen() {
   const router = useRouter()
+  const { theme } = usePortal()
   const { threads, loading, error, refresh } = usePortalThreads()
 
   if (loading) {
     return (
-      <SafeAreaView style={S.centered}>
-        <ActivityIndicator size="large" color={colors.accent} />
+      <SafeAreaView style={[S.centered, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator size="large" color={theme.accent} />
       </SafeAreaView>
     )
   }
 
   if (error) {
     return (
-      <SafeAreaView style={S.centered}>
-        <Text style={S.errorText}>Could not load messages</Text>
-        <TouchableOpacity onPress={refresh} style={S.retryBtn}>
+      <SafeAreaView style={[S.centered, { backgroundColor: theme.bg }]}>
+        <Text style={[S.errorText, { color: colors.danger }]}>Could not load messages</Text>
+        <TouchableOpacity onPress={refresh} style={[S.retryBtn, { backgroundColor: theme.accent }]}>
           <Text style={S.retryText}>Try again</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -158,46 +160,46 @@ export default function PortalMessagesScreen() {
   }
 
   return (
-    <SafeAreaView style={S.container}>
+    <SafeAreaView style={[S.container, { backgroundColor: theme.bg }]}>
       <View style={S.headerRow}>
-        <Text style={S.headerTitle}>Messages</Text>
+        <Text style={[S.headerTitle, { color: theme.textPrimary }]}>Messages</Text>
       </View>
       {threads.length === 0 ? (
         <View style={S.emptyBox}>
-          <Text style={S.emptyTitle}>No messages</Text>
-          <Text style={S.emptySubtitle}>Your conversations will appear here.</Text>
+          <Text style={[S.emptyTitle, { color: theme.textPrimary }]}>No messages</Text>
+          <Text style={[S.emptySubtitle, { color: theme.textMuted }]}>Your conversations will appear here.</Text>
         </View>
       ) : (
         <FlatList
           data={threads}
           keyExtractor={t => t.id}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={theme.accent} />}
           renderItem={({ item: t }) => {
             const isUnread = t.unreadCount > 0
             return (
               <TouchableOpacity
-                style={S.threadRow}
+                style={[S.threadRow, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}
                 onPress={() => router.push(`/messages/${t.id}`)}
                 activeOpacity={0.7}
               >
-                <View style={S.threadIcon}>
+                <View style={[S.threadIcon, { backgroundColor: theme.surface2 }]}>
                   <Text style={S.threadIconText}>
                     {t.threadType === 'with_child' ? '👤' : t.threadType === 'family' ? '👨‍👩‍👧' : '💬'}
                   </Text>
                 </View>
                 <View style={S.threadBody}>
                   <View style={S.threadTopRow}>
-                    <Text style={[S.threadTopic, isUnread && S.threadTopicUnread]} numberOfLines={1}>
+                    <Text style={[S.threadTopic, { color: theme.textPrimary }, isUnread && S.threadTopicUnread]} numberOfLines={1}>
                       {t.topic}
                     </Text>
-                    <Text style={S.threadTime}>{formatRelTime(t.lastMessageAt)}</Text>
+                    <Text style={[S.threadTime, { color: theme.textSubtle }]}>{formatRelTime(t.lastMessageAt)}</Text>
                   </View>
                   <View style={S.threadBottomRow}>
-                    <Text style={[S.threadPreview, isUnread && S.threadPreviewUnread]} numberOfLines={1}>
+                    <Text style={[S.threadPreview, { color: theme.textMuted }, isUnread && { color: theme.textSecondary, fontWeight: '500', fontFamily: font.medium }]} numberOfLines={1}>
                       {t.lastMessageBody ?? THREAD_TYPE_LABELS[t.threadType] ?? 'Conversation'}
                     </Text>
                     {isUnread && (
-                      <View style={S.unreadBadge}>
+                      <View style={[S.unreadBadge, { backgroundColor: theme.accent }]}>
                         <Text style={S.unreadBadgeText}>{t.unreadCount}</Text>
                       </View>
                     )}
@@ -215,30 +217,29 @@ export default function PortalMessagesScreen() {
 // ─── styles ──────────────────────────────────────────────────────────────────
 
 const S = StyleSheet.create({
-  container:  { flex: 1, backgroundColor: colors.bg },
-  centered:   { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, paddingHorizontal: 24 },
-  errorText:  { fontSize: 14, fontFamily: font.regular, color: colors.danger, textAlign: 'center', marginBottom: 12 },
-  retryBtn:   { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.accent, borderRadius: radius.md },
-  retryText:  { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
+  container:  { flex: 1 },
+  centered:   { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  errorText:  { fontSize: 14, fontFamily: font.regular, textAlign: 'center', marginBottom: 12 },
+  retryBtn:   { paddingHorizontal: 20, paddingVertical: 10, borderRadius: radius.md },
+  retryText:  { color: '#fff', fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
 
   headerRow:  { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
-  headerTitle:{ fontSize: 22, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
+  headerTitle:{ fontSize: 22, fontWeight: '700', fontFamily: font.bold },
 
   emptyBox:   { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  emptyTitle: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 8 },
-  emptySubtitle: { fontSize: 13, fontFamily: font.regular, color: colors.textSubtle, textAlign: 'center' },
+  emptyTitle: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, marginBottom: 8 },
+  emptySubtitle: { fontSize: 13, fontFamily: font.regular, textAlign: 'center' },
 
-  threadRow:  { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.borderHair, backgroundColor: colors.surface, gap: 12 },
-  threadIcon: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
+  threadRow:  { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, gap: 12 },
+  threadIcon: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   threadIconText: { fontSize: 20 },
   threadBody: { flex: 1 },
   threadTopRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 },
-  threadTopic:     { flex: 1, fontSize: 15, fontWeight: '500', fontFamily: font.medium, color: colors.textPrimary, marginRight: 8 },
+  threadTopic:     { flex: 1, fontSize: 15, fontWeight: '500', fontFamily: font.medium, marginRight: 8 },
   threadTopicUnread: { fontWeight: '700', fontFamily: font.bold },
-  threadTime:      { fontSize: 12, fontFamily: font.regular, color: colors.textSubtle },
+  threadTime:      { fontSize: 12, fontFamily: font.regular },
   threadBottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  threadPreview:   { flex: 1, fontSize: 13, fontFamily: font.regular, color: colors.textSubtle, marginRight: 8 },
-  threadPreviewUnread: { color: colors.textSecondary, fontWeight: '500', fontFamily: font.medium },
-  unreadBadge:     { minWidth: 20, height: 20, borderRadius: radius.full, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
-  unreadBadgeText: { fontSize: 11, fontWeight: '700', fontFamily: font.bold, color: colors.white },
+  threadPreview:   { flex: 1, fontSize: 13, fontFamily: font.regular, marginRight: 8 },
+  unreadBadge:     { minWidth: 20, height: 20, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  unreadBadgeText: { fontSize: 11, fontWeight: '700', fontFamily: font.bold, color: '#fff' },
 })

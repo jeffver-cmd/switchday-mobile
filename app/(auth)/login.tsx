@@ -23,10 +23,23 @@ export default function LoginScreen() {
   async function handleLogin() {
     if (!email || !password) return
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    setLoading(false)
+    const { data: { session }, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
+      setLoading(false)
       Alert.alert('Sign in failed', error.message)
+      return
+    }
+
+    // Check if this user is a child — route to portal if so
+    const { data: childRow } = await supabase
+      .from('children')
+      .select('id')
+      .eq('auth_user_id', session!.user.id)
+      .maybeSingle()
+
+    setLoading(false)
+    if (childRow) {
+      router.replace('/(portal)/calendar')
     } else {
       router.replace('/(tabs)/dashboard')
     }

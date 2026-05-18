@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { colors, font } from '@/lib/theme'
+import { PortalProvider, usePortal } from '@/lib/context/PortalContext'
+import { font } from '@/lib/theme'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -10,18 +11,22 @@ function tabIcon(active: IoniconsName, inactive: IoniconsName) {
   )
 }
 
-export default function PortalLayout() {
+// ─── inner tabs — rendered inside PortalProvider so usePortal() works ─────────
+
+function PortalTabs() {
+  const { theme } = usePortal()
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.borderHair,
+          backgroundColor: theme.surface,
+          borderTopColor: theme.border,
           borderTopWidth: 1,
         },
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textSubtle,
+        tabBarActiveTintColor:   theme.accent,
+        tabBarInactiveTintColor: theme.textMuted,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '500', fontFamily: font.medium },
       }}
     >
@@ -37,7 +42,21 @@ export default function PortalLayout() {
         name="expenses"
         options={{ title: 'Expenses', tabBarIcon: tabIcon('receipt', 'receipt-outline') }}
       />
+      <Tabs.Screen
+        name="settings"
+        options={{ title: 'Settings', tabBarIcon: tabIcon('settings', 'settings-outline') }}
+      />
       <Tabs.Screen name="index" options={{ href: null }} />
     </Tabs>
+  )
+}
+
+// ─── layout root — provides context ──────────────────────────────────────────
+
+export default function PortalLayout() {
+  return (
+    <PortalProvider>
+      <PortalTabs />
+    </PortalProvider>
   )
 }

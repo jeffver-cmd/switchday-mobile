@@ -9,8 +9,19 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { useState } from 'react'
 import { useThreads, ThreadSummary } from '@/lib/hooks/useThreads'
 import { colors, radius, font } from '@/lib/theme'
+
+// ─── types ───────────────────────────────────────────────────────────────────
+
+type TabKey = 'co_parent' | 'family' | 'child_parent'
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'co_parent',    label: 'Co-Parent' },
+  { key: 'family',       label: 'Family'    },
+  { key: 'child_parent', label: 'Children'  },
+]
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -25,15 +36,6 @@ function formatTime(iso: string | null): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function threadTypeLabel(type: string): string {
-  switch (type) {
-    case 'co_parent':    return 'Co-parent'
-    case 'family':       return 'Family'
-    case 'child_parent': return 'With child'
-    default:             return type
-  }
-}
-
 // ─── thread row ──────────────────────────────────────────────────────────────
 
 interface ThreadRowProps {
@@ -45,7 +47,7 @@ function ThreadRow({ item, onPress }: ThreadRowProps) {
   const hasUnread = item.unreadCount > 0
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
-      {/* Avatar / type icon */}
+      {/* Avatar */}
       <View style={styles.avatarWrap}>
         <View style={[styles.avatar, hasUnread && styles.avatarUnread]}>
           <Text style={[styles.avatarText, hasUnread && styles.avatarTextUnread]}>
@@ -72,7 +74,6 @@ function ThreadRow({ item, onPress }: ThreadRowProps) {
             </View>
           )}
         </View>
-        <Text style={styles.typeLabel}>{threadTypeLabel(item.threadType)}</Text>
       </View>
     </TouchableOpacity>
   )
@@ -83,6 +84,7 @@ function ThreadRow({ item, onPress }: ThreadRowProps) {
 export default function MessagesScreen() {
   const router = useRouter()
   const { data, loading, error, refresh } = useThreads()
+  const [activeTab, setActiveTab] = useState<TabKey>('co_parent')
 
   if (loading) {
     return (
@@ -101,14 +103,33 @@ export default function MessagesScreen() {
     )
   }
 
+  const filteredThreads = (data?.threads ?? []).filter(t => t.threadType === activeTab)
+
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.heading}>Messages</Text>
       </View>
 
+      {/* Filter tabs */}
+      <View style={styles.tabBar}>
+        {TABS.map(tab => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[styles.tab, activeTab === tab.key && styles.tabActive]}
+            onPress={() => setActiveTab(tab.key)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <FlatList
-        data={data?.threads ?? []}
+        data={filteredThreads}
         keyExtractor={item => item.id}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />}
         contentContainerStyle={styles.list}
@@ -122,7 +143,11 @@ export default function MessagesScreen() {
         ListEmptyComponent={
           <View style={styles.emptyBox}>
             <Text style={styles.emptyTitle}>No conversations yet</Text>
-            <Text style={styles.emptySubtitle}>Messages with your co-parent will appear here.</Text>
+            <Text style={styles.emptySubtitle}>
+              {activeTab === 'co_parent'   ? 'Messages with your co-parent will appear here.' :
+               activeTab === 'family'      ? 'Family group messages will appear here.' :
+                                            'Messages with your children will appear here.'}
+            </Text>
           </View>
         }
         showsVerticalScrollIndicator={false}
@@ -134,20 +159,49 @@ export default function MessagesScreen() {
 // ─── styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, paddingHorizontal: 24 },
+  container: { flex: 1, backgroundColor: colors.bg },
+  centered:  { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, paddingHorizontal: 24 },
 
-  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.borderHair },
+  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
   heading: { fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
+
+  // Tab bar
+  tabBar: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  tab: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tabActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  tabText: {
+    fontSize: 13,
+    fontFamily: font.medium,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  tabTextActive: {
+    color: colors.white,
+  },
 
   list: { flexGrow: 1 },
   separator: { height: 1, backgroundColor: colors.borderHair, marginLeft: 76 },
 
   // Thread row
-  row: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center' },
+  row: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center', backgroundColor: colors.surface },
   avatarWrap: { marginRight: 12 },
   avatar: {
-    width: 48, height: 48, borderRadius: radius.full,
+    width: 48, height: 48, borderRadius: radius.md,
     backgroundColor: colors.surface2,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -161,7 +215,7 @@ const styles = StyleSheet.create({
   topicBold: { fontWeight: '700', fontFamily: font.bold },
   time: { fontSize: 12, fontFamily: font.regular, color: colors.textSubtle },
 
-  rowBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
+  rowBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   preview: { fontSize: 13, fontFamily: font.regular, color: colors.textSubtle, flex: 1, marginRight: 8 },
   previewBold: { color: colors.textSecondary, fontWeight: '500', fontFamily: font.medium },
 
@@ -170,8 +224,6 @@ const styles = StyleSheet.create({
     minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5,
   },
   badgeText: { fontSize: 11, fontWeight: '700', fontFamily: font.bold, color: colors.white },
-
-  typeLabel: { fontSize: 11, fontFamily: font.regular, color: colors.textSubtle, marginTop: 1 },
 
   // Empty
   emptyBox: { paddingVertical: 60, alignItems: 'center', paddingHorizontal: 32 },

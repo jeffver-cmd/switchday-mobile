@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   switchLabel: { fontSize: 9, color: colors.textMuted, marginTop: 1 },
 
   // Event dots
-  dotsRow: { flexDirection: 'row', gap: 2, marginTop: 2 },
+  dotsRow: { position: 'absolute', bottom: 3, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 2 },
   dot: { width: 4, height: 4, borderRadius: 2 },
 
   // Legend
