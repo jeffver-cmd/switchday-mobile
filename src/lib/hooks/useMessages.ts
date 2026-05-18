@@ -22,8 +22,6 @@ export interface MessagesData {
 
 // ─── api helper ──────────────────────────────────────────────────────────────
 
-const API_BASE = 'https://switchday.app'
-
 export async function sendMessage(
   threadId: string,
   connectionId: string,
@@ -32,33 +30,38 @@ export async function sendMessage(
   try {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return { error: 'not_signed_in' }
+    const userId = session.user.id
 
-    const hash = await Crypto.digestStringAsync(
+    // sha256 of the body — satisfies messages.sha256_hash NOT NULL constraint
+    const sha256_hash = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
       body,
     )
 
-    const res = await fetch(`${API_BASE}/api/messages/send`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        threadId,
-        connectionId,
-        message: body,
-        sha256Hash: hash,
-      }),
-    })
+    // Direct insert — messages_update_thread trigger handles thread.last_message_at
+    const { data: inserted, error: insertErr } = await supabase
+      .from('messages')
+      .insert({ thread_id: threadId, connection_id: connectionId, sender_id: userId, body, sha256_hash })
+      .select('id')
+      .single()
 
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}))
-      return { error: (json as { error?: string }).error ?? `HTTP ${res.status}` }
-    }
+    if (insertErr) return { error: insertErr.message }
+
+    // Audit log — fire and forget
+    const auditMeta = { thread_id: threadId, connection_id: connectionId, body_length: body.length }
+    const auditPayload = { actor_id: userId, action: 'message.sent', resource_id: inserted.id, metadata: auditMeta }
+    const auditHash = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      JSON.stringify(auditPayload),
+    )
+    supabase.from('audit_log').insert({
+      actor_id: userId, action: 'message.sent',
+      resource_type: 'messages', resource_id: inserted.id,
+      metadata: auditMeta, sha256_hash: auditHash,
+    }).then(() => {})
 
     return { error: null }
-  } catch (e) {
+  } catch {
     return { error: 'network_error' }
   }
 }
