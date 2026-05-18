@@ -52,20 +52,41 @@ function usePortalThreads() {
       const connectionId = childRow.connection_id
       const nicknames    = (childRow.parent_nicknames ?? {}) as Record<string, string>
 
-      // Parallel: thread memberships + parent profiles
-      const [participantRows, profResult] = await Promise.all([
+      // Parallel: thread memberships + parent profiles + child's own profile
+      const [participantRows, profResult, myProfResult] = await Promise.all([
         supabase.from('thread_participants').select('thread_id').eq('user_id', uid),
         supabase.from('profiles').select('id, display_name').neq('id', uid),
+        supabase.from('profiles').select('display_name').eq('id', uid).maybeSingle(),
       ])
 
-      // Build nickname-resolved first-name label for co-parent thread
-      const parentFirstNames = (profResult.data ?? []).map(p => {
-        const resolved = nicknames[p.id]?.trim() || p.display_name
-        return resolved.split(' ')[0]   // first name / nickname
-      })
-      const coParentLabel = parentFirstNames.length > 0
-        ? parentFirstNames.join(' & ')
+      // Build display_name → nickname map for each parent
+      // e.g. "Jeff Ver" → "Daddu", "Miri Ver" → "Mom"
+      const parentEntries = (profResult.data ?? []).map(p => ({
+        displayName: p.display_name as string,
+        nickname:    (nicknames[p.id]?.trim() || p.display_name).split(' ')[0],
+      }))
+
+      const coParentLabel = parentEntries.length > 0
+        ? parentEntries.map(p => p.nickname).join(' & ')
         : 'Co-parents'
+
+      // Child's own first name — used to strip "Maya & " from thread topics
+      const childFirstName = (myProfResult.data?.display_name ?? '').split(' ')[0]
+
+      // Resolve a raw DB topic: replace parent full names with nicknames, strip child name
+      function resolveTopic(raw: string | null): string {
+        if (!raw) return 'Conversation'
+        let t = raw
+        for (const { displayName, nickname } of parentEntries) {
+          t = t.split(displayName).join(nickname)   // replace all occurrences
+        }
+        if (childFirstName) {
+          t = t.replace(new RegExp(`^${childFirstName}\\s*&\\s*`, 'i'), '')
+               .replace(new RegExp(`\\s*&\\s*${childFirstName}$`, 'i'), '')
+               .trim()
+        }
+        return t || raw
+      }
 
       const threadIds = (participantRows.data ?? []).map(r => r.thread_id)
 
@@ -107,10 +128,9 @@ function usePortalThreads() {
         unreadMap[msg.thread_id] = (unreadMap[msg.thread_id] ?? 0) + 1
 
       const summaries: ThreadSummary[] = (threadRows.data ?? []).map(t => {
-        // Co-parent threads: use resolved parent nicknames instead of DB topic
         const topic = t.thread_type === 'co_parent'
-          ? coParentLabel
-          : (t.topic ?? 'Conversation')
+          ? coParentLabel          // always "Daddu & Mom"
+          : resolveTopic(t.topic)  // substitute parent names + strip child name
         return {
           id: t.id,
           connectionId: t.connection_id,
