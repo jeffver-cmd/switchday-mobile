@@ -217,7 +217,7 @@ export default function PortalMessagesScreen() {
             return (
               <TouchableOpacity
                 style={[S.threadRow, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}
-                onPress={() => router.push(`/messages/${t.id}?connectionId=${t.connectionId}&topic=${encodeURIComponent(t.topic)}`)}
+                onPress={() => router.push(`/messages/${t.id}?connectionId=${t.connectionId}&topic=${encodeURIComponent(t.topic)}&themeKey=${theme.key}`)}
                 activeOpacity={0.7}
               >
                 <View style={[S.threadIcon, { backgroundColor: theme.surface2 }]}>

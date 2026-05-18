@@ -15,6 +15,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useMessages, sendMessage, Message } from '@/lib/hooks/useMessages'
 import { colors, radius, font } from '@/lib/theme'
+import { getPortalTheme, PortalTheme, ThemeKey } from '@/lib/childThemes'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -49,9 +50,13 @@ interface BubbleProps {
   showTime: boolean
   /** Current user's profile color — used to tint their sent bubbles */
   myColor: string
+  /** Override time-stamp text color (portal theming) */
+  timeColor?: string
+  /** Override received-bubble text color (portal theming) */
+  receivedTextColor?: string
 }
 
-function Bubble({ msg, isMe, showTime, myColor }: BubbleProps) {
+function Bubble({ msg, isMe, showTime, myColor, timeColor, receivedTextColor }: BubbleProps) {
   const bgColor = isMe ? myColor : RECEIVED_COLOR
 
   return (
@@ -68,7 +73,7 @@ function Bubble({ msg, isMe, showTime, myColor }: BubbleProps) {
       */}
       <View style={[styles.bubbleWrap, showTime && { paddingBottom: 9 }]}>
         <View style={[styles.bubble, { backgroundColor: bgColor }]}>
-          <Text style={[styles.bubbleText, { color: isMe ? '#ffffff' : colors.textPrimary }]}>
+          <Text style={[styles.bubbleText, { color: isMe ? '#ffffff' : (receivedTextColor ?? colors.textPrimary) }]}>
             {msg.body}
           </Text>
         </View>
@@ -93,7 +98,7 @@ function Bubble({ msg, isMe, showTime, myColor }: BubbleProps) {
       </View>
 
       {showTime && (
-        <Text style={[styles.bubbleTime, isMe ? styles.bubbleTimeMe : styles.bubbleTimeThem]}>
+        <Text style={[styles.bubbleTime, isMe ? styles.bubbleTimeMe : styles.bubbleTimeThem, timeColor ? { color: timeColor } : null]}>
           {formatBubbleTime(msg.sentAt)}
         </Text>
       )}
@@ -103,10 +108,10 @@ function Bubble({ msg, isMe, showTime, myColor }: BubbleProps) {
 
 // ─── day separator ───────────────────────────────────────────────────────────
 
-function DaySep({ label }: { label: string }) {
+function DaySep({ label, textColor }: { label: string; textColor?: string }) {
   return (
     <View style={styles.daySep}>
-      <Text style={styles.daySepText}>{label}</Text>
+      <Text style={[styles.daySepText, textColor ? { color: textColor } : null]}>{label}</Text>
     </View>
   )
 }
@@ -114,12 +119,16 @@ function DaySep({ label }: { label: string }) {
 // ─── screen ──────────────────────────────────────────────────────────────────
 
 export default function ConversationScreen() {
-  const { threadId, connectionId, topic } = useLocalSearchParams<{
+  const { threadId, connectionId, topic, themeKey } = useLocalSearchParams<{
     threadId: string
     connectionId: string
     topic: string
+    themeKey: string
   }>()
   const router = useRouter()
+
+  // Portal theming — only active when screen is opened from the child portal
+  const pt: PortalTheme | null = themeKey ? getPortalTheme(themeKey as ThemeKey) : null
 
   const { data, loading, error } = useMessages(threadId)
   const [text, setText] = useState('')
@@ -171,13 +180,13 @@ export default function ConversationScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, pt && { backgroundColor: pt.bg }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, pt && { backgroundColor: pt.surface, borderBottomColor: pt.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
-          <Text style={styles.backArrow}>‹</Text>
+          <Text style={[styles.backArrow, pt && { color: pt.textSecondary }]}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
+        <Text style={[styles.headerTitle, pt && { color: pt.textPrimary }]} numberOfLines={1}>
           {decodeURIComponent(topic ?? 'Conversation')}
         </Text>
         <View style={styles.headerRight} />
@@ -191,11 +200,11 @@ export default function ConversationScreen() {
         {/* Messages */}
         {loading ? (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.accent} />
+            <ActivityIndicator size="large" color={pt?.accent ?? colors.accent} />
           </View>
         ) : error ? (
           <View style={styles.centered}>
-            <Text style={styles.errorText}>Couldn't load messages</Text>
+            <Text style={[styles.errorText, pt && { color: pt.textMuted }]}>Couldn't load messages</Text>
           </View>
         ) : (
           <FlatList
@@ -206,8 +215,15 @@ export default function ConversationScreen() {
             }
             renderItem={({ item }) =>
               item.type === 'sep'
-                ? <DaySep label={item.label} />
-                : <Bubble msg={item.msg} isMe={item.isMe} showTime={item.showTime} myColor={data?.myColor ?? colors.accent} />
+                ? <DaySep label={item.label} textColor={pt?.textSubtle} />
+                : <Bubble
+                    msg={item.msg}
+                    isMe={item.isMe}
+                    showTime={item.showTime}
+                    myColor={data?.myColor ?? (pt?.accent ?? colors.accent)}
+                    timeColor={pt?.textSubtle}
+                    receivedTextColor={pt?.textPrimary}
+                  />
             }
             contentContainerStyle={styles.messageList}
             showsVerticalScrollIndicator={false}
@@ -221,19 +237,19 @@ export default function ConversationScreen() {
         )}
 
         {/* Input bar */}
-        <View style={styles.inputBar}>
+        <View style={[styles.inputBar, pt && { backgroundColor: pt.surface, borderTopColor: pt.border }]}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, pt && { backgroundColor: pt.surface2, borderColor: pt.border, color: pt.textPrimary }]}
             value={text}
             onChangeText={setText}
             placeholder="Message…"
-            placeholderTextColor={colors.textSubtle}
+            placeholderTextColor={pt?.textSubtle ?? colors.textSubtle}
             multiline
             maxLength={2000}
             returnKeyType="default"
           />
           <TouchableOpacity
-            style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled]}
+            style={[styles.sendBtn, pt && { backgroundColor: pt.accent }, (!text.trim() || sending) && (pt ? { backgroundColor: pt.surface2 } : styles.sendBtnDisabled)]}
             onPress={handleSend}
             disabled={!text.trim() || sending}
             activeOpacity={0.8}
