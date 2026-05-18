@@ -39,24 +39,23 @@ export async function sendMessage(
     )
 
     // Direct insert — messages_update_thread trigger handles thread.last_message_at
-    const { data: inserted, error: insertErr } = await supabase
+    // No .select() — avoids SELECT-RLS blocking the return row for some thread types
+    const { error: insertErr } = await supabase
       .from('messages')
       .insert({ thread_id: threadId, connection_id: connectionId, sender_id: userId, body, sha256_hash })
-      .select('id')
-      .single()
 
     if (insertErr) return { error: insertErr.message }
 
-    // Audit log — fire and forget
+    // Audit log — fire and forget (use threadId as resource_id)
     const auditMeta = { thread_id: threadId, connection_id: connectionId, body_length: body.length }
-    const auditPayload = { actor_id: userId, action: 'message.sent', resource_id: inserted.id, metadata: auditMeta }
+    const auditPayload = { actor_id: userId, action: 'message.sent', resource_id: threadId, metadata: auditMeta }
     const auditHash = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
       JSON.stringify(auditPayload),
     )
     supabase.from('audit_log').insert({
       actor_id: userId, action: 'message.sent',
-      resource_type: 'messages', resource_id: inserted.id,
+      resource_type: 'messages', resource_id: threadId,
       metadata: auditMeta, sha256_hash: auditHash,
     }).then(() => {})
 
