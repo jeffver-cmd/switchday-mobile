@@ -33,7 +33,7 @@ interface PortalCalData {
   connectionId:  string
   parents:       ParentProfile[]
   days:          Record<string, DayData>
-  checklistItems: string[]
+
 }
 
 // ─── constants ───────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ function usePortalCalendar(year: number, month: number) {
 
       const { start, end } = monthBounds(year, month)
 
-      const [schedResult, evResult, profResult, checklistResult] = await Promise.all([
+      const [schedResult, evResult, profResult] = await Promise.all([
         supabase
           .from('custody_schedule_current')
           .select('date, owner_id, is_switch')
@@ -113,14 +113,6 @@ function usePortalCalendar(year: number, month: number) {
           .from('profiles')
           .select('id, display_name, initials, color')
           .neq('id', userId),
-
-        supabase
-          .from('switch_checklist_items')
-          .select('item_text')
-          .eq('connection_id', connectionId)
-          .eq('active', true)
-          .order('sort_order', { ascending: true })
-          .order('created_at', { ascending: true }),
       ])
 
       const parents: ParentProfile[] = (profResult.data ?? []).map(p => ({
@@ -150,9 +142,7 @@ function usePortalCalendar(year: number, month: number) {
         if (!days[date]) days[date] = { date, ownerId: null, ownerColor: '#6b7280', isSwitch: false, events: evs }
       }
 
-      const checklistItems = (checklistResult.data ?? []).map(r => r.item_text as string)
-
-      setData({ userId, childId, connectionId, parents, days, checklistItems })
+      setData({ userId, childId, connectionId, parents, days })
     } catch { setError('load_failed') }
     finally   { setLoading(false) }
   }, [year, month])
@@ -197,67 +187,7 @@ function DayDetail({
   )
 }
 
-// ─── packing list ─────────────────────────────────────────────────────────────
 
-function PackingList({ items, theme }: { items: string[]; theme: PortalTheme }) {
-  const [expanded, setExpanded] = useState(true)
-  const [checked,  setChecked]  = useState<Set<string>>(new Set())
-  const allPacked = checked.size === items.length
-
-  function toggle(item: string) {
-    setChecked(prev => {
-      const next = new Set(prev)
-      next.has(item) ? next.delete(item) : next.add(item)
-      return next
-    })
-  }
-
-  return (
-    <View style={[detailS.card, { backgroundColor: theme.surface }]}>
-      {/* Collapsable header */}
-      <TouchableOpacity
-        style={detailS.packingHeaderRow}
-        onPress={() => setExpanded(e => !e)}
-        activeOpacity={0.7}
-      >
-        <Text style={[detailS.packingTitle, { color: theme.textPrimary }]}>
-          {allPacked ? '✓ All packed!' : '🎒 What to pack'}
-        </Text>
-        <Text style={[detailS.packingChevron, { color: theme.textSubtle }]}>
-          {expanded ? '▲' : '▼'}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Items */}
-      {expanded && items.map(item => {
-        const done = checked.has(item)
-        return (
-          <TouchableOpacity
-            key={item}
-            style={[detailS.packingRow, { borderTopColor: theme.border }]}
-            onPress={() => toggle(item)}
-            activeOpacity={0.7}
-          >
-            <View style={[
-              detailS.checkbox,
-              { borderColor: theme.accent },
-              done && { backgroundColor: theme.accent },
-            ]}>
-              {done && <Text style={detailS.checkmark}>✓</Text>}
-            </View>
-            <Text style={[
-              detailS.packingItem,
-              { color: theme.textPrimary },
-              done && { textDecorationLine: 'line-through', color: theme.textMuted },
-            ]}>
-              {item}
-            </Text>
-          </TouchableOpacity>
-        )
-      })}
-    </View>
-  )
-}
 
 // ─── add event modal ──────────────────────────────────────────────────────────
 
@@ -557,11 +487,6 @@ export default function PortalCalendarScreen() {
             </View>
           )}
 
-          {/* Packing list — always visible when items exist */}
-          {data && data.checklistItems.length > 0 && (
-            <PackingList items={data.checklistItems} theme={theme} />
-          )}
-
           {/* Day detail */}
           {selected && (
             <DayDetail dateStr={selected} events={selEvents} theme={theme} />
@@ -654,14 +579,7 @@ const detailS = StyleSheet.create({
   title:         { fontSize: 14, fontWeight: '500', fontFamily: font.medium },
   meta:          { fontSize: 12, fontFamily: font.regular, marginTop: 2 },
 
-  // Packing list
-  packingHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 8 },
-  packingTitle:     { fontSize: 14, fontWeight: '700', fontFamily: font.bold },
-  packingChevron:   { fontSize: 11 },
-  packingRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, gap: 10 },
-  checkbox:       { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  checkmark:      { fontSize: 12, color: '#fff', fontWeight: '700' },
-  packingItem:    { fontSize: 14, fontFamily: font.regular, flex: 1 },
+
 })
 
 const modalS = StyleSheet.create({

@@ -19,7 +19,7 @@ import { usePortal } from '@/lib/context/PortalContext'
 interface ThreadSummary {
   id: string
   connectionId: string
-  topic: string
+  topic: string          // already nickname-resolved for co_parent threads
   threadType: string
   lastMessageAt: string | null
   lastMessageBody: string | null
@@ -45,17 +45,29 @@ function usePortalThreads() {
       setUserId(uid)
 
       const { data: childRow } = await supabase
-        .from('children').select('connection_id')
+        .from('children').select('connection_id, parent_nicknames')
         .eq('auth_user_id', uid).maybeSingle()
 
       if (!childRow?.connection_id) { setError('no_child_record'); setLoading(false); return }
       const connectionId = childRow.connection_id
+      const nicknames    = (childRow.parent_nicknames ?? {}) as Record<string, string>
 
-      const { data: participantRows } = await supabase
-        .from('thread_participants').select('thread_id')
-        .eq('user_id', uid)
+      // Parallel: thread memberships + parent profiles
+      const [participantRows, profResult] = await Promise.all([
+        supabase.from('thread_participants').select('thread_id').eq('user_id', uid),
+        supabase.from('profiles').select('id, display_name').neq('id', uid),
+      ])
 
-      const threadIds = (participantRows ?? []).map(r => r.thread_id)
+      // Build nickname-resolved first-name label for co-parent thread
+      const parentFirstNames = (profResult.data ?? []).map(p => {
+        const resolved = nicknames[p.id]?.trim() || p.display_name
+        return resolved.split(' ')[0]   // first name / nickname
+      })
+      const coParentLabel = parentFirstNames.length > 0
+        ? parentFirstNames.join(' & ')
+        : 'Co-parents'
+
+      const threadIds = (participantRows.data ?? []).map(r => r.thread_id)
 
       if (threadIds.length === 0) {
         setThreads([])
@@ -94,16 +106,22 @@ function usePortalThreads() {
       for (const msg of (unreadResult.data ?? []))
         unreadMap[msg.thread_id] = (unreadMap[msg.thread_id] ?? 0) + 1
 
-      const summaries: ThreadSummary[] = (threadRows.data ?? []).map(t => ({
-        id: t.id,
-        connectionId: t.connection_id,
-        topic: t.topic ?? 'Conversation',
-        threadType: t.thread_type ?? 'co_parent',
-        lastMessageAt: t.last_message_at,
-        lastMessageBody: lastMsgMap[t.id]?.body ?? null,
-        lastMessageSenderId: lastMsgMap[t.id]?.senderId ?? null,
-        unreadCount: unreadMap[t.id] ?? 0,
-      }))
+      const summaries: ThreadSummary[] = (threadRows.data ?? []).map(t => {
+        // Co-parent threads: use resolved parent nicknames instead of DB topic
+        const topic = t.thread_type === 'co_parent'
+          ? coParentLabel
+          : (t.topic ?? 'Conversation')
+        return {
+          id: t.id,
+          connectionId: t.connection_id,
+          topic,
+          threadType: t.thread_type ?? 'co_parent',
+          lastMessageAt: t.last_message_at,
+          lastMessageBody: lastMsgMap[t.id]?.body ?? null,
+          lastMessageSenderId: lastMsgMap[t.id]?.senderId ?? null,
+          unreadCount: unreadMap[t.id] ?? 0,
+        }
+      })
 
       setThreads(summaries)
     } catch { setError('load_failed') }
@@ -179,7 +197,7 @@ export default function PortalMessagesScreen() {
             return (
               <TouchableOpacity
                 style={[S.threadRow, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}
-                onPress={() => router.push(`/messages/${t.id}`)}
+                onPress={() => router.push(`/messages/${t.id}?connectionId=${t.connectionId}&topic=${encodeURIComponent(t.topic)}`)}
                 activeOpacity={0.7}
               >
                 <View style={[S.threadIcon, { backgroundColor: theme.surface2 }]}>
