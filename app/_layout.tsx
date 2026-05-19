@@ -43,6 +43,7 @@ export default function RootLayout() {
         <Stack.Screen name="messages/[threadId]" options={{ headerShown: false, presentation: 'card' }} />
         <Stack.Screen name="schedule/new" options={{ headerShown: false, presentation: 'card' }} />
         <Stack.Screen name="settings" options={{ headerShown: false, presentation: 'card' }} />
+        <Stack.Screen name="pro"      options={{ headerShown: false }} />
       </Stack>
     </SafeAreaProvider>
   )
