@@ -349,7 +349,7 @@ const S = StyleSheet.create({
 
   // Profile
   avatarRow:    { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },
-  avatarCircle: { width: 52, height: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  avatarCircle: { width: 52, height: 52, borderRadius: radius.md, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   avatarEmoji:  { backgroundColor: 'transparent' },
   profileName:  { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, marginBottom: 6 },
   removeEmojiBtn: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },

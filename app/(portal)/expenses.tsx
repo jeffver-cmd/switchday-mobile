@@ -254,7 +254,8 @@ function LogExpenseModal({
         style={[M.root, { backgroundColor: theme.bg }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* Header */}
+        {/* Header — SafeAreaView top edge covers Android status bar overlap */}
+        <SafeAreaView edges={['top']} style={{ backgroundColor: theme.surface }}>
         <View style={[M.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
           <TouchableOpacity onPress={() => { reset(); onClose() }} hitSlop={12} activeOpacity={0.7}>
             <Text style={[M.cancelText, { color: theme.textMuted }]}>Cancel</Text>
@@ -271,6 +272,7 @@ function LogExpenseModal({
             </Text>
           </TouchableOpacity>
         </View>
+        </SafeAreaView>
 
         <ScrollView contentContainerStyle={M.scroll} keyboardShouldPersistTaps="handled">
 

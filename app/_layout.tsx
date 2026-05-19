@@ -11,6 +11,7 @@ import {
   PlusJakartaSans_700Bold,
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans'
+import { Ionicons } from '@expo/vector-icons'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -21,6 +22,8 @@ export default function RootLayout() {
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,
     PlusJakartaSans_800ExtraBold,
+    // Ensure Ionicons font is loaded before any tab bar renders (iOS timing fix)
+    ...Ionicons.font,
   })
 
   useEffect(() => {
