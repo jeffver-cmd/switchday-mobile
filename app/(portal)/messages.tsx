@@ -149,6 +149,12 @@ function usePortalThreads() {
   }, [])
 
   useEffect(() => { load() }, [load])
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) load()
+    })
+    return () => subscription.unsubscribe()
+  }, [load])
   return { threads, userId, loading, error, refresh: load }
 }
 

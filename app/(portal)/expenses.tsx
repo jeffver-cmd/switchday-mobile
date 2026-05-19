@@ -124,6 +124,12 @@ function usePortalExpenses() {
   }, [])
 
   useEffect(() => { load() }, [load])
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) load()
+    })
+    return () => subscription.unsubscribe()
+  }, [load])
   return { expenses, childRowId, connectionId, loading, error, refresh: load }
 }
 

@@ -124,6 +124,19 @@ function usePortalHome() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // iOS Keychain is async — getSession() can return null on first render before
+  // SecureStore has finished reading the token. Subscribe to onAuthStateChange
+  // so that when INITIAL_SESSION fires with a real session we retry the load.
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) {
+        load()
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [load])
+
   return { data, loading, error, refresh: load }
 }
 

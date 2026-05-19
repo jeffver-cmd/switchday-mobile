@@ -148,6 +148,12 @@ function usePortalCalendar(year: number, month: number) {
   }, [year, month])
 
   useEffect(() => { load() }, [load])
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) load()
+    })
+    return () => subscription.unsubscribe()
+  }, [load])
   return { data, loading, error, refresh: load }
 }
 

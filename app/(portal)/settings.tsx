@@ -94,6 +94,12 @@ export default function PortalSettingsScreen() {
   }, [])
 
   useEffect(() => { loadData() }, [loadData])
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) loadData()
+    })
+    return () => subscription.unsubscribe()
+  }, [loadData])
 
   // Keep local state in sync if context profile loads after mount
   useEffect(() => {
