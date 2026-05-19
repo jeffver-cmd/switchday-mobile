@@ -30,12 +30,6 @@ const EMOJI_GRID = [
   '🚀','🛸','🌍','🪐','🌌','🎯','🎨','🎬',
 ]
 
-const COLOR_PALETTE = [
-  '#5B6B8A', '#A0605A', '#3D8A6B', '#7B5EA7',
-  '#A85E28', '#3D7FA8', '#B05A8A', '#4A7A3D',
-  '#8A6530', '#2E8B8B', '#A05080', '#7A6030',
-]
-
 // ─── types ───────────────────────────────────────────────────────────────────
 
 interface ParentRow { id: string; display_name: string; color: string }
@@ -49,7 +43,6 @@ export default function PortalSettingsScreen() {
   // Local editable state — initialised from context/DB on load
   const [selectedTheme, setSelectedTheme] = useState<ThemeKey>(theme.key)
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(profile?.avatarEmoji ?? null)
-  const [selectedColor, setSelectedColor] = useState<string>(profile?.color ?? COLOR_PALETTE[0])
   const [nicknames,    setNicknames]      = useState<Record<string, string>>({})
   const [origNicknames, setOrigNicknames] = useState<Record<string, string>>({})
   const [parents,  setParents]  = useState<ParentRow[]>([])
@@ -57,11 +50,8 @@ export default function PortalSettingsScreen() {
   const [loadingData, setLoadingData] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  const isDirty =
-    selectedTheme !== theme.key ||
-    selectedEmoji !== profile?.avatarEmoji ||
-    selectedColor !== profile?.color ||
-    JSON.stringify(nicknames) !== JSON.stringify(origNicknames)
+  // Only nicknames still need an explicit save — theme + emoji auto-save on tap
+  const isDirty = JSON.stringify(nicknames) !== JSON.stringify(origNicknames)
 
   // ── load parents + nicknames ──
   const loadData = useCallback(async () => {
@@ -109,42 +99,38 @@ export default function PortalSettingsScreen() {
   useEffect(() => {
     if (profile) {
       setSelectedEmoji(profile.avatarEmoji)
-      setSelectedColor(profile.color)
     }
     setSelectedTheme(theme.key)
   }, [profile?.id]) // only on first profile load, not on every theme change
 
-  // ── save ──
+  // ── theme: preview + auto-save on tap ──
+  async function handleThemeSelect(key: ThemeKey) {
+    setSelectedTheme(key)
+    setThemeKey(key) // immediate visual preview
+    if (!profile) return
+    supabase.from('profiles').update({ theme: key }).eq('id', profile.id).then(() => {})
+  }
+
+  // ── emoji: auto-save on tap (null = remove) ──
+  async function handleEmojiSelect(em: string | null) {
+    setSelectedEmoji(em)
+    if (!profile) return
+    supabase.from('profiles').update({ avatar_emoji: em }).eq('id', profile.id).then(() => {
+      reload() // sync context so home screen avatar updates
+    })
+  }
+
+  // ── nicknames: still need explicit save ──
   async function handleSave() {
-    if (!isDirty || saving || !profile) return
+    if (!isDirty || saving || !childId) return
     setSaving(true)
     try {
-      const profileUpdates: Record<string, unknown> = {}
-      if (selectedTheme !== theme.key)          profileUpdates.theme        = selectedTheme
-      if (selectedEmoji !== profile.avatarEmoji) profileUpdates.avatar_emoji = selectedEmoji
-      if (selectedColor !== profile.color)       profileUpdates.color        = selectedColor
-
-      const nicknamesDirty =
-        JSON.stringify(nicknames) !== JSON.stringify(origNicknames)
-
-      const [profileRes, nickRes] = await Promise.all([
-        Object.keys(profileUpdates).length > 0
-          ? supabase.from('profiles').update(profileUpdates).eq('id', profile.id)
-          : Promise.resolve({ error: null }),
-
-        nicknamesDirty && childId
-          ? supabase.from('children').update({ parent_nicknames: nicknames }).eq('id', childId)
-          : Promise.resolve({ error: null }),
-      ])
-
-      if (profileRes.error || nickRes.error) {
-        Alert.alert('Error', 'Could not save changes. Try again.')
-        return
-      }
-
-      setOrigNicknames({ ...nicknames })
-      if (selectedTheme !== theme.key) setThemeKey(selectedTheme)
-      reload()
+      const { error } = await supabase
+        .from('children')
+        .update({ parent_nicknames: nicknames })
+        .eq('id', childId)
+      if (error) Alert.alert('Error', 'Could not save. Try again.')
+      else setOrigNicknames({ ...nicknames })
     } finally {
       setSaving(false)
     }
@@ -166,6 +152,11 @@ export default function PortalSettingsScreen() {
   if (loadingData) {
     return (
       <SafeAreaView style={[S.container, { backgroundColor: theme.bg }]}>
+        <View style={[S.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+          <View style={S.headerLeft} />
+          <Text style={[S.headerTitle, { color: theme.textPrimary }]}>Settings</Text>
+          <View style={S.headerRight} />
+        </View>
         <ActivityIndicator style={S.loader} size="large" color={theme.accent} />
       </SafeAreaView>
     )
@@ -173,46 +164,88 @@ export default function PortalSettingsScreen() {
 
   return (
     <SafeAreaView style={[S.container, { backgroundColor: theme.bg }]}>
+      {/* Header with sign-out always visible */}
+      <View style={[S.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+        <View style={S.headerLeft} />
+        <Text style={[S.headerTitle, { color: theme.textPrimary }]}>Settings</Text>
+        <TouchableOpacity style={S.headerRight} onPress={handleSignOut} hitSlop={12} activeOpacity={0.7}>
+          <Ionicons name="log-out-outline" size={22} color="#ef4444" />
+        </TouchableOpacity>
+      </View>
       <ScrollView contentContainerStyle={S.scroll} showsVerticalScrollIndicator={false}>
 
         {/* ── My Profile ── */}
         <Text style={[S.sectionLabel, { color: theme.textMuted }]}>MY PROFILE</Text>
         <View style={[S.card, { backgroundColor: theme.surface }]}>
-          {/* Avatar preview */}
           <View style={S.avatarRow}>
-            <View style={[S.avatarCircle, { backgroundColor: selectedEmoji ? 'transparent' : selectedColor }]}>
-              <Text style={[S.avatarEmoji, selectedEmoji ? { fontSize: 39 } : { fontSize: 26 }]}>
-                {selectedEmoji ?? profile?.initials ?? '?'}
+            <View style={[S.avatarCircle, { backgroundColor: selectedEmoji ? 'transparent' : theme.accent }]}>
+              <Text style={[S.avatarEmoji, selectedEmoji ? { fontSize: 39 } : { fontSize: 22, color: '#fff' }]}>
+                {selectedEmoji ?? profile?.displayName?.[0]?.toUpperCase() ?? '?'}
               </Text>
             </View>
-            <Text style={[S.profileName, { color: theme.textPrimary }]}>{profile?.displayName}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[S.profileName, { color: theme.textPrimary }]}>{profile?.displayName}</Text>
+              {selectedEmoji && (
+                <TouchableOpacity
+                  onPress={() => handleEmojiSelect(null)}
+                  activeOpacity={0.7}
+                  style={[S.removeEmojiBtn, { borderColor: theme.border }]}
+                >
+                  <Text style={[S.removeEmojiText, { color: theme.textMuted }]}>Remove emoji</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
+        </View>
 
-          {/* Color picker */}
-          <View style={[S.divider, { backgroundColor: theme.border }]} />
-          <Text style={[S.subLabel, { color: theme.textMuted }]}>Profile color</Text>
-          <View style={S.colorRow}>
-            {COLOR_PALETTE.map(hex => (
-              <TouchableOpacity
-                key={hex}
-                style={[S.colorDot, { backgroundColor: hex },
-                  selectedColor === hex && [S.colorDotSelected, { borderColor: hex }],
-                ]}
-                onPress={() => { setSelectedColor(hex); setSelectedEmoji(null) }}
-                activeOpacity={0.7}
-              />
-            ))}
+        {/* ── Theme ── */}
+        <Text style={[S.sectionLabel, { color: theme.textMuted }]}>THEME</Text>
+        <View style={[S.card, { backgroundColor: theme.surface }]}>
+          <View style={S.themeGrid}>
+            {THEME_KEYS.map(key => {
+              const t = PORTAL_THEMES[key]
+              const isSelected = selectedTheme === key
+              return (
+                <TouchableOpacity
+                  key={key}
+                  style={S.themeItem}
+                  onPress={() => handleThemeSelect(key)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[
+                    S.swatch,
+                    { backgroundColor: t.bg, borderColor: t.border },
+                    isSelected && { borderColor: t.accent, borderWidth: 2.5 },
+                  ]}>
+                    <View style={[S.swatchAccent, { backgroundColor: t.accent }]} />
+                    {isSelected && (
+                      <View style={[S.swatchCheck, { backgroundColor: t.accent }]}>
+                        <Ionicons name="checkmark" size={9} color="#fff" />
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[
+                    S.swatchLabel,
+                    { color: isSelected ? theme.accent : theme.textMuted },
+                    isSelected && { fontFamily: font.semibold },
+                  ]}>
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
           </View>
+        </View>
 
-          {/* Emoji picker */}
-          <View style={[S.divider, { backgroundColor: theme.border }]} />
-          <Text style={[S.subLabel, { color: theme.textMuted }]}>Avatar</Text>
+        {/* ── Avatar emoji ── */}
+        <Text style={[S.sectionLabel, { color: theme.textMuted }]}>AVATAR</Text>
+        <View style={[S.card, { backgroundColor: theme.surface }]}>
           <View style={S.emojiGrid}>
             {EMOJI_GRID.map(em => (
               <TouchableOpacity
                 key={em}
                 style={[S.emojiCell, selectedEmoji === em && { backgroundColor: theme.accentSoft }]}
-                onPress={() => setSelectedEmoji(em === selectedEmoji ? null : em)}
+                onPress={() => handleEmojiSelect(em === selectedEmoji ? null : em)}
                 activeOpacity={0.7}
               >
                 <Text style={S.emojiText}>{em}</Text>
@@ -250,45 +283,6 @@ export default function PortalSettingsScreen() {
           </>
         )}
 
-        {/* ── Theme ── */}
-        <Text style={[S.sectionLabel, { color: theme.textMuted }]}>THEME</Text>
-        <View style={[S.card, { backgroundColor: theme.surface }]}>
-          <View style={S.themeGrid}>
-            {THEME_KEYS.map(key => {
-              const t = PORTAL_THEMES[key]
-              const isSelected = selectedTheme === key
-              return (
-                <TouchableOpacity
-                  key={key}
-                  style={S.themeItem}
-                  onPress={() => setSelectedTheme(key)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[
-                    S.swatch,
-                    { backgroundColor: t.bg, borderColor: t.border },
-                    isSelected && { borderColor: t.accent, borderWidth: 2.5 },
-                  ]}>
-                    <View style={[S.swatchAccent, { backgroundColor: t.accent }]} />
-                    {isSelected && (
-                      <View style={[S.swatchCheck, { backgroundColor: t.accent }]}>
-                        <Ionicons name="checkmark" size={11} color="#fff" />
-                      </View>
-                    )}
-                  </View>
-                  <Text style={[
-                    S.swatchLabel,
-                    { color: isSelected ? theme.accent : theme.textMuted },
-                    isSelected && { fontFamily: font.semibold },
-                  ]}>
-                    {t.label}
-                  </Text>
-                </TouchableOpacity>
-              )
-            })}
-          </View>
-        </View>
-
         {/* ── Save button ── */}
         {isDirty && (
           <TouchableOpacity
@@ -320,9 +314,21 @@ export default function PortalSettingsScreen() {
 
 const S = StyleSheet.create({
   container: { flex: 1 },
-  loader:    { flex: 1 },
+  loader:    { flex: 1, justifyContent: 'center' },
   scroll:    { paddingHorizontal: 16, paddingTop: 16 },
   bottomPad: { height: 40 },
+
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 48,
+    paddingHorizontal: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerLeft:  { width: 44, alignItems: 'flex-start', paddingLeft: 8 },
+  headerTitle: { flex: 1, fontSize: 16, fontWeight: '600', fontFamily: font.semibold, textAlign: 'center' },
+  headerRight: { width: 44, alignItems: 'flex-end', paddingRight: 8 },
 
   sectionLabel: {
     fontSize: 11, fontWeight: '700', fontFamily: font.bold, letterSpacing: 0.8,
@@ -337,15 +343,11 @@ const S = StyleSheet.create({
 
   // Profile
   avatarRow:    { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },
-  avatarCircle: { width: 52, height: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  avatarEmoji:  { color: '#fff', backgroundColor: 'transparent' },
-  profileName:  { fontSize: 16, fontWeight: '600', fontFamily: font.semibold },
-
-  // Color picker
-  subLabel:  { fontSize: 12, fontWeight: '600', fontFamily: font.semibold, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 },
-  colorRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16, paddingBottom: 16 },
-  colorDot:  { width: 30, height: 30, borderRadius: 15 },
-  colorDotSelected: { borderWidth: 3, transform: [{ scale: 1.15 }] },
+  avatarCircle: { width: 52, height: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  avatarEmoji:  { backgroundColor: 'transparent' },
+  profileName:  { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, marginBottom: 6 },
+  removeEmojiBtn: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
+  removeEmojiText: { fontSize: 12, fontFamily: font.medium },
 
   // Emoji grid
   emojiGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 8, paddingBottom: 12 },
@@ -363,19 +365,24 @@ const S = StyleSheet.create({
   },
 
   // Theme picker
-  themeGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 12, padding: 16 },
-  themeItem:  { alignItems: 'center', gap: 6, width: 72 },
+  themeGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 },
+  themeItem:  { alignItems: 'center', gap: 5, width: 58 },
   swatch: {
-    width: 64, height: 64, borderRadius: 16, borderWidth: 1.5,
-    overflow: 'hidden', justifyContent: 'flex-end', position: 'relative',
+    width: 50, height: 50, borderRadius: 13, borderWidth: 1.5,
+    position: 'relative',
   },
-  swatchAccent: { height: 20, width: '100%' },
+  // bottom radius slightly less than swatch (13 outer − 1.5 border ≈ 11) so it
+  // conforms to the inner curve without relying on overflow:hidden
+  swatchAccent: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: 18,
+    borderBottomLeftRadius: 11, borderBottomRightRadius: 11,
+  },
   swatchCheck:  {
-    position: 'absolute', top: 6, right: 6,
-    width: 18, height: 18, borderRadius: 9,
+    position: 'absolute', top: 4, right: 4,
+    width: 14, height: 14, borderRadius: 7,
     alignItems: 'center', justifyContent: 'center',
   },
-  swatchLabel:  { fontSize: 12, fontFamily: font.regular, textAlign: 'center' },
+  swatchLabel:  { fontSize: 11, fontFamily: font.regular, textAlign: 'center' },
 
   // Save
   saveBtn:         { marginTop: 16, paddingVertical: 14, borderRadius: radius.md, alignItems: 'center' },

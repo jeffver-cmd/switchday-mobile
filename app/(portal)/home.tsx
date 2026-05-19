@@ -5,6 +5,7 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useCallback, useEffect } from 'react'
@@ -139,7 +140,7 @@ function ChildAvatar({ size, color, emoji, initials }: { size: number; color: st
       {emoji
         ? <Text style={{ fontSize: Math.round(size * 0.56) }}>{emoji}</Text>
         : <Text style={{ fontSize: Math.round(size * 0.38), fontWeight: '700', fontFamily: font.bold, color: '#fff' }}>
-            {initials.slice(0, 2)}
+            {initials.slice(0, 1)}
           </Text>
       }
     </View>
@@ -182,6 +183,10 @@ function PackingCard({ items, isApproaching, accentColor, theme }: {
     })
   }
 
+  function toggleAll() {
+    setChecked(allPacked ? new Set() : new Set(items))
+  }
+
   return (
     <View style={[S.card, { backgroundColor: theme.surface, borderColor: isApproaching ? accentColor : theme.border, borderWidth: isApproaching ? 2 : 1 }]}>
       {/* Accent bar when switch approaching */}
@@ -197,8 +202,25 @@ function PackingCard({ items, isApproaching, accentColor, theme }: {
             </View>
           )}
         </View>
+
+        {/* "All packed!" row — hidden once everything is checked */}
+        {!allPacked && <TouchableOpacity style={[S.checkRow, S.checkAllRow, { borderBottomColor: theme.border }]} onPress={toggleAll} activeOpacity={0.7}>
+          <View
+            style={[
+              S.checkbox,
+              { borderColor: allPacked ? accentColor : theme.border },
+              allPacked && { backgroundColor: accentColor },
+            ]}
+          >
+            {allPacked && <Text style={S.checkmark}>✓</Text>}
+          </View>
+          <Text style={[S.checkLabel, S.checkAllLabel, { color: allPacked ? theme.textMuted : theme.textPrimary }]}>
+            All packed!
+          </Text>
+        </TouchableOpacity>}
+
         {items.map(item => (
-          <View key={item} style={S.checkRow}>
+          <TouchableOpacity key={item} style={S.checkRow} onPress={() => toggle(item)} activeOpacity={0.7}>
             <View
               style={[
                 S.checkbox,
@@ -208,13 +230,10 @@ function PackingCard({ items, isApproaching, accentColor, theme }: {
             >
               {checked.has(item) && <Text style={S.checkmark}>✓</Text>}
             </View>
-            <Text
-              style={[S.checkLabel, { color: checked.has(item) ? theme.textMuted : theme.textPrimary }]}
-              onPress={() => toggle(item)}
-            >
+            <Text style={[S.checkLabel, { color: checked.has(item) ? theme.textMuted : theme.textPrimary }]}>
               {item}
             </Text>
-          </View>
+          </TouchableOpacity>
         ))}
       </View>
     </View>
@@ -256,7 +275,7 @@ export default function PortalHomeScreen() {
             {profile && (
               <ChildAvatar
                 size={52}
-                color={profile.color}
+                color={theme.accent}
                 emoji={profile.avatarEmoji}
                 initials={profile.initials}
               />
@@ -407,6 +426,15 @@ const S = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingVertical: 7,
+  },
+  checkAllRow: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 4,
+    paddingBottom: 10,
+  },
+  checkAllLabel: {
+    fontFamily: font.medium,
+    fontWeight: '600',
   },
   checkbox: {
     width: 20,

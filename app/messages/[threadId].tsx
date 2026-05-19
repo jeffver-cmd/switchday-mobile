@@ -52,12 +52,14 @@ interface BubbleProps {
   myColor: string
   /** Override time-stamp text color (portal theming) */
   timeColor?: string
+  /** Override received-bubble background color (portal theming — adapts to dark themes) */
+  receivedBgColor?: string
   /** Override received-bubble text color (portal theming) */
   receivedTextColor?: string
 }
 
-function Bubble({ msg, isMe, showTime, myColor, timeColor, receivedTextColor }: BubbleProps) {
-  const bgColor = isMe ? myColor : RECEIVED_COLOR
+function Bubble({ msg, isMe, showTime, myColor, timeColor, receivedBgColor, receivedTextColor }: BubbleProps) {
+  const bgColor = isMe ? myColor : (receivedBgColor ?? RECEIVED_COLOR)
 
   return (
     <View style={[
@@ -220,8 +222,9 @@ export default function ConversationScreen() {
                     msg={item.msg}
                     isMe={item.isMe}
                     showTime={item.showTime}
-                    myColor={data?.myColor ?? (pt?.accent ?? colors.accent)}
+                    myColor={pt ? pt.accent : (data?.myColor ?? colors.accent)}
                     timeColor={pt?.textSubtle}
+                    receivedBgColor={pt?.surface2}
                     receivedTextColor={pt?.textPrimary}
                   />
             }
@@ -239,7 +242,7 @@ export default function ConversationScreen() {
         {/* Input bar */}
         <View style={[styles.inputBar, pt && { backgroundColor: pt.surface, borderTopColor: pt.border }]}>
           <TextInput
-            style={[styles.input, pt && { backgroundColor: pt.surface2, borderColor: pt.border, color: pt.textPrimary }]}
+            style={[styles.input, pt && { backgroundColor: pt.surface2, color: pt.textPrimary }]}
             value={text}
             onChangeText={setText}
             placeholder="Message…"
@@ -325,35 +328,35 @@ const styles = StyleSheet.create({
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 14,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 10,
     borderTopWidth: 1,
     borderTopColor: colors.borderHair,
     backgroundColor: colors.surface,
-    gap: 10,
+    gap: 8,
   },
   input: {
     flex: 1,
     backgroundColor: colors.surface2,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: 22,
+    borderWidth: 0,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 11,
     fontSize: 15,
     fontFamily: font.regular,
     color: colors.textPrimary,
     maxHeight: 120,
   },
   sendBtn: {
-    width: 44, height: 44, borderRadius: 10,
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: colors.accent,
     alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
+    marginBottom: 3,
   },
   sendBtnDisabled: { backgroundColor: colors.surface2 },
-  sendBtnText: { color: colors.white, fontSize: 20, fontWeight: '700', lineHeight: 22 },
+  sendBtnText: { color: colors.white, fontSize: 18, fontWeight: '700', lineHeight: 20 },
 
   sendError: { fontSize: 12, fontFamily: font.regular, color: colors.danger, textAlign: 'center', paddingHorizontal: 16, paddingBottom: 4 },
 })
