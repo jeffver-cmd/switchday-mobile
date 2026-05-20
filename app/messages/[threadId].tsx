@@ -8,12 +8,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Svg, { Path } from 'react-native-svg'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useMessages, sendMessage, Message } from '@/lib/hooks/useMessages'
+import { useMessages, sendMessage, analyzeTone, Message, ToneAnalysisResult } from '@/lib/hooks/useMessages'
+import { CoachModal } from '@/components/CoachModal'
 import { colors, radius, font } from '@/lib/theme'
 import { getPortalTheme, PortalTheme, ThemeKey } from '@/lib/childThemes'
 
@@ -135,8 +139,34 @@ export default function ConversationScreen() {
   const { data, loading, error } = useMessages(threadId)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
   const listRef = useRef<FlatList>(null)
+
+  // Tone coach state
+  const [coachResult, setCoachResult] = useState<ToneAnalysisResult | null>(null)
+  const [pendingBody, setPendingBody] = useState('')
+
+  // Tone analysis fires for Pro users in co-parent (non-child-portal) threads
+  const isToneEligible = !!data?.isPro && !themeKey
+
+  // Sparkles spin animation — runs while analyzing
+  const spinValue = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    if (analyzing) {
+      Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start()
+    } else {
+      spinValue.stopAnimation()
+      spinValue.setValue(0)
+    }
+  }, [analyzing, spinValue])
 
   // Scroll to bottom when messages load or a new one arrives
   useEffect(() => {
@@ -145,19 +175,89 @@ export default function ConversationScreen() {
     }
   }, [data?.messages.length])
 
-  const handleSend = useCallback(async () => {
-    const trimmed = text.trim()
-    if (!trimmed || sending) return
+  /** Final send — writes the message with optional tone metadata. */
+  const commitSend = useCallback(async (
+    body: string,
+    toneMeta?: { score?: number; flags?: string[]; coachingOffered?: boolean; coachingAccepted?: boolean },
+  ) => {
     setSending(true)
     setSendError(null)
-    setText('')
-    const { error: err } = await sendMessage(threadId, connectionId, trimmed)
-    if (err) {
-      setSendError('Failed to send. Try again.')
-      setText(trimmed)  // restore
-    }
+    const { error: err } = await sendMessage(threadId, connectionId, body, toneMeta)
+    if (err) setSendError('Failed to send. Try again.')
     setSending(false)
-  }, [text, sending, threadId, connectionId])
+  }, [threadId, connectionId])
+
+  const handleSend = useCallback(async () => {
+    const trimmed = text.trim()
+    if (!trimmed || sending || analyzing) return
+    setText('')
+    setSendError(null)
+
+    if (!isToneEligible) {
+      // Free plan or child portal — skip analysis entirely
+      await commitSend(trimmed)
+      return
+    }
+
+    // Pro + co-parent thread — run tone analysis
+    setAnalyzing(true)
+    const result = await analyzeTone(trimmed)
+    setAnalyzing(false)
+
+    if (!result) {
+      // Analysis failed — fail open and send without metadata
+      await commitSend(trimmed)
+      return
+    }
+
+    if (result.needs_intercept) {
+      // Hold the message and show the coach modal
+      setPendingBody(trimmed)
+      setCoachResult(result)
+    } else {
+      // Calm/neutral — send immediately with tone metadata
+      await commitSend(trimmed, {
+        score: result.score,
+        flags: result.flags,
+        coachingOffered: false,
+      })
+    }
+  }, [text, sending, analyzing, isToneEligible, commitSend])
+
+  // ── Coach modal handlers ───────────────────────────────────────────────────
+
+  const handleUseRewrite = useCallback(async (rewrite: string) => {
+    setCoachResult(null)
+    await commitSend(rewrite, {
+      score: coachResult?.score,
+      flags: coachResult?.flags,
+      coachingOffered: true,
+      coachingAccepted: true,
+    })
+  }, [coachResult, commitSend])
+
+  const handleEditRewrite = useCallback((rewrite: string) => {
+    setCoachResult(null)
+    setText(rewrite)
+  }, [])
+
+  const handleSendAnyway = useCallback(async () => {
+    const body = pendingBody
+    setCoachResult(null)
+    setPendingBody('')
+    await commitSend(body, {
+      score: coachResult?.score,
+      flags: coachResult?.flags,
+      coachingOffered: true,
+      coachingAccepted: false,
+    })
+  }, [pendingBody, coachResult, commitSend])
+
+  const handleCoachDismiss = useCallback(() => {
+    setText(pendingBody)
+    setPendingBody('')
+    setCoachResult(null)
+  }, [pendingBody])
 
   // Build list items: inject day separators
   const listItems: Array<{ type: 'sep'; label: string } | { type: 'msg'; msg: Message; isMe: boolean; showTime: boolean }> = []
@@ -239,6 +339,13 @@ export default function ConversationScreen() {
           <Text style={styles.sendError}>{sendError}</Text>
         )}
 
+        {/* Analyzing tone banner */}
+        {analyzing && (
+          <View style={styles.analyzingBanner}>
+            <Text style={styles.analyzingText}>✦  Analyzing tone…</Text>
+          </View>
+        )}
+
         {/* Input bar */}
         <View style={[styles.inputBar, pt && { backgroundColor: pt.surface, borderTopColor: pt.border }]}>
           <TextInput
@@ -252,19 +359,40 @@ export default function ConversationScreen() {
             returnKeyType="default"
           />
           <TouchableOpacity
-            style={[styles.sendBtn, pt && { backgroundColor: pt.accent }, (!text.trim() || sending) && (pt ? { backgroundColor: pt.surface2 } : styles.sendBtnDisabled)]}
+            style={[
+              styles.sendBtn,
+              pt && { backgroundColor: pt.accent },
+              analyzing && styles.sendBtnAnalyzing,
+              (!text.trim() || sending) && !analyzing && (pt ? { backgroundColor: pt.surface2 } : styles.sendBtnDisabled),
+            ]}
             onPress={handleSend}
-            disabled={!text.trim() || sending}
+            disabled={!text.trim() || sending || analyzing}
             activeOpacity={0.8}
           >
             {sending ? (
               <ActivityIndicator size="small" color={colors.white} />
+            ) : analyzing ? (
+              <Animated.View style={{ transform: [{ rotate: spinValue.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }}>
+                <Ionicons name="sparkles" size={16} color={colors.white} />
+              </Animated.View>
             ) : (
               <Text style={styles.sendBtnText}>↑</Text>
             )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Tone coach modal */}
+      {coachResult && (
+        <CoachModal
+          visible={!!coachResult}
+          result={coachResult}
+          onUseRewrite={handleUseRewrite}
+          onEditRewrite={handleEditRewrite}
+          onSendAnyway={handleSendAnyway}
+          onDismiss={handleCoachDismiss}
+        />
+      )}
     </SafeAreaView>
   )
 }
@@ -314,7 +442,8 @@ const styles = StyleSheet.create({
   bubble: {
     borderRadius: 18,   // uniform — matches web
     paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingTop: 8,
+    paddingBottom: 10,
   },
 
   bubbleText: { fontSize: 15, fontFamily: font.regular, lineHeight: 20 },
@@ -359,4 +488,22 @@ const styles = StyleSheet.create({
   sendBtnText: { color: colors.white, fontSize: 18, fontWeight: '700', lineHeight: 20 },
 
   sendError: { fontSize: 12, fontFamily: font.regular, color: colors.danger, textAlign: 'center', paddingHorizontal: 16, paddingBottom: 4 },
+
+  analyzingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    backgroundColor: colors.accent2Soft,
+  },
+  analyzingText: {
+    fontSize: 12,
+    fontFamily: font.semibold,
+    color: colors.accent2,
+    letterSpacing: 0.2,
+  },
+  sendBtnAnalyzing: {
+    backgroundColor: colors.accent2,
+  },
 })

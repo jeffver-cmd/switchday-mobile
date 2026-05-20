@@ -6,7 +6,9 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "dev:ios": "PATH=/opt/homebrew/bin:$PATH npx expo start --ios",
+    "dev:android": "JAVA_HOME=/Applications/Android\\ Studio.app/Contents/jbr/Contents/Home ANDROID_HOME=/Users/jeffver/Library/Android/sdk PATH=/Applications/Android\\ Studio.app/Contents/jbr/Contents/Home/bin:/Users/jeffver/Library/Android/sdk/platform-tools:$PATH npx expo start --android"
   },
   "dependencies": {
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",

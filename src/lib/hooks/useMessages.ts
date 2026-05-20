@@ -17,15 +17,49 @@ export interface Message {
 export interface MessagesData {
   userId: string
   myColor: string   // current user's profile color — used to tint sent bubbles
+  isPro: boolean    // whether the current user (or their connection) is on a Pro plan
   messages: Message[]
 }
 
+export interface ToneAnalysisResult {
+  tone: 'calm' | 'neutral' | 'tense' | 'hostile'
+  score: number
+  flags: string[]
+  rewrite: string | null
+  coaching_note: string
+  needs_intercept: boolean
+}
+
+export interface ToneMeta {
+  score?: number
+  flags?: string[]
+  coachingOffered?: boolean
+  coachingAccepted?: boolean
+}
+
 // ─── api helper ──────────────────────────────────────────────────────────────
+
+/**
+ * Call the analyze-tone Edge Function before sending a message.
+ * Returns null on any failure — callers should treat null as "send without analysis".
+ */
+export async function analyzeTone(message: string): Promise<ToneAnalysisResult | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke('analyze-tone', {
+      body: { message },
+    })
+    if (error || !data) return null
+    return data as ToneAnalysisResult
+  } catch {
+    return null
+  }
+}
 
 export async function sendMessage(
   threadId: string,
   connectionId: string,
   body: string,
+  toneMeta?: ToneMeta,
 ): Promise<{ error: string | null }> {
   try {
     const { data: { session } } = await supabase.auth.getSession()
@@ -42,7 +76,17 @@ export async function sendMessage(
     // No .select() — avoids SELECT-RLS blocking the return row for some thread types
     const { error: insertErr } = await supabase
       .from('messages')
-      .insert({ thread_id: threadId, connection_id: connectionId, sender_id: userId, body, sha256_hash })
+      .insert({
+        thread_id:         threadId,
+        connection_id:     connectionId,
+        sender_id:         userId,
+        body,
+        sha256_hash,
+        tone_score:        toneMeta?.score        ?? null,
+        tone_flags:        toneMeta?.flags        ?? null,
+        coaching_offered:  toneMeta?.coachingOffered  ?? null,
+        coaching_accepted: toneMeta?.coachingAccepted ?? null,
+      })
 
     if (insertErr) return { error: insertErr.message }
 
@@ -102,14 +146,17 @@ export function useMessages(threadId: string) {
           .limit(200),
         supabase
           .from('profiles')
-          .select('color')
+          .select('color, plan')
           .eq('id', userId)
           .maybeSingle(),
       ])
 
       if (err) { setError(err.message); setLoading(false); return }
 
-      const myColor = (profileRow as { color?: string } | null)?.color ?? '#5B6B8A'
+      const profile = profileRow as { color?: string; plan?: string | null } | null
+      const myColor = profile?.color ?? '#5B6B8A'
+      const plan = profile?.plan ?? 'free'
+      const isPro = plan === 'pro' || plan === 'standard' || plan === 'premium'
 
       const messages: Message[] = (rows ?? []).map(r => ({
         id: r.id,
@@ -121,7 +168,7 @@ export function useMessages(threadId: string) {
         readAt: r.read_at,
       }))
 
-      setData({ userId, myColor, messages })
+      setData({ userId, myColor, isPro, messages })
 
       // Mark unread messages as read
       await markThreadRead(threadId, userId)
