@@ -18,7 +18,10 @@
       "bundleIdentifier": "com.switchday.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "associatedDomains": [
+        "applinks:switchday.app"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -27,7 +30,21 @@
       },
       "package": "com.switchday.app",
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "switchday.app",
+              "pathPrefix": "/pro"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
