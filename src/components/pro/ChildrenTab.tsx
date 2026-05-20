@@ -29,7 +29,7 @@ function ChildCard({ child }: { child: ProChild }) {
   return (
     <View style={styles.card}>
       {/* Name + DOB */}
-      <Text style={styles.name}>{[child.first_name, child.last_name].filter(Boolean).join(' ')}</Text>
+      <Text style={styles.name}>{child.name}</Text>
       <Text style={styles.dob}>
         DOB: {formatDOB(child.date_of_birth)}
         {childAge(child.date_of_birth) != null ? ` · Age ${childAge(child.date_of_birth)}` : ''}
@@ -38,15 +38,15 @@ function ChildCard({ child }: { child: ProChild }) {
       <View style={styles.divider} />
 
       {/* Education */}
-      {(child.school_name || child.grade) && (
+      {(child.school || child.grade) && (
         <DataRow
           label="School"
-          value={[child.school_name, child.grade ? `Grade ${child.grade}` : null].filter(Boolean).join(' · ') || '—'}
+          value={[child.school, child.grade ? `Grade ${child.grade}` : null].filter(Boolean).join(' · ') || '—'}
         />
       )}
 
       {/* Physician */}
-      <DataRow label="Physician" value={child.pediatrician_name ?? '—'} />
+      <DataRow label="Physician" value={child.doctor ?? '—'} />
 
       {/* Allergies */}
       {allergies.length > 0 && (

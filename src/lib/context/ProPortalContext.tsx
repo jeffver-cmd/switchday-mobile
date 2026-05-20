@@ -11,12 +11,11 @@ export interface ProParent {
 
 export interface ProChild {
   id: string
-  first_name: string
-  last_name: string | null
+  name: string
   date_of_birth: string | null
-  school_name: string | null
+  school: string | null
   grade: string | null
-  pediatrician_name: string | null
+  doctor: string | null
   allergies: string[] | null
   medications: string[] | null
   connection_id: string
@@ -25,7 +24,7 @@ export interface ProChild {
 export interface ProThread {
   id: string
   topic: string | null
-  type: string | null
+  thread_type: string | null
 }
 
 export interface ProMessage {
