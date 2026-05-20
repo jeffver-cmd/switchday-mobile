@@ -8,7 +8,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as SecureStore from 'expo-secure-store'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '@/lib/supabase'
 import { useProPortal } from '@/lib/context/ProPortalContext'
@@ -115,8 +115,9 @@ export default function ProTokenEntry() {
 
       setData(data as ProPortalData)
 
-      const certKey = `switchday:pro-cert:seen:${data.tokenId}`
-      const seen    = await AsyncStorage.getItem(certKey)
+      // procert_ prefix + tokenId (no colons — SecureStore key requirement)
+      const certKey = `procert_${data.tokenId}`
+      const seen    = await SecureStore.getItemAsync(certKey)
 
       router.replace(seen ? `/pro/${token}/portal` : `/pro/${token}/certificate`)
     } catch {

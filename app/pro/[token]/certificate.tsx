@@ -7,7 +7,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as SecureStore from 'expo-secure-store'
 import { Ionicons } from '@expo/vector-icons'
 import { useProPortal } from '@/lib/context/ProPortalContext'
 import { font, radius } from '@/lib/theme'
@@ -51,7 +51,7 @@ export default function CertificateScreen() {
 
   async function proceed() {
     if (!data) return
-    await AsyncStorage.setItem(`switchday:pro-cert:seen:${data.tokenId}`, 'true')
+    await SecureStore.setItemAsync(`procert_${data.tokenId}`, 'true')
     router.replace(`/pro/${token}/portal`)
   }
 
