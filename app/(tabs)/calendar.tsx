@@ -191,12 +191,14 @@ export default function CalendarScreen() {
                 return <View key={`blank-${i}`} style={[styles.dayCell, { width: CELL, height: CELL }]} />
               }
 
-              const dayData  = data?.days[cell.dateStr]
-              const isToday  = cell.dateStr === today
-              const isSel    = cell.dateStr === selected
+              const dayData     = data?.days[cell.dateStr]
+              const isToday     = cell.dateStr === today
+              const isSel       = cell.dateStr === selected
               const hasSchedule = !!dayData?.ownerId
               const ownerColor  = dayData?.ownerColor ?? null
+              const mColor      = dayData?.morningColor ?? ownerColor
               const isSwitch    = dayData?.isSwitch ?? false
+              const isSplitCell = isSwitch && !!mColor && !!ownerColor && mColor !== ownerColor
               const evCount     = dayData?.events.length ?? 0
               const evColors    = (dayData?.events ?? []).slice(0, 3).map(eventDotColor)
 
@@ -206,16 +208,33 @@ export default function CalendarScreen() {
                   style={[
                     styles.dayCell,
                     { width: CELL, height: CELL },
-                    hasSchedule && ownerColor
-                      ? { backgroundColor: ownerColor + '22' }  // 13% opacity tint
+                    hasSchedule && (isSplitCell ? mColor : ownerColor)
+                      ? { backgroundColor: (isSplitCell ? mColor! : ownerColor!) + '22' }
                       : null,
                     isSel ? styles.dayCellSelected : null,
                   ]}
                   onPress={() => setSelected(isSel ? null : cell.dateStr)}
                   activeOpacity={0.7}
                 >
-                  {/* Switch stripe — thin top border in owner color */}
-                  {isSwitch && ownerColor && (
+                  {/* Diagonal split: bottom-right triangle in evening color (no expo-linear-gradient needed) */}
+                  {isSplitCell && (
+                    <View
+                      pointerEvents="none"
+                      style={{
+                        position: 'absolute',
+                        right: 0,
+                        bottom: 0,
+                        width: 0,
+                        height: 0,
+                        borderBottomWidth: CELL,
+                        borderBottomColor: ownerColor! + '22',
+                        borderLeftWidth: CELL,
+                        borderLeftColor: 'transparent',
+                      }}
+                    />
+                  )}
+                  {/* Switch stripe on non-split switch days only */}
+                  {isSwitch && ownerColor && !isSplitCell && (
                     <View style={[styles.switchStripe, { backgroundColor: ownerColor }]} />
                   )}
 

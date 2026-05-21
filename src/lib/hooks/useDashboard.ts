@@ -54,6 +54,7 @@ export interface DashboardData {
   coParentProfile: Profile | null
   todayOwnerId: string | null
   isSwitch: boolean
+  switchTime: string | null   // HH:MM default switch time from connection
   nextSwitch: NextSwitch | null
   unreadCount: number
   pendingExpenses: PendingExpense[]
@@ -281,6 +282,7 @@ export function useDashboard() {
         coParentProfile,
         todayOwnerId: todayResult.data?.owner_id ?? null,
         isSwitch: todayResult.data?.is_switch ?? false,
+        switchTime: connection.switch_time ? connection.switch_time.slice(0, 5) : null,
         nextSwitch,
         unreadCount: unreadResult.count ?? 0,
         pendingExpenses: (expensesResult.data ?? []) as PendingExpense[],

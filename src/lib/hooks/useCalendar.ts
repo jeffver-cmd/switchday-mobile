@@ -13,7 +13,8 @@ export interface Profile {
 export interface DayData {
   date: string          // YYYY-MM-DD
   ownerId: string | null
-  ownerColor: string    // hex — resolved from profiles
+  ownerColor: string    // hex — receiving (evening) parent color
+  morningColor: string  // hex — outgoing (morning) parent color; same as ownerColor on non-switch days
   isSwitch: boolean
   events: CalendarEvent[]
 }
@@ -127,14 +128,20 @@ export function useCalendar(year: number, month: number) {
 
       // 6. Build days map
       const scheduleRows = scheduleResult.data ?? []
+      const profileIds = Object.keys(colorMap)
       const days: Record<string, DayData> = {}
       for (const row of scheduleRows) {
+        const eveningColor = colorMap[row.owner_id] ?? '#6b7280'
+        // Morning color = the other parent's color (only meaningful on switch days)
+        const otherParentId = profileIds.find(id => id !== row.owner_id)
+        const mColor = (row.is_switch && otherParentId) ? (colorMap[otherParentId] ?? eveningColor) : eveningColor
         days[row.date] = {
-          date:       row.date,
-          ownerId:    row.owner_id,
-          ownerColor: colorMap[row.owner_id] ?? '#6b7280',
-          isSwitch:   row.is_switch ?? false,
-          events:     eventsByDate[row.date] ?? [],
+          date:        row.date,
+          ownerId:     row.owner_id,
+          ownerColor:  eveningColor,
+          morningColor: mColor,
+          isSwitch:    row.is_switch ?? false,
+          events:      eventsByDate[row.date] ?? [],
         }
       }
 
@@ -145,6 +152,7 @@ export function useCalendar(year: number, month: number) {
             date,
             ownerId: null,
             ownerColor: '#6b7280',
+            morningColor: '#6b7280',
             isSwitch: false,
             events: evs,
           }

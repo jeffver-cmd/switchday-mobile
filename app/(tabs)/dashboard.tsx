@@ -224,7 +224,7 @@ export default function DashboardScreen() {
   }
 
   const {
-    myProfile, coParentProfile, todayOwnerId, isSwitch, nextSwitch,
+    myProfile, coParentProfile, todayOwnerId, isSwitch, switchTime, nextSwitch,
     unreadCount, pendingExpenseCount, upcomingEvents,
     recentThreads, recentExpenses, checklistItems, childrenNames,
   } = data
@@ -232,6 +232,10 @@ export default function DashboardScreen() {
   const todayOwner = todayOwnerId === myProfile.id ? myProfile : coParentProfile
   const ownerColor = todayOwner?.color ?? '#6b7280'
   const isMyDay = todayOwnerId === myProfile.id
+
+  // Split-day accent bar: morning = outgoing parent, evening = receiving parent
+  const morningColor = isMyDay ? (coParentProfile?.color ?? ownerColor) : myProfile.color
+  const isSplitBar = isSwitch && !!switchTime
 
   return (
     <SafeAreaView style={styles.container}>
@@ -253,8 +257,15 @@ export default function DashboardScreen() {
 
         {/* ── Custody card ───────────────────────────────────────────────── */}
         <View style={[styles.custodyCard, { backgroundColor: colors.surface }]}>
-          {/* 6px accent bar */}
-          <View style={[styles.custodyAccentBar, { backgroundColor: ownerColor }]} />
+          {/* 6px accent bar — split on switch days (top=morning, bottom=evening) */}
+          {isSplitBar ? (
+            <View style={[styles.custodyAccentBar, { flexDirection: 'column' }]}>
+              <View style={{ flex: 1, backgroundColor: morningColor }} />
+              <View style={{ flex: 1, backgroundColor: ownerColor }} />
+            </View>
+          ) : (
+            <View style={[styles.custodyAccentBar, { backgroundColor: ownerColor }]} />
+          )}
 
           {/* Content */}
           <View style={styles.custodyContent}>
