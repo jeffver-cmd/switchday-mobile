@@ -209,8 +209,8 @@ export default function CalendarScreen() {
                     styles.dayCell,
                     { width: CELL, height: CELL },
                     hasSchedule && (isSplitCell ? mColor : ownerColor)
-                      // Split: morning bg at ~9% (17 hex), solid days at ~13% (22 hex)
-                      ? { backgroundColor: (isSplitCell ? mColor! + '17' : ownerColor! + '22') }
+                      // Split: morning bg at 12% (1F hex), solid days at 13% (22 hex)
+                      ? { backgroundColor: (isSplitCell ? mColor! + '1F' : ownerColor! + '22') }
                       : null,
                     isSel ? styles.dayCellSelected : null,
                   ]}
@@ -228,7 +228,7 @@ export default function CalendarScreen() {
                         width: 0,
                         height: 0,
                         borderBottomWidth: CELL,
-                        borderBottomColor: ownerColor! + '3D',  // ~24% opacity — richer than morning
+                        borderBottomColor: ownerColor! + '33',  // ~20% opacity — richer than morning
                         borderLeftWidth: CELL,
                         borderLeftColor: 'transparent',
                       }}
