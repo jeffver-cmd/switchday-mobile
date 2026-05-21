@@ -52,6 +52,8 @@ export interface Database {
           phone: string | null
           phone_verified: boolean
           sms_relay_enabled: boolean
+          sms_opted_out: boolean
+          sms_consent_at: string | null
           proxy_number: string | null
           plan: UserPlan
           account_status: AccountStatus
@@ -74,6 +76,8 @@ export interface Database {
           phone?: string | null
           phone_verified?: boolean
           sms_relay_enabled?: boolean
+          sms_opted_out?: boolean
+          sms_consent_at?: string | null
           proxy_number?: string | null
           plan?: UserPlan
           account_status?: AccountStatus
@@ -93,6 +97,8 @@ export interface Database {
           phone?: string | null
           phone_verified?: boolean
           sms_relay_enabled?: boolean
+          sms_opted_out?: boolean
+          sms_consent_at?: string | null
           proxy_number?: string | null
           plan?: UserPlan
           account_status?: AccountStatus
