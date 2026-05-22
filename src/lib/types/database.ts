@@ -277,6 +277,9 @@ export interface Database {
            shirt_size: string | null
            pants_size: string | null
            shoe_size: string | null
+           dress_size: string | null
+           height: string | null
+           weight: string | null
            babysitter_name: string | null
            babysitter_phone: string | null
            emergency_contact_name: string | null
@@ -310,17 +313,20 @@ export interface Database {
              dentist_address?: string | null
              allergies?: string[]
              medications?: string[]
-             shirt_size?: string | null
-             pants_size?: string | null
-             shoe_size?: string | null
-             babysitter_name?: string | null
-             babysitter_phone?: string | null
-             emergency_contact_name?: string | null
-             emergency_contact_phone?: string | null
-             emergency_contact_relation?: string | null
-             notes?: string | null
-           }
-           Update: {
+              shirt_size?: string | null
+              pants_size?: string | null
+              shoe_size?: string | null
+              dress_size?: string | null
+              height?: string | null
+              weight?: string | null
+              babysitter_name?: string | null
+              babysitter_phone?: string | null
+              emergency_contact_name?: string | null
+              emergency_contact_phone?: string | null
+              emergency_contact_relation?: string | null
+              notes?: string | null
+            }
+            Update: {
              connection_id?: string | null
              user_id?: string | null
              auth_user_id?: string | null
@@ -345,6 +351,9 @@ export interface Database {
            shirt_size?: string | null
            pants_size?: string | null
            shoe_size?: string | null
+           dress_size?: string | null
+           height?: string | null
+           weight?: string | null
            babysitter_name?: string | null
            babysitter_phone?: string | null
            emergency_contact_name?: string | null
@@ -1262,6 +1271,18 @@ export interface Database {
         Row: { id: string; child_id: string; name: string; phone: string | null; email: string | null; relation: string | null; is_emergency: boolean; is_private: boolean; created_by: string | null; created_at: string; updated_at: string }
         Insert: { id?: string; child_id: string; name: string; phone?: string | null; email?: string | null; relation?: string | null; is_emergency?: boolean; is_private?: boolean; created_by?: string | null }
         Update: { name?: string; phone?: string | null; email?: string | null; relation?: string | null; is_emergency?: boolean; is_private?: boolean; updated_at?: string }
+        Relationships: []
+      }
+      child_procedures: {
+        Row: { id: string; child_id: string; procedure: string; procedure_date: string | null; provider: string | null; notes: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; child_id: string; procedure: string; procedure_date?: string | null; provider?: string | null; notes?: string | null }
+        Update: { procedure?: string; procedure_date?: string | null; provider?: string | null; notes?: string | null; updated_at?: string }
+        Relationships: []
+      }
+      child_test_results: {
+        Row: { id: string; child_id: string; test_name: string; test_date: string | null; result: string | null; notes: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; child_id: string; test_name: string; test_date?: string | null; result?: string | null; notes?: string | null }
+        Update: { test_name?: string; test_date?: string | null; result?: string | null; notes?: string | null; updated_at?: string }
         Relationships: []
       }
     }
