@@ -1153,6 +1153,48 @@ export interface Database {
         }
         Relationships: []
       }
+      feedback_items: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          description: string | null
+          category: 'feature_request' | 'bug_report' | 'improvement' | 'question'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          description?: string | null
+          category?: 'feature_request' | 'bug_report' | 'improvement' | 'question'
+        }
+        Update: {
+          title?: string
+          description?: string | null
+          category?: 'feature_request' | 'bug_report' | 'improvement' | 'question'
+        }
+        Relationships: []
+      }
+      feedback_votes: {
+        Row: {
+          id: string
+          user_id: string
+          item_id: string
+          value: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          item_id: string
+          value: number
+        }
+        Update: {
+          value?: number
+        }
+        Relationships: []
+      }
       phone_verification_codes: {
         Row: {
           id: string
