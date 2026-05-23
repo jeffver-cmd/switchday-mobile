@@ -475,17 +475,18 @@ export interface Database {
            connection_id: string
            created_by_id: string
            proposed_by_child_id: string | null
-           title: string
-           description: string | null
-           start_date: string
-           end_date: string | null
-           all_day: boolean
-           start_time: string | null
-           end_time: string | null
-           category: string
-           google_event_id: string | null
-           created_at: string
-           sha256_hash: string
+            title: string
+            description: string | null
+            location: string | null
+            start_date: string
+            end_date: string | null
+            all_day: boolean
+            start_time: string | null
+            end_time: string | null
+            category: string
+            google_event_id: string | null
+            created_at: string
+            sha256_hash: string
            tsa_token: string | null
            import_id: string | null
            origin_platform: ImportPlatform | null
@@ -497,33 +498,35 @@ export interface Database {
            created_by_id: string
            proposed_by_child_id?: string | null
            title: string
-           description?: string | null
-           start_date: string
-           end_date?: string | null
-           all_day?: boolean
-           start_time?: string | null
-           end_time?: string | null
-           category?: string
-           google_event_id?: string | null
-           sha256_hash: string
+            description?: string | null
+            location?: string | null
+            start_date: string
+            end_date?: string | null
+            all_day?: boolean
+            start_time?: string | null
+            end_time?: string | null
+            category?: string
+            google_event_id?: string | null
+            sha256_hash: string
            tsa_token?: string | null
            import_id?: string | null
            origin_platform?: ImportPlatform | null
            origin_timestamp?: string | null
          }
-         Update: {
-           title?: string
-           description?: string | null
-           start_date?: string
-           end_date?: string | null
-           all_day?: boolean
-           start_time?: string | null
-           end_time?: string | null
-           category?: string
-         }
-         Relationships: []
-       }
-      expenses: {
+          Update: {
+            title?: string
+            description?: string | null
+            location?: string | null
+            start_date?: string
+            end_date?: string | null
+            all_day?: boolean
+            start_time?: string | null
+            end_time?: string | null
+            category?: string
+          }
+          Relationships: []
+        }
+       expenses: {
         Row: {
           id: string
           connection_id: string
