@@ -81,7 +81,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="vault"
-        options={{ href: null }}
+        options={{ title: 'Vault', tabBarIcon: tabIcon('folder', 'folder-outline') }}
       />
     </Tabs>
   )

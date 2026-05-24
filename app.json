@@ -61,6 +61,13 @@
           "color": "#111827",
           "defaultChannel": "default"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Switchday needs access to your photos to upload documents to the Vault.",
+          "cameraPermission": "Switchday needs camera access to photograph documents for the Vault."
+        }
       ]
     ],
     "experiments": {
