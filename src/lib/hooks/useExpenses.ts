@@ -31,6 +31,7 @@ export interface NewExpenseInput {
   amount: number
   category: ExpenseCategory
   splitPercent: number
+  receiptUrl?: string | null
 }
 
 // ─── state machine ────────────────────────────────────────────────────────────
@@ -103,6 +104,7 @@ export async function logExpense(input: NewExpenseInput): Promise<{ error: strin
       split_percent:   input.splitPercent,
       status:          'pending' as ExpenseStatus,
       sha256_hash,
+      ...(input.receiptUrl ? { receipt_url: input.receiptUrl } : {}),
     })
     .select()
     .single()

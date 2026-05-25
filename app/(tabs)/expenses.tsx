@@ -1,17 +1,6 @@
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-  Modal,
-  TextInput,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator,
+  RefreshControl, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform, Alert, ActionSheetIOS,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useCallback } from 'react'
@@ -25,6 +14,7 @@ import {
 } from '@/lib/hooks/useExpenses'
 import type { ExpenseStatus, ExpenseCategory } from '@/lib/types/database'
 import { colors, radius, shadow, font } from '@/lib/theme'
+import { supabase } from '@/lib/supabase'
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -161,7 +151,87 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
   const [category, setCategory] = useState<ExpenseCategory>('other')
   const [split, setSplit] = useState('50')
   const [saving, setSaving] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
+  const [scanFeedback, setScanFeedback] = useState<'scanned' | 'failed' | null>(null)
   const [err, setErr] = useState<string | null>(null)
+
+  async function pickAndScan(useCamera: boolean) {
+    let ImagePicker: typeof import('expo-image-picker')
+    try { ImagePicker = await import('expo-image-picker') } catch { return }
+
+    if (useCamera) {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync()
+      if (status !== 'granted') { Alert.alert('Permission needed', 'Camera access is required to scan receipts.'); return }
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (status !== 'granted') { Alert.alert('Permission needed', 'Photo library access is required to scan receipts.'); return }
+    }
+
+    const result = useCamera
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.85 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 })
+
+    if (result.canceled || !result.assets[0]) return
+
+    const asset = result.assets[0]
+    setScanning(true)
+    setScanFeedback(null)
+    try {
+      // Upload to Supabase Storage (receipts bucket)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
+      const ext = asset.mimeType?.split('/')[1] ?? 'jpg'
+      const path = `${connectionId}/${session.user.id}/${Date.now()}.${ext}`
+      const fetchRes = await fetch(asset.uri)
+      const blob = await fetchRes.blob()
+
+      const { error: uploadErr } = await supabase.storage
+        .from('receipts')
+        .upload(path, blob, { contentType: asset.mimeType ?? 'image/jpeg', upsert: false })
+
+      if (uploadErr) { setScanFeedback('failed'); return }
+
+      const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(path)
+      setReceiptUrl(publicUrl)
+
+      // Call Edge Function
+      const { data: scan, error: fnErr } = await supabase.functions.invoke<{
+        amount: number | null; description: string | null; category: string | null; date: string | null
+      }>('scan-receipt', { body: { receipt_url: publicUrl } })
+
+      if (fnErr || !scan) { setScanFeedback('failed'); return }
+
+      // Pre-fill only empty fields
+      if (scan.amount   && !amount.trim())      setAmount(String(scan.amount))
+      if (scan.description && !description.trim()) setDescription(scan.description)
+      if (scan.category && ['medical','education','activities','clothing','other'].includes(scan.category)) {
+        setCategory(scan.category as ExpenseCategory)
+      }
+
+      setScanFeedback(scan.amount || scan.description ? 'scanned' : 'failed')
+    } catch {
+      setScanFeedback('failed')
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  function handleScanReceipt() {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancel', 'Take Photo', 'Choose from Library'], cancelButtonIndex: 0 },
+        (idx) => { if (idx === 1) pickAndScan(true); else if (idx === 2) pickAndScan(false); },
+      )
+    } else {
+      Alert.alert('Scan Receipt', 'Choose a source', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Camera',  onPress: () => pickAndScan(true)  },
+        { text: 'Library', onPress: () => pickAndScan(false) },
+      ])
+    }
+  }
 
   const handleSave = async () => {
     const amtNum = parseFloat(amount)
@@ -178,6 +248,7 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
       amount: amtNum,
       category,
       splitPercent: splitNum,
+      receiptUrl: receiptUrl ?? null,
     }
     const { error } = await logExpense(input)
     setSaving(false)
@@ -193,7 +264,7 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
             <Text style={modal.closeText}>Cancel</Text>
           </TouchableOpacity>
           <Text style={modal.title}>Log Expense</Text>
-          <TouchableOpacity onPress={handleSave} style={modal.saveBtn} disabled={saving}>
+          <TouchableOpacity onPress={handleSave} style={modal.saveBtn} disabled={saving || scanning}>
             {saving
               ? <ActivityIndicator size="small" color={colors.accent} />
               : <Text style={modal.saveText}>Save</Text>
@@ -204,6 +275,22 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={modal.flex}>
           <ScrollView contentContainerStyle={modal.form} keyboardShouldPersistTaps="handled">
             {err && <Text style={modal.errText}>{err}</Text>}
+
+            {/* Scan receipt button */}
+            <TouchableOpacity
+              style={[modal.scanBtn, scanFeedback === 'scanned' && modal.scanBtnSuccess]}
+              onPress={handleScanReceipt}
+              disabled={scanning}
+              activeOpacity={0.75}
+            >
+              {scanning ? (
+                <ActivityIndicator size="small" color={colors.accent} />
+              ) : (
+                <Text style={[modal.scanBtnText, scanFeedback === 'scanned' && modal.scanBtnTextSuccess]}>
+                  {scanFeedback === 'scanned' ? '✓ Receipt scanned — review below' : '📷  Scan Receipt'}
+                </Text>
+              )}
+            </TouchableOpacity>
 
             <Text style={modal.label}>Description</Text>
             <TextInput
@@ -462,4 +549,14 @@ const modal = StyleSheet.create({
   chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   chipText: { fontSize: 13, fontWeight: '500', fontFamily: font.medium, color: colors.textMuted },
   chipTextActive: { color: colors.white },
+  scanBtn: {
+    borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed',
+    borderRadius: radius.md, paddingVertical: 14, alignItems: 'center', justifyContent: 'center',
+    marginBottom: 4,
+  },
+  scanBtnSuccess: {
+    borderColor: colors.success, borderStyle: 'solid', backgroundColor: colors.successSoft,
+  },
+  scanBtnText: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.accent },
+  scanBtnTextSuccess: { color: colors.success },
 })
