@@ -328,13 +328,44 @@ function AddEventModal({ visible, onClose, defaultDate, connectionId, userId, on
 interface DayDetailProps {
   dateStr: string
   events: CalendarEvent[]
+  isSwitch: boolean
+  connectionId: string
+  userId: string
 }
 
-function DayDetail({ dateStr, events }: DayDetailProps) {
+function DayDetail({ dateStr, events, isSwitch, connectionId, userId }: DayDetailProps) {
   const date = new Date(dateStr + 'T12:00:00')
-  const label = date.toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric',
-  })
+  const label = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+
+  // Switch time override state
+  const [showOverride, setShowOverride] = useState(false)
+  const [overrideTime, setOverrideTime] = useState<Date>(() => { const d = new Date(); d.setHours(15, 0, 0, 0); return d })
+  const [showTimePick, setShowTimePick] = useState(false)
+  const [overrideNote, setOverrideNote] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  function fmtHHMM(d: Date) { return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` }
+  function fmtTimeDisplay(d: Date) { return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }
+
+  async function submitOverride() {
+    setSubmitting(true)
+    try {
+      const { error } = await supabase.from('switch_time_overrides').insert({
+        connection_id: connectionId,
+        date: dateStr,
+        switch_time: fmtHHMM(overrideTime),
+        set_by_id: userId,
+        note: overrideNote.trim() || null,
+        status: 'pending',
+      })
+      if (error) { Alert.alert('Error', error.message); return }
+      setShowOverride(false)
+      setOverrideNote('')
+      Alert.alert('Proposal sent', 'Your co-parent will see the request and can approve or decline it.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <View style={detailStyles.container}>
@@ -355,6 +386,68 @@ function DayDetail({ dateStr, events }: DayDetailProps) {
             </View>
           </View>
         ))
+      )}
+
+      {/* Switch time override CTA */}
+      {isSwitch && !showOverride && (
+        <TouchableOpacity
+          style={detailStyles.overrideBtn}
+          onPress={() => setShowOverride(true)}
+          activeOpacity={0.75}
+        >
+          <Text style={detailStyles.overrideBtnText}>⏰  Propose a different switch time</Text>
+        </TouchableOpacity>
+      )}
+
+      {isSwitch && showOverride && (
+        <View style={detailStyles.overrideForm}>
+          <Text style={detailStyles.overrideLabel}>PROPOSED TIME</Text>
+          <TouchableOpacity
+            style={detailStyles.overrideTimeBtn}
+            onPress={() => setShowTimePick(p => !p)}
+          >
+            <Text style={detailStyles.overrideTimeText}>{fmtTimeDisplay(overrideTime)}</Text>
+          </TouchableOpacity>
+          {showTimePick && (
+            <>
+              <DateTimePicker
+                value={overrideTime}
+                mode="time"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(_e, d) => { if (d) setOverrideTime(d); if (Platform.OS !== 'ios') setShowTimePick(false) }}
+              />
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity onPress={() => setShowTimePick(false)} style={{ alignItems: 'center', paddingVertical: 4 }}>
+                  <Text style={{ color: colors.accent, fontFamily: font.medium, fontSize: 14 }}>Done</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+          <Text style={[detailStyles.overrideLabel, { marginTop: 10 }]}>NOTE (OPTIONAL)</Text>
+          <TextInput
+            style={detailStyles.overrideInput}
+            value={overrideNote}
+            onChangeText={setOverrideNote}
+            placeholder="e.g. Traffic — can we do 4pm instead?"
+            placeholderTextColor={colors.textSubtle}
+            maxLength={200}
+          />
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            <TouchableOpacity
+              style={[detailStyles.overrideSubmit, { flex: 1 }]}
+              onPress={submitOverride}
+              disabled={submitting}
+            >
+              <Text style={detailStyles.overrideSubmitText}>{submitting ? 'Sending…' : 'Send proposal'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[detailStyles.overrideCancel]}
+              onPress={() => { setShowOverride(false); setOverrideNote('') }}
+            >
+              <Text style={detailStyles.overrideCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       )}
     </View>
   )
@@ -561,6 +654,9 @@ export default function CalendarScreen() {
           <DayDetail
             dateStr={selected}
             events={selectedEvents}
+            isSwitch={selectedDayData?.isSwitch ?? false}
+            connectionId={data?.connectionId ?? ''}
+            userId={data?.userId ?? ''}
           />
         )}
 
@@ -771,4 +867,40 @@ const detailStyles = StyleSheet.create({
   eventInfo: { flex: 1 },
   eventTitle: { fontSize: 14, fontWeight: '500', fontFamily: font.medium, color: colors.textPrimary },
   eventMeta: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, marginTop: 2 },
+
+  // Switch time override
+  overrideBtn: {
+    marginTop: 12, paddingVertical: 10, paddingHorizontal: 14,
+    borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+    borderStyle: 'dashed', alignItems: 'center',
+  },
+  overrideBtnText: { fontSize: 13, fontFamily: font.medium, color: colors.accent },
+  overrideForm: {
+    marginTop: 12, padding: 12, borderRadius: radius.md,
+    backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border,
+  },
+  overrideLabel: {
+    fontSize: 11, fontWeight: '700', fontFamily: font.bold,
+    color: colors.textSubtle, letterSpacing: 0.8, marginBottom: 6,
+  },
+  overrideTimeBtn: {
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.sm, paddingHorizontal: 12, paddingVertical: 10, alignItems: 'center',
+  },
+  overrideTimeText: { fontSize: 16, fontFamily: font.semibold, color: colors.textPrimary },
+  overrideInput: {
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.sm, paddingHorizontal: 12, paddingVertical: 8,
+    fontSize: 14, fontFamily: font.regular, color: colors.textPrimary,
+  },
+  overrideSubmit: {
+    backgroundColor: colors.accent, borderRadius: radius.sm,
+    paddingVertical: 10, alignItems: 'center',
+  },
+  overrideSubmitText: { color: colors.white, fontFamily: font.semibold, fontSize: 14 },
+  overrideCancel: {
+    borderRadius: radius.sm, paddingVertical: 10, paddingHorizontal: 16,
+    borderWidth: 1, borderColor: colors.border, alignItems: 'center',
+  },
+  overrideCancelText: { color: colors.textMuted, fontFamily: font.medium, fontSize: 14 },
 })

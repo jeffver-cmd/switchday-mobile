@@ -9,7 +9,9 @@ import {
   Alert,
   TextInput,
   Modal,
+  Platform,
 } from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -126,6 +128,44 @@ export default function SettingsScreen() {
   }
 
   const { myProfile, coParentProfile, switchTime, switchTimezone } = data
+
+  // ── Switch time editing ──────────────────────────────────────────────────
+  const [showSwitchTimeEdit, setShowSwitchTimeEdit] = useState(false)
+  const [editSwitchTimeDt, setEditSwitchTimeDt] = useState<Date>(() => {
+    const d = new Date()
+    if (switchTime) {
+      const [h, m] = switchTime.split(':').map(Number)
+      d.setHours(h, m, 0, 0)
+    } else {
+      d.setHours(15, 0, 0, 0)
+    }
+    return d
+  })
+  const [showSwitchTimePicker, setShowSwitchTimePicker] = useState(false)
+  const [switchTimeSaving, setSwitchTimeSaving] = useState(false)
+
+  async function handleProposeSwitchTime() {
+    if (!data?.connectionId) return
+    setSwitchTimeSaving(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      const hhmm = `${String(editSwitchTimeDt.getHours()).padStart(2,'0')}:${String(editSwitchTimeDt.getMinutes()).padStart(2,'0')}:00`
+      const { error: err } = await supabase
+        .from('co_parent_connections')
+        .update({
+          pending_switch_time: hhmm,
+          pending_switch_time_proposed_by: session.user.id,
+          pending_switch_time_proposed_at: new Date().toISOString(),
+        })
+        .eq('id', data?.connectionId ?? '')
+      if (err) { Alert.alert('Error', err.message); return }
+      setShowSwitchTimeEdit(false)
+      Alert.alert('Proposal sent', 'Your co-parent can approve the new switch time in their settings on the web app.')
+    } finally {
+      setSwitchTimeSaving(false)
+    }
+  }
 
   // ── Profile editing ──────────────────────────────────────────────────────
   const [showEditProfile, setShowEditProfile] = useState(false)
@@ -375,6 +415,14 @@ export default function SettingsScreen() {
             <Text style={styles.infoValue}>
               {switchTime ? formatTime(switchTime) : 'Not set'}
             </Text>
+            {data.connectionId && (
+              <TouchableOpacity
+                onPress={() => { setShowSwitchTimeEdit(true); setShowSwitchTimePicker(false) }}
+                style={{ marginLeft: 8, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: colors.accentSoft }}
+              >
+                <Text style={{ fontSize: 12, color: colors.accent, fontFamily: font.semibold }}>Propose</Text>
+              </TouchableOpacity>
+            )}
           </View>
           {switchTimezone && (
             <View style={[styles.infoRow, styles.infoRowBorderless]}>
@@ -384,6 +432,50 @@ export default function SettingsScreen() {
             </View>
           )}
         </View>
+
+        {/* Switch time edit modal */}
+        <Modal visible={showSwitchTimeEdit} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowSwitchTimeEdit(false)}>
+          <View style={{ flex: 1, backgroundColor: colors.bg, padding: 24, paddingTop: 48 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <TouchableOpacity onPress={() => setShowSwitchTimeEdit(false)}>
+                <Text style={{ color: colors.textMuted, fontSize: 16 }}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={{ fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary }}>Propose switch time</Text>
+              <TouchableOpacity onPress={handleProposeSwitchTime} disabled={switchTimeSaving}>
+                {switchTimeSaving
+                  ? <ActivityIndicator size="small" color={colors.accent} />
+                  : <Text style={{ color: colors.accent, fontSize: 16, fontWeight: '600', fontFamily: font.semibold }}>Propose</Text>}
+              </TouchableOpacity>
+            </View>
+            <Text style={{ fontSize: 13, color: colors.textMuted, marginBottom: 24, lineHeight: 18 }}>
+              Your co-parent will receive a notification and can approve the new time in their settings.
+            </Text>
+            <TouchableOpacity
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingVertical: 16, alignItems: 'center', marginBottom: 12 }}
+              onPress={() => setShowSwitchTimePicker(p => !p)}
+            >
+              <Text style={{ fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary }}>
+                {editSwitchTimeDt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>Tap to change</Text>
+            </TouchableOpacity>
+            {showSwitchTimePicker && (
+              <>
+                <DateTimePicker
+                  value={editSwitchTimeDt}
+                  mode="time"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(_e, d) => { if (d) setEditSwitchTimeDt(d); if (Platform.OS !== 'ios') setShowSwitchTimePicker(false) }}
+                />
+                {Platform.OS === 'ios' && (
+                  <TouchableOpacity onPress={() => setShowSwitchTimePicker(false)} style={{ alignItems: 'center', paddingVertical: 8 }}>
+                    <Text style={{ color: colors.accent, fontFamily: font.medium, fontSize: 15 }}>Done</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
+        </Modal>
 
         {/* ── Notifications ── */}
         <Text style={styles.sectionLabel}>NOTIFICATIONS</Text>

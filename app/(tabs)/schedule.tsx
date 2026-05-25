@@ -8,12 +8,17 @@ import {
   RefreshControl,
   TextInput,
   Alert,
+  Modal,
+  Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useState, useCallback, useMemo } from 'react'
+import * as Crypto from 'expo-crypto'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import { useSchedules } from '@/lib/hooks/useSchedules'
 import { scheduleAction, deleteSchedule, Schedule, ScheduleStatus } from '@/lib/api/schedules'
+import { supabase } from '@/lib/supabase'
 import { colors, radius, shadow, font } from '@/lib/theme'
 
 // ─── constants ───────────────────────────────────────────────────────────────
@@ -234,6 +239,66 @@ export default function ScheduleScreen() {
   const { data, loading, error, refresh } = useSchedules()
   const [showHistory, setShowHistory] = useState(false)
 
+  // ── Custody switch request ──────────────────────────────────────────────
+  const [showSwitchReq, setShowSwitchReq] = useState(false)
+  const [switchReqDate, setSwitchReqDate] = useState<Date>(new Date())
+  const [showDatePick, setShowDatePick] = useState(false)
+  const [switchReqReason, setSwitchReqReason] = useState('')
+  const [switchReqBusy, setSwitchReqBusy] = useState(false)
+  const [switchReqInfo, setSwitchReqInfo] = useState<{ownerId: string; ownerName: string} | null>(null)
+
+  function fmtDateStr(d: Date) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  }
+
+  async function lookupDayOwner(d: Date) {
+    if (!data) return
+    const dateStr = fmtDateStr(d)
+    const { data: day } = await supabase
+      .from('custody_schedule')
+      .select('owner_id')
+      .eq('connection_id', data.connectionId)
+      .eq('date', dateStr)
+      .maybeSingle()
+    if (!day) { setSwitchReqInfo(null); return }
+    const ownerName = day.owner_id === data.userId
+      ? 'you'
+      : (data.coParentProfile?.display_name ?? 'your co-parent')
+    setSwitchReqInfo({ ownerId: day.owner_id, ownerName })
+  }
+
+  async function submitSwitchRequest() {
+    if (!data || !switchReqInfo) return
+    setSwitchReqBusy(true)
+    const dateStr = fmtDateStr(switchReqDate)
+    const isMyDay = switchReqInfo.ownerId === data.userId
+    const coParentId = data.coParentProfile?.id ?? ''
+    const currentOwnerId  = switchReqInfo.ownerId
+    const proposedOwnerId = isMyDay ? coParentId : data.userId
+    try {
+      const hashInput = `${data.connectionId}|${data.userId}|${dateStr}|${proposedOwnerId}`
+      const sha256_hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, hashInput)
+      const { error: err } = await supabase.from('custody_switch_requests').insert({
+        connection_id: data.connectionId,
+        requested_by_id: data.userId,
+        switch_date: dateStr,
+        current_owner_id: currentOwnerId,
+        proposed_owner_id: proposedOwnerId,
+        reason: switchReqReason.trim() || null,
+        switch_type: 'one_way',
+        sha256_hash,
+      })
+      if (err) { Alert.alert('Error', err.message); return }
+      setShowSwitchReq(false)
+      setSwitchReqReason('')
+      setSwitchReqInfo(null)
+      Alert.alert('Request sent', 'Your co-parent can approve or decline the swap.')
+      refresh()
+    } finally {
+      setSwitchReqBusy(false)
+    }
+  }
+
   const { incoming, active, history } = useMemo(() => {
     const schedules = data?.schedules ?? []
     const userId = data?.userId ?? ''
@@ -283,13 +348,104 @@ export default function ScheduleScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.heading}>Schedule</Text>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => router.push('/schedule/new')}
-        >
-          <Text style={styles.addBtnText}>+ New</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {data && (
+            <TouchableOpacity
+              style={[styles.addBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
+              onPress={() => { setSwitchReqDate(new Date()); setSwitchReqInfo(null); setShowSwitchReq(true) }}
+            >
+              <Text style={[styles.addBtnText, { color: colors.textSecondary }]}>↔ Swap day</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => router.push('/schedule/new')}
+          >
+            <Text style={styles.addBtnText}>+ New</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Custody switch request modal */}
+      <Modal visible={showSwitchReq} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowSwitchReq(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.borderHair }}>
+            <TouchableOpacity onPress={() => setShowSwitchReq(false)}>
+              <Text style={{ color: colors.textMuted, fontSize: 16 }}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={{ fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary }}>Request day swap</Text>
+            <TouchableOpacity
+              onPress={submitSwitchRequest}
+              disabled={switchReqBusy || !switchReqInfo}
+            >
+              <Text style={{ color: !switchReqInfo ? colors.textSubtle : colors.accent, fontSize: 16, fontWeight: '600', fontFamily: font.semibold }}>
+                {switchReqBusy ? 'Sending…' : 'Send'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+            <Text style={{ fontSize: 13, color: colors.textMuted, marginBottom: 20, lineHeight: 18 }}>
+              Propose to swap a custody day with {coParentName}. They can approve or decline the request.
+            </Text>
+
+            <Text style={{ fontSize: 12, fontWeight: '700', fontFamily: font.bold, color: colors.textSubtle, letterSpacing: 0.8, marginBottom: 8 }}>DATE</Text>
+            <TouchableOpacity
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 4 }}
+              onPress={() => setShowDatePick(p => !p)}
+            >
+              <Text style={{ color: colors.textPrimary, fontFamily: font.regular, fontSize: 15 }}>
+                {switchReqDate.toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
+              </Text>
+            </TouchableOpacity>
+            {showDatePick && (
+              <>
+                <DateTimePicker
+                  value={switchReqDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                  minimumDate={new Date()}
+                  onChange={(_e, d) => {
+                    if (d) { setSwitchReqDate(d); lookupDayOwner(d) }
+                    if (Platform.OS !== 'ios') setShowDatePick(false)
+                  }}
+                />
+                {Platform.OS === 'ios' && (
+                  <TouchableOpacity onPress={() => { setShowDatePick(false); lookupDayOwner(switchReqDate) }} style={{ alignItems: 'center', paddingVertical: 8 }}>
+                    <Text style={{ color: colors.accent, fontFamily: font.medium, fontSize: 15 }}>Done</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+
+            {switchReqInfo && (
+              <View style={{ backgroundColor: colors.surface2, borderRadius: radius.md, padding: 12, marginTop: 12 }}>
+                <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}>
+                  {switchReqInfo.ownerName === 'you'
+                    ? `You currently have custody this day. This will propose giving it to ${coParentName}.`
+                    : `${coParentName} currently has custody this day. This will propose giving it to you.`}
+                </Text>
+              </View>
+            )}
+
+            {!switchReqInfo && !showDatePick && (
+              <Text style={{ fontSize: 12, color: colors.textSubtle, marginTop: 8 }}>
+                No custody day found for this date. Check that your schedule is active.
+              </Text>
+            )}
+
+            <Text style={{ fontSize: 12, fontWeight: '700', fontFamily: font.bold, color: colors.textSubtle, letterSpacing: 0.8, marginBottom: 8, marginTop: 20 }}>REASON (OPTIONAL)</Text>
+            <TextInput
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, fontFamily: font.regular, color: colors.textPrimary }}
+              value={switchReqReason}
+              onChangeText={setSwitchReqReason}
+              placeholder="e.g. Work trip that week"
+              placeholderTextColor={colors.textSubtle}
+              maxLength={200}
+            />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
 
       <ScrollView
         contentContainerStyle={styles.scroll}

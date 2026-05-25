@@ -102,6 +102,10 @@ export default function TabsLayout() {
         options={{ title: 'Schedule', tabBarIcon: tabIcon('calendar-number', 'calendar-number-outline') }}
       />
       <Tabs.Screen
+        name="journal"
+        options={{ title: 'Journal', tabBarIcon: tabIcon('journal', 'journal-outline') }}
+      />
+      <Tabs.Screen
         name="vault"
         options={{ title: 'Vault', tabBarIcon: tabIcon('folder', 'folder-outline') }}
       />
