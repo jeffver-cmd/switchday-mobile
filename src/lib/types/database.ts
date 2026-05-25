@@ -10,7 +10,7 @@ export type SchedulePattern = 'week_on_week_off' | '2_2_3' | '3_4_4_3' | '2_2_5_
 export type SwitchStatus = 'pending' | 'counter_proposed' | 'approved' | 'declined' | 'cancelled'
 export type ObserverStatus = 'pending' | 'active' | 'revoked'
 export type ProfessionalRole = 'attorney' | 'mediator' | 'gal' | 'other'
-export type ProAccessStatus = 'active' | 'revoked' | 'expired'
+export type ProAccessStatus = 'active' | 'revoked' | 'expired' | 'pending_consent'
 export type MessageVia = 'app' | 'sms'
 export type ExpenseStatus = 'requested' | 'pending' | 'approved' | 'paid' | 'disputed' | 'declined'
 export type ExpenseCategory = 'medical' | 'education' | 'activities' | 'clothing' | 'other'
@@ -56,6 +56,7 @@ export interface Database {
           sms_consent_at: string | null
           proxy_number: string | null
           plan: UserPlan
+          pro_trial_until: string | null
           account_status: AccountStatus
           role: 'parent' | 'child'
           stripe_customer_id: string | null
@@ -956,6 +957,10 @@ export interface Database {
           created_at: string
           revoked_at: string | null
           revoked_by_id: string | null
+          firm_name: string | null
+          bar_number: string | null
+          referral_code: string | null
+          mediator_consent_b: boolean
         }
         Insert: {
           id?: string
@@ -967,6 +972,10 @@ export interface Database {
           token?: string
           status?: ProAccessStatus
           expires_at?: string | null
+          firm_name?: string | null
+          bar_number?: string | null
+          referral_code?: string | null
+          mediator_consent_b?: boolean
         }
         Update: {
           status?: ProAccessStatus
@@ -974,7 +983,49 @@ export interface Database {
           last_accessed_at?: string | null
           revoked_at?: string | null
           revoked_by_id?: string | null
+          firm_name?: string | null
+          bar_number?: string | null
+          mediator_consent_b?: boolean
         }
+        Relationships: []
+      }
+      mediator_session_notes: {
+        Row: {
+          id: string
+          access_token_id: string
+          connection_id: string
+          session_date: string
+          content: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          access_token_id: string
+          connection_id: string
+          session_date: string
+          content: string
+        }
+        Update: {
+          session_date?: string
+          content?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      referral_signups: {
+        Row: {
+          id: string
+          referral_code: string
+          referred_user_id: string
+          signed_up_at: string
+        }
+        Insert: {
+          id?: string
+          referral_code: string
+          referred_user_id: string
+        }
+        Update: Record<string, never>
         Relationships: []
       }
       google_calendar_tokens: {
