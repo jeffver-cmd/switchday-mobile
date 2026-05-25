@@ -74,23 +74,6 @@ function formatChildrenNames(names: string[]): string {
   return `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}`
 }
 
-function formatThreadTime(iso: string | null): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
-
-  if (d.toDateString() === today.toDateString()) {
-    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-  }
-  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
-  // Same week
-  const diffDays = Math.round((today.getTime() - d.getTime()) / 86400000)
-  if (diffDays < 7) return d.toLocaleDateString('en-US', { weekday: 'short' })
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
 function expenseStatusLabel(status: string): string {
   switch (status) {
     case 'pending':
@@ -617,17 +600,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.borderHair,
   },
-
-  // ── Thread rows
-  threadRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
-  threadMain: { flex: 1 },
-  threadTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 3 },
-  unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent2, marginRight: 6 },
-  threadTopic: { flex: 1, fontSize: 14, fontFamily: font.medium, color: colors.textPrimary },
-  threadTopicUnread: { fontFamily: font.semibold },
-  threadTime: { fontSize: 11, fontFamily: font.regular, color: colors.textSubtle, marginLeft: 8 },
-  threadPreview: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, lineHeight: 17 },
-  threadChevron: { marginLeft: 6 },
 
   // ── Expense rows
   expenseRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
