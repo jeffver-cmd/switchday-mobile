@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import { useVault, VaultDoc } from '@/lib/hooks/useVault'
 import {
   uploadDocument,
@@ -186,14 +187,38 @@ interface UploadModalProps {
   onUploaded: () => void
 }
 
+const MAX_FILE_BYTES = 25 * 1024 * 1024
+
+function formatDateDisplay(date: Date): string {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function formatDateISO(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 function UploadModal({ connectionId, onClose, onUploaded }: UploadModalProps) {
   const [pickedFile, setPickedFile] = useState<PickedFile | null>(null)
   const [displayName, setDisplayName] = useState('')
   const [category, setCategory] = useState<VaultCategory>('court_order')
-  const [documentDate, setDocumentDate] = useState('')
+  const [documentDate, setDocumentDate] = useState<Date | null>(null)
+  const [showDatePicker, setShowDatePicker] = useState(false)
   const [shared, setShared] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+
+  const applyPickedFile = useCallback((file: PickedFile) => {
+    if (file.size > MAX_FILE_BYTES) {
+      setErr(`File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max 25 MB.`)
+      return
+    }
+    setErr(null)
+    setPickedFile(file)
+    if (!displayName) setDisplayName(file.name.replace(/\.[^.]+$/, ''))
+  }, [displayName])
 
   const handlePickSource = useCallback(() => {
     if (Platform.OS === 'ios') {
@@ -208,22 +233,16 @@ function UploadModal({ connectionId, onClose, onUploaded }: UploadModalProps) {
           if (index === 1) file = await pickDocument()
           if (index === 2) file = await pickFromCamera()
           if (index === 3) file = await pickFromPhotoLibrary()
-          if (file) {
-            setPickedFile(file)
-            if (!displayName) setDisplayName(file.name.replace(/\.[^.]+$/, ''))
-          }
+          if (file) applyPickedFile(file)
         },
       )
     } else {
       // Android: use document picker (handles all types)
       pickDocument().then(file => {
-        if (file) {
-          setPickedFile(file)
-          if (!displayName) setDisplayName(file.name.replace(/\.[^.]+$/, ''))
-        }
+        if (file) applyPickedFile(file)
       }).catch(() => {})
     }
-  }, [displayName])
+  }, [applyPickedFile])
 
   const handleUpload = async () => {
     if (!pickedFile) { setErr('Select a file first'); return }
@@ -237,7 +256,7 @@ function UploadModal({ connectionId, onClose, onUploaded }: UploadModalProps) {
       connectionId,
       displayName: displayName.trim(),
       category,
-      documentDate: documentDate.trim() || null,
+      documentDate: documentDate ? formatDateISO(documentDate) : null,
       shared,
     })
 
@@ -322,16 +341,51 @@ function UploadModal({ connectionId, onClose, onUploaded }: UploadModalProps) {
             <Text style={uploadStyles.label}>
               Document date <Text style={uploadStyles.labelOptional}>(optional)</Text>
             </Text>
-            <TextInput
-              style={uploadStyles.input}
-              value={documentDate}
-              onChangeText={setDocumentDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.textSubtle as string}
-              keyboardType="numbers-and-punctuation"
-              maxLength={10}
-              editable={!uploading}
-            />
+            <TouchableOpacity
+              style={uploadStyles.datePickerBtn}
+              onPress={() => !uploading && setShowDatePicker(true)}
+              disabled={uploading}
+            >
+              <Ionicons name="calendar-outline" size={16} color={colors.textSubtle as string} />
+              <Text style={[
+                uploadStyles.datePickerText,
+                !documentDate && uploadStyles.datePickerPlaceholder,
+              ]}>
+                {documentDate ? formatDateDisplay(documentDate) : 'Select a date'}
+              </Text>
+              {documentDate && (
+                <TouchableOpacity
+                  onPress={() => setDocumentDate(null)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close-circle" size={16} color={colors.textSubtle as string} />
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <>
+                <DateTimePicker
+                  value={documentDate ?? new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                  maximumDate={new Date()}
+                  themeVariant="light"
+                  onChange={(_event, selected) => {
+                    if (selected) setDocumentDate(selected)
+                    if (Platform.OS !== 'ios') setShowDatePicker(false)
+                  }}
+                />
+                {Platform.OS === 'ios' && (
+                  <TouchableOpacity
+                    style={uploadStyles.dateDoneBtn}
+                    onPress={() => setShowDatePicker(false)}
+                  >
+                    <Text style={uploadStyles.dateDoneText}>Done</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
 
             {/* Shared toggle */}
             <TouchableOpacity
@@ -633,6 +687,18 @@ const uploadStyles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12,
     fontSize: 15, fontFamily: font.regular, color: colors.textPrimary,
   },
+  datePickerBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.surface2, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 14, paddingVertical: 13,
+  },
+  datePickerText: { flex: 1, fontSize: 15, fontFamily: font.regular, color: colors.textPrimary },
+  datePickerPlaceholder: { color: colors.textSubtle as string },
+  dateDoneBtn: {
+    alignItems: 'flex-end', paddingHorizontal: 4, paddingVertical: 6,
+  },
+  dateDoneText: { fontSize: 15, fontFamily: font.semibold, fontWeight: '600', color: colors.accent },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {

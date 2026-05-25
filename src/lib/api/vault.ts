@@ -178,7 +178,6 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<{ erro
     })
 
   if (uploadError && uploadError.message !== 'The resource already exists') {
-    console.error('[vault upload] storage error:', uploadError.message)
     return { error: 'Upload failed. Check your connection and try again.' }
   }
 

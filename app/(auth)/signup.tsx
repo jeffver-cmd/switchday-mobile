@@ -10,6 +10,7 @@ import {
   Alert,
   ScrollView,
   StyleSheet,
+  Linking,
 } from 'react-native'
 import { Link, useRouter } from 'expo-router'
 import { supabase } from '@/lib/supabase'
@@ -85,6 +86,24 @@ export default function SignupScreen() {
           onChangeText={setPassword}
         />
 
+        <Text style={styles.legalNote}>
+          By creating an account you agree to our{' '}
+          <Text
+            style={styles.legalLink}
+            onPress={() => Linking.openURL('https://switchday.app/terms')}
+          >
+            Terms of Service
+          </Text>
+          {' '}and{' '}
+          <Text
+            style={styles.legalLink}
+            onPress={() => Linking.openURL('https://switchday.app/privacy')}
+          >
+            Privacy Policy
+          </Text>
+          .
+        </Text>
+
         <TouchableOpacity
           onPress={handleSignup}
           disabled={loading || !name || !email || !password}
@@ -137,6 +156,8 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.5 },
   buttonText: { color: colors.white, fontSize: 16, fontWeight: '600', fontFamily: font.semibold },
+  legalNote: { fontSize: 12, fontFamily: font.regular, color: colors.textSubtle, textAlign: 'center', marginBottom: 16, lineHeight: 18 },
+  legalLink: { color: colors.accent, fontFamily: font.medium, fontWeight: '500' },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
   footerText: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted },
   footerLink: { fontSize: 14, fontWeight: '500', fontFamily: font.medium, color: colors.accent },

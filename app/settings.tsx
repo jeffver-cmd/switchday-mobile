@@ -11,6 +11,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import { useEffect, useState } from 'react'
+import * as Notifications from 'expo-notifications'
+import Constants from 'expo-constants'
 import { supabase } from '@/lib/supabase'
 import { useSettings } from '@/lib/hooks/useSettings'
 import { colors, radius, shadow, font } from '@/lib/theme'
@@ -26,9 +29,18 @@ function formatTime(hhmm: string): string {
 
 // ─── screen ──────────────────────────────────────────────────────────────────
 
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0'
+
 export default function SettingsScreen() {
   const router = useRouter()
   const { data, loading, error } = useSettings()
+  const [notifEnabled, setNotifEnabled] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    Notifications.getPermissionsAsync().then(({ status }) => {
+      setNotifEnabled(status === 'granted')
+    })
+  }, [])
 
   async function handleSignOut() {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -145,12 +157,48 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        {/* ── Notifications ── */}
+        <Text style={styles.sectionLabel}>NOTIFICATIONS</Text>
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={[styles.actionRow, styles.actionRowBorderless]}
+            onPress={() => Linking.openSettings()}
+          >
+            <Ionicons name="notifications-outline" size={20} color={colors.textSecondary} style={styles.actionIcon} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.actionText}>Push notifications</Text>
+              {notifEnabled !== null && (
+                <Text style={[styles.notifStatus, { color: notifEnabled ? colors.success : colors.textSubtle }]}>
+                  {notifEnabled ? 'Enabled' : 'Disabled — tap to open Settings'}
+                </Text>
+              )}
+            </View>
+            <Ionicons name="open-outline" size={16} color={colors.textSubtle} />
+          </TouchableOpacity>
+        </View>
+
         {/* ── Account ── */}
         <Text style={styles.sectionLabel}>ACCOUNT</Text>
         <View style={styles.card}>
           <TouchableOpacity style={styles.actionRow} onPress={handleBilling}>
             <Ionicons name="card-outline" size={20} color={colors.textSecondary} style={styles.actionIcon} />
             <Text style={styles.actionText}>Manage Billing</Text>
+            <Ionicons name="open-outline" size={16} color={colors.textSubtle} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionRow}
+            onPress={() => Linking.openURL('https://switchday.app/privacy')}
+          >
+            <Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} style={styles.actionIcon} />
+            <Text style={styles.actionText}>Privacy Policy</Text>
+            <Ionicons name="open-outline" size={16} color={colors.textSubtle} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionRow}
+            onPress={() => Linking.openURL('https://switchday.app/terms')}
+          >
+            <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} style={styles.actionIcon} />
+            <Text style={styles.actionText}>Terms of Service</Text>
             <Ionicons name="open-outline" size={16} color={colors.textSubtle} />
           </TouchableOpacity>
           <TouchableOpacity
@@ -161,6 +209,9 @@ export default function SettingsScreen() {
             <Text style={styles.actionTextDestructive}>Sign Out</Text>
           </TouchableOpacity>
         </View>
+
+        {/* ── App info ── */}
+        <Text style={styles.versionText}>Switchday v{APP_VERSION}</Text>
 
         <View style={styles.bottomPad} />
       </ScrollView>
@@ -235,4 +286,13 @@ const styles = StyleSheet.create({
   actionIcon:           { marginRight: 12 },
   actionText:           { flex: 1, fontSize: 15, fontFamily: font.regular, color: colors.textPrimary },
   actionTextDestructive:{ flex: 1, fontSize: 15, fontFamily: font.medium, color: colors.danger, fontWeight: '500' },
+
+  // Notification status
+  notifStatus: { fontSize: 12, fontFamily: font.regular, marginTop: 1 },
+
+  // App version
+  versionText: {
+    textAlign: 'center', fontSize: 12, fontFamily: font.regular,
+    color: colors.textSubtle, marginTop: 24,
+  },
 })

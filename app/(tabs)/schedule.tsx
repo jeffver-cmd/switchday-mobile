@@ -77,6 +77,13 @@ function ScheduleCard({ schedule, userId, coParentName, onRefresh, onProposeRepl
     const { error } = await scheduleAction(schedule.id, payload as Parameters<typeof scheduleAction>[1])
     setBusy(false)
     if (error) { Alert.alert('Error', error); return }
+    if (action === 'accept') {
+      Alert.alert(
+        'Schedule accepted',
+        'Your calendar will update after you open the web app at switchday.app to activate the schedule. This step generates your custody day assignments.',
+        [{ text: 'OK' }],
+      )
+    }
     onRefresh()
   }, [schedule.id, onRefresh])
 
