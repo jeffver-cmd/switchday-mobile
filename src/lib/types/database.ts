@@ -703,6 +703,45 @@ export interface Database {
         }
         Relationships: []
       }
+      attorney_annotations: {
+        Row: {
+          id: string
+          access_token_id: string
+          connection_id: string
+          resource_type: string
+          resource_id: string
+          flag_type: string
+          note: string
+          text_selection: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          access_token_id: string
+          connection_id: string
+          resource_type: string
+          resource_id: string
+          flag_type: string
+          note: string
+          text_selection?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          access_token_id?: string
+          connection_id?: string
+          resource_type?: string
+          resource_id?: string
+          flag_type?: string
+          note?: string
+          text_selection?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           id: string
