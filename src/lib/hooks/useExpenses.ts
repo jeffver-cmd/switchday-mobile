@@ -228,6 +228,14 @@ export async function declineExpense(id: string): Promise<{ error: string | null
   return transitionStatus(id, 'declined')
 }
 
+export async function disputeExpense(id: string): Promise<{ error: string | null }> {
+  return transitionStatus(id, 'disputed')
+}
+
+export async function markExpensePaid(id: string): Promise<{ error: string | null }> {
+  return transitionStatus(id, 'paid')
+}
+
 // ─── hook ────────────────────────────────────────────────────────────────────
 
 export function useExpenses(statusFilter?: ExpenseStatus[]) {

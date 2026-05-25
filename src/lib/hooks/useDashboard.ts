@@ -51,6 +51,7 @@ export interface RecentExpense {
 
 export interface DashboardData {
   userId: string
+  connectionId: string
   myProfile: Profile
   coParentProfile: Profile | null
   todayOwnerId: string | null
@@ -280,6 +281,7 @@ export function useDashboard() {
 
       setData({
         userId,
+        connectionId: connection.id,
         myProfile: myProfile as Profile,
         coParentProfile,
         todayOwnerId: todayResult.data?.owner_id ?? null,

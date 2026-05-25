@@ -136,7 +136,8 @@ export default function ConversationScreen() {
   // Portal theming — only active when screen is opened from the child portal
   const pt: PortalTheme | null = themeKey ? getPortalTheme(themeKey as ThemeKey) : null
 
-  const { data, loading, error } = useMessages(threadId)
+  const { data, loading, loadingMore, hasMore, loadMore, error } = useMessages(threadId)
+  const isFirstLoad = useRef(true)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
@@ -328,9 +329,29 @@ export default function ConversationScreen() {
                     receivedTextColor={pt?.textPrimary}
                   />
             }
+            ListHeaderComponent={
+              hasMore ? (
+                <TouchableOpacity
+                  onPress={loadMore}
+                  disabled={loadingMore}
+                  style={{ alignItems: 'center', paddingVertical: 12 }}
+                >
+                  {loadingMore
+                    ? <ActivityIndicator size="small" color={pt?.accent ?? colors.accent} />
+                    : <Text style={{ fontSize: 13, color: pt?.textMuted ?? colors.textMuted, fontFamily: font.medium }}>Load earlier messages</Text>
+                  }
+                </TouchableOpacity>
+              ) : null
+            }
             contentContainerStyle={styles.messageList}
             showsVerticalScrollIndicator={false}
-            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+            onContentSizeChange={() => {
+              // Only auto-scroll to end on first load, not when prepending older messages
+              if (isFirstLoad.current) {
+                listRef.current?.scrollToEnd({ animated: false })
+                isFirstLoad.current = false
+              }
+            }}
           />
         )}
 

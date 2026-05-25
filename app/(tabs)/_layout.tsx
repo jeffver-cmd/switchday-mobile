@@ -28,6 +28,13 @@ export default function TabsLayout() {
       }
     })
 
+    // Handle session expiry — redirect to login when signed out
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        router.replace('/(auth)/login')
+      }
+    })
+
     // Handle notification taps — navigate to relevant screen
     notifListenerRef.current = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data as Record<string, unknown>
@@ -52,6 +59,7 @@ export default function TabsLayout() {
 
     return () => {
       notifListenerRef.current?.remove()
+      authSub.unsubscribe()
     }
   }, [router])
 

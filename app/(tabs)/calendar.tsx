@@ -100,17 +100,25 @@ function AddEventModal({ visible, onClose, defaultDate, connectionId, userId, on
   const [allDay,        setAllDay]        = useState(true)
   const [eventDate,     setEventDate]     = useState<Date>(new Date())
   const [showDatePick,  setShowDatePick]  = useState(false)
-  const [startTime,     setStartTime]     = useState('')
+  const [startTimeDt,   setStartTimeDt]   = useState<Date>(() => { const d = new Date(); d.setHours(15, 0, 0, 0); return d })
+  const [showTimePick,  setShowTimePick]  = useState(false)
   const [saving,        setSaving]        = useState(false)
+
+  function formatTimeDisplay(d: Date): string {
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  }
+  function formatTimeHHMM(d: Date): string {
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  }
 
   useEffect(() => {
     if (visible) {
       setTitle(''); setDescription(''); setCategory('other')
-      setAllDay(true); setStartTime(''); setSaving(false)
-      // parse defaultDate as local noon to avoid timezone day-shift
+      setAllDay(true); setSaving(false)
       const parts = defaultDate.split('-').map(Number)
       setEventDate(new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0))
-      setShowDatePick(false)
+      const t = new Date(); t.setHours(15, 0, 0, 0); setStartTimeDt(t)
+      setShowDatePick(false); setShowTimePick(false)
     }
   }, [visible, defaultDate])
 
@@ -135,7 +143,7 @@ function AddEventModal({ visible, onClose, defaultDate, connectionId, userId, on
           description:   description.trim() || null,
           start_date:    startDate,
           all_day:       allDay,
-          start_time:    allDay ? null : (startTime.trim() || null),
+          start_time:    allDay ? null : formatTimeHHMM(startTimeDt),
           end_time:      null,
           category,
         })
@@ -148,7 +156,7 @@ function AddEventModal({ visible, onClose, defaultDate, connectionId, userId, on
       }
 
       // Audit log — fire and forget
-      const metadata = { title: title.trim(), start_date: startDate, all_day: allDay, start_time: startTime.trim() || null, category, connection_id: connectionId }
+      const metadata = { title: title.trim(), start_date: startDate, all_day: allDay, start_time: allDay ? null : formatTimeHHMM(startTimeDt), category, connection_id: connectionId }
       const auditPayload = { actor_id: userId, action: 'calendar_event.created', resource_id: newEvent.id, metadata }
       const sha256_hash = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
@@ -165,7 +173,7 @@ function AddEventModal({ visible, onClose, defaultDate, connectionId, userId, on
     } finally {
       setSaving(false)
     }
-  }, [title, description, category, allDay, eventDate, startTime, connectionId, userId, onSaved, onClose])
+  }, [title, description, category, allDay, eventDate, startTimeDt, connectionId, userId, onSaved, onClose])
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -266,14 +274,30 @@ function AddEventModal({ visible, onClose, defaultDate, connectionId, userId, on
             {!allDay && (
               <>
                 <Text style={[addEvStyles.label, { marginTop: 20 }]}>START TIME</Text>
-                <TextInput
-                  style={addEvStyles.input}
-                  value={startTime}
-                  onChangeText={setStartTime}
-                  placeholder="e.g. 3:30 PM"
-                  placeholderTextColor={colors.textSubtle as string}
-                  maxLength={20}
-                />
+                <TouchableOpacity
+                  style={addEvStyles.dateBtn}
+                  onPress={() => setShowTimePick(p => !p)}
+                >
+                  <Text style={addEvStyles.dateBtnText}>{formatTimeDisplay(startTimeDt)}</Text>
+                </TouchableOpacity>
+                {showTimePick && (
+                  <>
+                    <DateTimePicker
+                      value={startTimeDt}
+                      mode="time"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={(_e, d) => {
+                        if (d) setStartTimeDt(d)
+                        if (Platform.OS !== 'ios') setShowTimePick(false)
+                      }}
+                    />
+                    {Platform.OS === 'ios' && (
+                      <TouchableOpacity style={addEvStyles.dateDone} onPress={() => setShowTimePick(false)}>
+                        <Text style={addEvStyles.dateDoneText}>Done</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
               </>
             )}
 

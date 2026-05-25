@@ -6,6 +6,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -187,6 +192,35 @@ export default function DashboardScreen() {
   // ── Switch day celebration ─────────────────────────────────────────────
   const [showCelebration, setShowCelebration] = useState(false)
 
+  // ── Handoff notes ─────────────────────────────────────────────────────
+  const [showHandoff, setShowHandoff] = useState(false)
+  const [handoffContent, setHandoffContent] = useState('')
+  const [handoffSending, setHandoffSending] = useState(false)
+
+  async function sendHandoffNote() {
+    if (!data || !handoffContent.trim()) return
+    const coParentId = data.coParentProfile?.id
+    if (!coParentId) return
+    setHandoffSending(true)
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      const switchDate = data.nextSwitch?.date ?? new Date().toISOString().split('T')[0]
+      const { error: err } = await supabase.from('handoff_notes').insert({
+        connection_id: data.connectionId,
+        from_user_id: data.userId,
+        to_user_id: coParentId,
+        content: handoffContent.trim(),
+        switch_date: switchDate,
+      })
+      if (err) { Alert.alert('Error', err.message); return }
+      setShowHandoff(false)
+      setHandoffContent('')
+      Alert.alert('Note sent', 'Your co-parent will see it on their dashboard.')
+    } finally {
+      setHandoffSending(false)
+    }
+  }
+
   useEffect(() => {
     if (!data?.isSwitch) return
     const today = new Date().toISOString().split('T')[0]
@@ -206,8 +240,17 @@ export default function DashboardScreen() {
   if (error === 'no_connection') {
     return (
       <SafeAreaView style={styles.centered}>
+        <Text style={{ fontSize: 40, marginBottom: 12 }}>👪</Text>
         <Text style={styles.emptyTitle}>No co-parent connected</Text>
-        <Text style={styles.emptySubtitle}>Connect with your co-parent to get started.</Text>
+        <Text style={styles.emptySubtitle}>Invite your co-parent to get started with shared custody tracking.</Text>
+        <TouchableOpacity
+          onPress={() => router.push('/settings')}
+          style={{ marginTop: 20, backgroundColor: colors.accent, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 13 }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '600', fontFamily: font.semibold, fontSize: 15 }}>
+            Invite co-parent
+          </Text>
+        </TouchableOpacity>
       </SafeAreaView>
     )
   }
@@ -226,7 +269,7 @@ export default function DashboardScreen() {
   const {
     myProfile, coParentProfile, todayOwnerId, isSwitch, switchTime, nextSwitch,
     unreadCount, pendingExpenseCount, upcomingEvents,
-    recentThreads, recentExpenses, checklistItems, childrenNames,
+    recentThreads, recentExpenses, checklistItems, childrenNames, connectionId,
   } = data
 
   const todayOwner = todayOwnerId === myProfile.id ? myProfile : coParentProfile
@@ -301,6 +344,68 @@ export default function DashboardScreen() {
             )}
           </View>
         </View>
+
+        {/* ── Handoff note CTA ────────────────────────────────────────────── */}
+        {coParentProfile && (
+          <TouchableOpacity
+            style={styles.handoffBtn}
+            onPress={() => setShowHandoff(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="mail-outline" size={16} color={colors.accent} />
+            <Text style={styles.handoffBtnText}>Send handoff note to {coParentProfile.display_name.split(' ')[0]}</Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.textSubtle} />
+          </TouchableOpacity>
+        )}
+
+        {/* Handoff note modal */}
+        <Modal visible={showHandoff} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowHandoff(false)}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+            <View style={{ flex: 1, backgroundColor: colors.bg, padding: 24, paddingTop: 48 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <Text style={{ fontSize: 20, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary }}>
+                  Handoff note
+                </Text>
+                <TouchableOpacity onPress={() => { setShowHandoff(false); setHandoffContent('') }}>
+                  <Text style={{ color: colors.textMuted, fontSize: 16 }}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={{ fontSize: 13, color: colors.textMuted, marginBottom: 16, lineHeight: 18 }}>
+                A brief note for {coParentProfile?.display_name.split(' ')[0]} before the switch — what to know, anything to pack, upcoming appointments.
+              </Text>
+              <TextInput
+                style={{
+                  backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+                  borderRadius: 12, padding: 16, fontSize: 15, fontFamily: font.regular,
+                  color: colors.textPrimary, minHeight: 120, textAlignVertical: 'top', marginBottom: 20,
+                }}
+                value={handoffContent}
+                onChangeText={setHandoffContent}
+                placeholder="e.g. Maya has soccer practice at 4pm. Please pack the green bag."
+                placeholderTextColor={colors.textSubtle}
+                multiline
+                maxLength={500}
+                autoFocus
+              />
+              <Text style={{ fontSize: 11, color: colors.textSubtle, textAlign: 'right', marginBottom: 16 }}>
+                {handoffContent.length}/500
+              </Text>
+              <TouchableOpacity
+                style={[
+                  { backgroundColor: colors.accent, borderRadius: 12, paddingVertical: 16, alignItems: 'center' },
+                  (!handoffContent.trim() || handoffSending) && { opacity: 0.5 },
+                ]}
+                onPress={sendHandoffNote}
+                disabled={!handoffContent.trim() || handoffSending}
+              >
+                {handoffSending
+                  ? <ActivityIndicator color={colors.white} />
+                  : <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15 }}>Send note</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
 
         {/* ── Stats row ──────────────────────────────────────────────────── */}
         <View style={styles.statsRow}>
@@ -523,6 +628,12 @@ const styles = StyleSheet.create({
   },
 
   // ── Stats row
+  handoffBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.surface, borderRadius: radius.md,
+    padding: 14, marginBottom: 12, borderWidth: 1, borderColor: colors.borderHair,
+  },
+  handoffBtnText: { flex: 1, fontSize: 13, fontFamily: font.medium, fontWeight: '500', color: colors.textSecondary },
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   statCard: {
     flex: 1,

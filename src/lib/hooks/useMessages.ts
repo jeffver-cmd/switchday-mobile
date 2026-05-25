@@ -122,11 +122,16 @@ export async function markThreadRead(threadId: string, userId: string): Promise<
 
 // ─── hook ────────────────────────────────────────────────────────────────────
 
+const PAGE_SIZE = 50
+
 export function useMessages(threadId: string) {
   const [data, setData] = useState<MessagesData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const userIdRef = useRef<string | null>(null)
+  const oldestIdRef = useRef<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -138,12 +143,13 @@ export function useMessages(threadId: string) {
       userIdRef.current = userId
 
       const [{ data: rows, error: err }, { data: profileRow }] = await Promise.all([
+        // Fetch newest PAGE_SIZE messages descending, then reverse for display
         supabase
           .from('messages')
           .select('id, thread_id, connection_id, sender_id, body, sent_at, read_at')
           .eq('thread_id', threadId)
-          .order('sent_at', { ascending: true })
-          .limit(200),
+          .order('sent_at', { ascending: false })
+          .limit(PAGE_SIZE),
         supabase
           .from('profiles')
           .select('color, plan')
@@ -158,7 +164,8 @@ export function useMessages(threadId: string) {
       const plan = profile?.plan ?? 'free'
       const isPro = plan === 'pro' || plan === 'standard' || plan === 'premium'
 
-      const messages: Message[] = (rows ?? []).map(r => ({
+      const ascending = [...(rows ?? [])].reverse()
+      const messages: Message[] = ascending.map(r => ({
         id: r.id,
         threadId: r.thread_id,
         connectionId: r.connection_id,
@@ -168,16 +175,48 @@ export function useMessages(threadId: string) {
         readAt: r.read_at,
       }))
 
+      oldestIdRef.current = messages[0]?.id ?? null
+      setHasMore((rows ?? []).length === PAGE_SIZE)
       setData({ userId, myColor, isPro, messages })
 
       // Mark unread messages as read
       await markThreadRead(threadId, userId)
-    } catch (e) {
+    } catch {
       setError('load_failed')
     } finally {
       setLoading(false)
     }
   }, [threadId])
+
+  const loadMore = useCallback(async () => {
+    if (!data || loadingMore || !hasMore) return
+    const oldest = data.messages[0]
+    if (!oldest) return
+    setLoadingMore(true)
+    try {
+      const { data: rows } = await supabase
+        .from('messages')
+        .select('id, thread_id, connection_id, sender_id, body, sent_at, read_at')
+        .eq('thread_id', threadId)
+        .lt('sent_at', oldest.sentAt)
+        .order('sent_at', { ascending: false })
+        .limit(PAGE_SIZE)
+
+      const older: Message[] = [...(rows ?? [])].reverse().map(r => ({
+        id: r.id,
+        threadId: r.thread_id,
+        connectionId: r.connection_id,
+        senderId: r.sender_id,
+        body: r.body,
+        sentAt: r.sent_at,
+        readAt: r.read_at,
+      }))
+      setHasMore((rows ?? []).length === PAGE_SIZE)
+      setData(prev => prev ? { ...prev, messages: [...older, ...prev.messages] } : prev)
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [data, loadingMore, hasMore, threadId])
 
   // Realtime subscription
   useEffect(() => {
@@ -232,5 +271,5 @@ export function useMessages(threadId: string) {
     }
   }, [load, threadId])
 
-  return { data, loading, error, refresh: load }
+  return { data, loading, loadingMore, hasMore, loadMore, error, refresh: load }
 }

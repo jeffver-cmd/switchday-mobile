@@ -1,17 +1,20 @@
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator,
-  RefreshControl, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform, Alert, ActionSheetIOS,
+  RefreshControl, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform, Alert, ActionSheetIOS, Linking,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   useExpenses,
   approveExpense,
   declineExpense,
+  disputeExpense,
+  markExpensePaid,
   logExpense,
   Expense,
   NewExpenseInput,
 } from '@/lib/hooks/useExpenses'
+
 import type { ExpenseStatus, ExpenseCategory } from '@/lib/types/database'
 import { colors, radius, shadow, font } from '@/lib/theme'
 import { supabase } from '@/lib/supabase'
@@ -45,11 +48,12 @@ const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
   other:      'Other',
 }
 
-type FilterTab = 'all' | 'pending' | 'approved' | 'paid'
+type FilterTab = 'all' | 'pending' | 'approved' | 'disputed' | 'paid'
 const FILTER_TABS: { key: FilterTab; label: string }[] = [
   { key: 'all',      label: 'All' },
   { key: 'pending',  label: 'Pending' },
   { key: 'approved', label: 'Approved' },
+  { key: 'disputed', label: 'Disputed' },
   { key: 'paid',     label: 'Paid' },
 ]
 
@@ -57,6 +61,7 @@ const FILTER_STATUSES: Record<FilterTab, ExpenseStatus[] | undefined> = {
   all:      undefined,
   pending:  ['pending', 'requested'],
   approved: ['approved'],
+  disputed: ['disputed'],
   paid:     ['paid'],
 }
 
@@ -72,17 +77,25 @@ function formatDate(iso: string): string {
 interface ExpenseRowProps {
   item: Expense
   userId: string
-  onApprove: (id: string) => void
-  onDecline: (id: string) => void
+  onApprove:   (id: string) => void
+  onDecline:   (id: string) => void
+  onDispute:   (id: string) => void
+  onMarkPaid:  (id: string) => void
 }
 
-function ExpenseRow({ item, userId, onApprove, onDecline }: ExpenseRowProps) {
+function ExpenseRow({ item, userId, onApprove, onDecline, onDispute, onMarkPaid }: ExpenseRowProps) {
   const [expanded, setExpanded] = useState(false)
-  const isMyExpense = item.submittedById === userId
-  const canApprove = !isMyExpense && (item.status === 'pending' || item.status === 'requested')
-  const canDecline = !isMyExpense && item.status === 'requested' // declined is only valid from 'requested'
-  const canAct = canApprove || canDecline
-  const shareAmount = (item.amount * item.splitPercent) / 100
+  const isMyExpense  = item.submittedById === userId
+  const canApprove   = !isMyExpense && (item.status === 'pending' || item.status === 'requested')
+  const canDecline   = !isMyExpense && item.status === 'requested'
+  const canDispute   = !isMyExpense && item.status === 'pending'
+  const canMarkPaid  = isMyExpense && item.status === 'approved'
+  const showVenmo    = !isMyExpense && item.status === 'approved' // co-parent owes submitter; they pay via Venmo
+  const canAct = canApprove || canDecline || canDispute || canMarkPaid || showVenmo
+  const coParentShare = item.amount * ((100 - item.splitPercent) / 100)
+  const myShare = isMyExpense
+    ? item.amount * (item.splitPercent / 100)
+    : item.amount * ((100 - item.splitPercent) / 100)
   const statusColor = STATUS_COLORS[item.status]
 
   return (
@@ -104,7 +117,7 @@ function ExpenseRow({ item, userId, onApprove, onDecline }: ExpenseRowProps) {
         </View>
         <View style={styles.expenseRight}>
           <Text style={styles.expenseAmount}>${item.amount.toFixed(2)}</Text>
-          <Text style={styles.expenseShare}>Your share: ${shareAmount.toFixed(2)}</Text>
+          <Text style={styles.expenseShare}>Your share: ${myShare.toFixed(2)}</Text>
           <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
             <Text style={[styles.statusText, { color: statusColor }]}>
               {STATUS_LABELS[item.status]}
@@ -116,23 +129,47 @@ function ExpenseRow({ item, userId, onApprove, onDecline }: ExpenseRowProps) {
       {/* Expanded actions */}
       {expanded && (
         <View style={styles.expenseActions}>
-          <Text style={styles.splitDetail}>{item.splitPercent}% your share · {100 - item.splitPercent}% theirs</Text>
+          <Text style={styles.splitDetail}>
+            {isMyExpense
+              ? `Your share: ${item.splitPercent}% · Their share: ${100 - item.splitPercent}%`
+              : `Your share: ${100 - item.splitPercent}% · Their share: ${item.splitPercent}%`}
+          </Text>
           {canAct && (
             <View style={styles.actionBtns}>
               {canApprove && (
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.approveBtn]}
-                  onPress={() => onApprove(item.id)}
-                >
+                <TouchableOpacity style={[styles.actionBtn, styles.approveBtn]} onPress={() => onApprove(item.id)}>
                   <Text style={styles.approveBtnText}>Approve</Text>
                 </TouchableOpacity>
               )}
               {canDecline && (
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.declineBtn]}
-                  onPress={() => onDecline(item.id)}
-                >
+                <TouchableOpacity style={[styles.actionBtn, styles.declineBtn]} onPress={() => onDecline(item.id)}>
                   <Text style={styles.declineBtnText}>Decline</Text>
+                </TouchableOpacity>
+              )}
+              {canDispute && (
+                <TouchableOpacity style={[styles.actionBtn, styles.declineBtn]} onPress={() => onDispute(item.id)}>
+                  <Text style={styles.declineBtnText}>Dispute</Text>
+                </TouchableOpacity>
+              )}
+              {showVenmo && (
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: '#008CFF22', borderColor: '#008CFF' }]}
+                  onPress={() => {
+                    const note = encodeURIComponent(item.description.slice(0, 60))
+                    const amt  = coParentShare.toFixed(2)
+                    Linking.openURL(`venmo://paycharge?txn=pay&amount=${amt}&note=${note}`).catch(() =>
+                      Linking.openURL('https://venmo.com')
+                    )
+                  }}
+                >
+                  <Text style={{ color: '#008CFF', fontFamily: font.semibold, fontSize: 13 }}>
+                    Pay ${coParentShare.toFixed(2)} via Venmo
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {canMarkPaid && (
+                <TouchableOpacity style={[styles.actionBtn, styles.approveBtn]} onPress={() => onMarkPaid(item.id)}>
+                  <Text style={styles.approveBtnText}>Mark paid</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -362,11 +399,98 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
 
 // ─── screen ──────────────────────────────────────────────────────────────────
 
+// ─── recurring expense row ────────────────────────────────────────────────────
+
+interface RecurringExpense {
+  id: string
+  description: string
+  amount: number
+  category: string
+  split_percent: number
+  frequency: string
+  next_due_at: string
+  paused: boolean
+  created_by_id: string
+}
+
+const FREQ_LABELS: Record<string, string> = {
+  weekly: 'Weekly', biweekly: 'Every 2 weeks', monthly: 'Monthly',
+  quarterly: 'Quarterly', yearly: 'Yearly', custom: 'Custom',
+}
+
+function RecurringRow({ item, userId, onTogglePause }: {
+  item: RecurringExpense
+  userId: string
+  onTogglePause: (id: string, paused: boolean) => void
+}) {
+  const isMine = item.created_by_id === userId
+  const nextDue = new Date(item.next_due_at + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return (
+    <View style={styles.recurRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.recurDesc} numberOfLines={1}>{item.description}</Text>
+        <Text style={styles.recurMeta}>
+          {CATEGORY_LABELS[item.category as ExpenseCategory] ?? item.category} · {FREQ_LABELS[item.frequency] ?? item.frequency}
+          {!item.paused && ` · Next: ${nextDue}`}
+        </Text>
+      </View>
+      <View style={{ alignItems: 'flex-end', gap: 4 }}>
+        <Text style={styles.recurAmount}>${item.amount.toFixed(2)}</Text>
+        {isMine && (
+          <TouchableOpacity
+            onPress={() => onTogglePause(item.id, !item.paused)}
+            style={[styles.recurPauseBtn, item.paused && styles.recurPauseBtnActive]}
+          >
+            <Text style={[styles.recurPauseBtnText, item.paused && styles.recurPauseBtnTextActive]}>
+              {item.paused ? 'Resume' : 'Pause'}
+            </Text>
+          </TouchableOpacity>
+        )}
+        {item.paused && (
+          <View style={styles.pausedBadge}><Text style={styles.pausedBadgeText}>Paused</Text></View>
+        )}
+      </View>
+    </View>
+  )
+}
+
+// ─── screen ──────────────────────────────────────────────────────────────────
+
 export default function ExpensesScreen() {
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
   const [showLog, setShowLog] = useState(false)
   const statusFilter = FILTER_STATUSES[activeTab]
   const { data, loading, error, refresh } = useExpenses(statusFilter)
+
+  // Recurring expenses
+  const [recurring, setRecurring] = useState<RecurringExpense[]>([])
+  const [showRecurring, setShowRecurring] = useState(false)
+
+  const loadRecurring = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const { data: conn } = await supabase
+      .from('co_parent_connections')
+      .select('id')
+      .or(`user_a_id.eq.${session.user.id},user_b_id.eq.${session.user.id}`)
+      .eq('status', 'active')
+      .maybeSingle()
+    if (!conn) return
+    const { data: rows } = await supabase
+      .from('recurring_expenses')
+      .select('id, description, amount, category, split_percent, frequency, next_due_at, paused, created_by_id')
+      .eq('connection_id', conn.id)
+      .order('created_at', { ascending: false })
+    setRecurring(rows ?? [])
+  }, [])
+
+  const handleTogglePause = useCallback(async (id: string, paused: boolean) => {
+    await supabase.from('recurring_expenses').update({ paused }).eq('id', id)
+    setRecurring(prev => prev.map(r => r.id === id ? { ...r, paused } : r))
+  }, [])
+
+  // Load recurring on mount
+  useEffect(() => { loadRecurring() }, [loadRecurring])
 
   const handleApprove = useCallback(async (id: string) => {
     const { error: err } = await approveExpense(id)
@@ -381,6 +505,34 @@ export default function ExpensesScreen() {
         text: 'Decline', style: 'destructive',
         onPress: async () => {
           const { error: err } = await declineExpense(id)
+          if (err) Alert.alert('Error', err)
+          else refresh()
+        },
+      },
+    ])
+  }, [refresh])
+
+  const handleDispute = useCallback(async (id: string) => {
+    Alert.alert('Dispute expense?', 'The submitter will be notified. You can still approve it later.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Dispute', style: 'destructive',
+        onPress: async () => {
+          const { error: err } = await disputeExpense(id)
+          if (err) Alert.alert('Error', err)
+          else refresh()
+        },
+      },
+    ])
+  }, [refresh])
+
+  const handleMarkPaid = useCallback(async (id: string) => {
+    Alert.alert('Mark as paid?', 'Confirm you\'ve received payment for your share.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Mark paid',
+        onPress: async () => {
+          const { error: err } = await markExpensePaid(id)
           if (err) Alert.alert('Error', err)
           else refresh()
         },
@@ -440,8 +592,32 @@ export default function ExpensesScreen() {
               userId={data?.userId ?? ''}
               onApprove={handleApprove}
               onDecline={handleDecline}
+              onDispute={handleDispute}
+              onMarkPaid={handleMarkPaid}
             />
           )}
+          ListHeaderComponent={
+            recurring.length > 0 && activeTab === 'all' ? (
+              <View style={styles.recurSection}>
+                <TouchableOpacity
+                  style={styles.recurHeader}
+                  onPress={() => setShowRecurring(p => !p)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.recurHeaderText}>🔁  Recurring ({recurring.length})</Text>
+                  <Text style={styles.recurChevron}>{showRecurring ? '▲' : '▼'}</Text>
+                </TouchableOpacity>
+                {showRecurring && recurring.map((item, i) => (
+                  <RecurringRow
+                    key={item.id}
+                    item={item}
+                    userId={data?.userId ?? ''}
+                    onTogglePause={handleTogglePause}
+                  />
+                ))}
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <Text style={styles.emptyTitle}>No expenses</Text>
@@ -534,6 +710,37 @@ const styles = StyleSheet.create({
   emptyBox: { paddingVertical: 60, alignItems: 'center', paddingHorizontal: 32 },
   emptyTitle: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 8, textAlign: 'center' },
   emptySubtitle: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, textAlign: 'center' },
+
+  // Recurring section
+  recurSection: {
+    backgroundColor: colors.surface, borderRadius: radius.md, marginBottom: 12,
+    ...shadow.sm, overflow: 'hidden',
+  },
+  recurHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: colors.borderHair,
+  },
+  recurHeaderText: { fontSize: 13, fontWeight: '600', fontFamily: font.semibold, color: colors.textSecondary },
+  recurChevron: { fontSize: 10, color: colors.textSubtle },
+  recurRow: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: colors.borderHair, gap: 8,
+  },
+  recurDesc: { fontSize: 14, fontWeight: '500', fontFamily: font.medium, color: colors.textPrimary, marginBottom: 2 },
+  recurMeta: { fontSize: 12, fontFamily: font.regular, color: colors.textSubtle },
+  recurAmount: { fontSize: 14, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, marginBottom: 4 },
+  recurPauseBtn: {
+    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 8, paddingVertical: 3, backgroundColor: colors.surface2,
+  },
+  recurPauseBtnActive: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
+  recurPauseBtnText: { fontSize: 11, fontFamily: font.medium, color: colors.textMuted },
+  recurPauseBtnTextActive: { color: colors.accent },
+  pausedBadge: {
+    borderRadius: radius.sm, backgroundColor: colors.surface2, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  pausedBadgeText: { fontSize: 10, fontFamily: font.medium, color: colors.textSubtle },
 })
 
 const modal = StyleSheet.create({

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../supabase'
 
 // ─── types ───────────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ export function useThreads() {
         .from('message_threads')
         .select('id, connection_id, topic, thread_type, last_message_at')
         .eq('connection_id', connection.id)
-        .neq('thread_type', 'archived')
+        .neq('thread_type', 'archived' as never)
         .order('last_message_at', { ascending: false, nullsFirst: false })
 
       const threadIds = (threadRows ?? []).map(r => r.id)
@@ -119,7 +119,56 @@ export function useThreads() {
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  // Initial load + auth-state listener (handles token expiry / sign-in)
+  const connectionIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    load()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') load()
+    })
+    return () => subscription.unsubscribe()
+  }, [load])
+
+  // Realtime — refresh thread list when a new message arrives in this connection
+  useEffect(() => {
+    connectionIdRef.current = data?.connectionId ?? null
+  }, [data?.connectionId])
+
+  useEffect(() => {
+    if (!data?.connectionId) return
+    const connectionId = data.connectionId
+    const channel = supabase
+      .channel(`threads-list:${connectionId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `connection_id=eq.${connectionId}`,
+      }, () => {
+        // Refresh thread list when a new message arrives
+        load()
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [data?.connectionId, load])
 
   return { data, loading, error, refresh: load }
+}
+
+// ─── archive / unarchive ──────────────────────────────────────────────────────
+
+export async function archiveThread(threadId: string): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('message_threads')
+    .update({ thread_type: 'archived' })
+    .eq('id', threadId)
+  return { error: error?.message ?? null }
+}
+
+export async function unarchiveThread(threadId: string, originalType: string): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('message_threads')
+    .update({ thread_type: originalType as never })
+    .eq('id', threadId)
+  return { error: error?.message ?? null }
 }

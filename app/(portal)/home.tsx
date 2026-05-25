@@ -12,6 +12,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { radius, font } from '@/lib/theme'
 import { usePortal } from '@/lib/context/PortalContext'
+import * as SecureStore from 'expo-secure-store'
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -185,19 +186,36 @@ function PackingCard({ items, isApproaching, accentColor, theme }: {
   accentColor: string
   theme: ReturnType<typeof usePortal>['theme']
 }) {
+  const storeKey = `packing-list-${todayStr()}`
   const [checked, setChecked] = useState<Set<string>>(new Set())
   const allPacked = items.length > 0 && checked.size === items.length
+
+  // Load persisted state on mount
+  useEffect(() => {
+    SecureStore.getItemAsync(storeKey).then(val => {
+      if (val) {
+        try { setChecked(new Set(JSON.parse(val))) } catch { /* ignore */ }
+      }
+    }).catch(() => {})
+  }, [storeKey])
+
+  function persist(next: Set<string>) {
+    SecureStore.setItemAsync(storeKey, JSON.stringify([...next])).catch(() => {})
+  }
 
   function toggle(item: string) {
     setChecked(prev => {
       const next = new Set(prev)
       if (next.has(item)) next.delete(item); else next.add(item)
+      persist(next)
       return next
     })
   }
 
   function toggleAll() {
-    setChecked(allPacked ? new Set() : new Set(items))
+    const next = allPacked ? new Set<string>() : new Set(items)
+    persist(next)
+    setChecked(next)
   }
 
   return (

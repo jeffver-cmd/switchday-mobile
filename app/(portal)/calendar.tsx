@@ -14,6 +14,7 @@ import {
   Platform,
   Alert,
 } from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import * as Crypto from 'expo-crypto'
@@ -209,22 +210,44 @@ function AddEventModal({
   theme:        PortalTheme
   onSaved:      () => void
 }) {
-  const [title,       setTitle]       = useState('')
-  const [description, setDescription] = useState('')
-  const [allDay,      setAllDay]      = useState(true)
-  const [startTime,   setStartTime]   = useState('')
-  const [saving,      setSaving]      = useState(false)
+  const [title,        setTitle]        = useState('')
+  const [description,  setDescription]  = useState('')
+  const [category,     setCategory]     = useState('other')
+  const [allDay,       setAllDay]       = useState(true)
+  const [eventDate,    setEventDate]    = useState<Date>(new Date())
+  const [showDatePick, setShowDatePick] = useState(false)
+  const [startTimeDt,  setStartTimeDt]  = useState<Date>(() => { const d = new Date(); d.setHours(15, 0, 0, 0); return d })
+  const [showTimePick, setShowTimePick] = useState(false)
+  const [saving,       setSaving]       = useState(false)
+
+  function fmtDate(d: Date) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+  function fmtDateDisplay(d: Date) { return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) }
+  function fmtTimeDisplay(d: Date) { return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }
+  function fmtTimeHHMM(d: Date) { return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` }
+
+  const PORTAL_CATEGORIES = [
+    { key: 'general',  label: 'General'  },
+    { key: 'medical',  label: 'Medical'  },
+    { key: 'school',   label: 'School'   },
+    { key: 'activity', label: 'Activity' },
+    { key: 'holiday',  label: 'Holiday'  },
+  ]
 
   // Reset form when modal opens
   useEffect(() => {
     if (visible) {
-      setTitle(''); setDescription(''); setAllDay(true); setStartTime(''); setSaving(false)
+      setTitle(''); setDescription(''); setCategory('other'); setAllDay(true); setSaving(false)
+      const parts = defaultDate.split('-').map(Number)
+      setEventDate(new Date(parts[0], parts[1]-1, parts[2], 12, 0, 0))
+      const t = new Date(); t.setHours(15, 0, 0, 0); setStartTimeDt(t)
+      setShowDatePick(false); setShowTimePick(false)
     }
-  }, [visible])
+  }, [visible, defaultDate])
 
   async function handleSave() {
     if (!title.trim()) { Alert.alert('Title required', 'Please enter a title for the event.'); return }
     setSaving(true)
+    const startDate = fmtDate(eventDate)
     try {
       const { data: newEvent, error } = await supabase
         .from('calendar_events')
@@ -234,10 +257,11 @@ function AddEventModal({
           proposed_by_child_id: childId,
           title:                title.trim(),
           description:          description.trim() || null,
-          start_date:           defaultDate,
+          start_date:           startDate,
           all_day:              allDay,
-          start_time:           allDay ? null : (startTime.trim() || null),
+          start_time:           allDay ? null : fmtTimeHHMM(startTimeDt),
           end_time:             null,
+          category,
         })
         .select('id')
         .single()
@@ -248,7 +272,7 @@ function AddEventModal({
       }
 
       // Audit log — fire and forget
-      const metadata    = { title: title.trim(), start_date: defaultDate, all_day: allDay, start_time: startTime.trim() || null, connection_id: connectionId }
+      const metadata    = { title: title.trim(), start_date: startDate, all_day: allDay, start_time: allDay ? null : fmtTimeHHMM(startTimeDt), category, connection_id: connectionId }
       const auditPayload = { actor_id: userId, action: 'calendar_event.proposed', resource_id: newEvent.id, metadata }
       const sha256_hash  = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
@@ -287,11 +311,6 @@ function AddEventModal({
         </View>
 
         <ScrollView contentContainerStyle={modalS.scroll} showsVerticalScrollIndicator={false}>
-          {/* Date preview */}
-          <Text style={[modalS.datePreview, { color: theme.textMuted }]}>
-            {new Date(defaultDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </Text>
-
           {/* Title */}
           <Text style={[modalS.label, { color: theme.textSecondary }]}>Title</Text>
           <TextInput
@@ -304,8 +323,54 @@ function AddEventModal({
             autoFocus
           />
 
+          {/* Date */}
+          <Text style={[modalS.label, { color: theme.textSecondary, marginTop: 16 }]}>Date</Text>
+          <TouchableOpacity
+            style={[modalS.input, { backgroundColor: theme.surface, borderColor: theme.border, justifyContent: 'center' }]}
+            onPress={() => setShowDatePick(p => !p)}
+          >
+            <Text style={{ color: theme.textPrimary, fontFamily: font.regular, fontSize: 15 }}>{fmtDateDisplay(eventDate)}</Text>
+          </TouchableOpacity>
+          {showDatePick && (
+            <>
+              <DateTimePicker
+                value={eventDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                themeVariant="light"
+                onChange={(_e, d) => { if (d) setEventDate(d); if (Platform.OS !== 'ios') setShowDatePick(false) }}
+              />
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity onPress={() => setShowDatePick(false)} style={{ alignItems: 'center', paddingVertical: 8 }}>
+                  <Text style={{ color: theme.accent, fontFamily: font.semibold, fontSize: 15 }}>Done</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+
+          {/* Category */}
+          <Text style={[modalS.label, { color: theme.textSecondary, marginTop: 16 }]}>Category</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 }}>
+            {PORTAL_CATEGORIES.map(cat => (
+              <TouchableOpacity
+                key={cat.key}
+                onPress={() => setCategory(cat.key)}
+                style={{
+                  paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full,
+                  borderWidth: 1,
+                  borderColor: category === cat.key ? theme.accent : theme.border,
+                  backgroundColor: category === cat.key ? theme.accent + '20' : theme.surface,
+                }}
+              >
+                <Text style={{ color: category === cat.key ? theme.accent : theme.textSecondary, fontFamily: font.medium, fontSize: 13 }}>
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           {/* All day toggle */}
-          <View style={[modalS.toggleRow, { borderColor: theme.border, backgroundColor: theme.surface }]}>
+          <View style={[modalS.toggleRow, { borderColor: theme.border, backgroundColor: theme.surface, marginTop: 12 }]}>
             <Text style={[modalS.toggleLabel, { color: theme.textPrimary }]}>All day</Text>
             <Switch
               value={allDay}
@@ -318,15 +383,28 @@ function AddEventModal({
           {/* Start time — only when not all day */}
           {!allDay && (
             <>
-              <Text style={[modalS.label, { color: theme.textSecondary }]}>Start time</Text>
-              <TextInput
-                style={[modalS.input, { backgroundColor: theme.surface, borderColor: theme.border, color: theme.textPrimary }]}
-                value={startTime}
-                onChangeText={setStartTime}
-                placeholder="e.g. 3:30 PM"
-                placeholderTextColor={theme.textSubtle}
-                maxLength={20}
-              />
+              <Text style={[modalS.label, { color: theme.textSecondary, marginTop: 16 }]}>Start time</Text>
+              <TouchableOpacity
+                style={[modalS.input, { backgroundColor: theme.surface, borderColor: theme.border, justifyContent: 'center' }]}
+                onPress={() => setShowTimePick(p => !p)}
+              >
+                <Text style={{ color: theme.textPrimary, fontFamily: font.regular, fontSize: 15 }}>{fmtTimeDisplay(startTimeDt)}</Text>
+              </TouchableOpacity>
+              {showTimePick && (
+                <>
+                  <DateTimePicker
+                    value={startTimeDt}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(_e, d) => { if (d) setStartTimeDt(d); if (Platform.OS !== 'ios') setShowTimePick(false) }}
+                  />
+                  {Platform.OS === 'ios' && (
+                    <TouchableOpacity onPress={() => setShowTimePick(false)} style={{ alignItems: 'center', paddingVertical: 8 }}>
+                      <Text style={{ color: theme.accent, fontFamily: font.semibold, fontSize: 15 }}>Done</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
             </>
           )}
 

@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
   Linking,
   Alert,
+  TextInput,
+  Modal,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -35,6 +37,53 @@ export default function SettingsScreen() {
   const router = useRouter()
   const { data, loading, error } = useSettings()
   const [notifEnabled, setNotifEnabled] = useState<boolean | null>(null)
+  const [showInvite, setShowInvite] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviting, setInviting] = useState(false)
+  const [inviteSent, setInviteSent] = useState(false)
+
+  async function handleSendInvite() {
+    const email = inviteEmail.trim().toLowerCase()
+    if (!email || !email.includes('@')) { Alert.alert('Enter a valid email address'); return }
+    setInviting(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { Alert.alert('Not signed in'); setInviting(false); return }
+
+      // Check if already connected
+      const { data: existing } = await supabase
+        .from('co_parent_connections')
+        .select('id, status')
+        .or(`user_a_id.eq.${session.user.id},user_b_id.eq.${session.user.id}`)
+        .maybeSingle()
+
+      if (existing?.status === 'active') {
+        Alert.alert('Already connected', 'You already have an active co-parent connection.')
+        setInviting(false)
+        return
+      }
+
+      if (existing?.status === 'pending') {
+        Alert.alert('Invite pending', 'You already have a pending co-parent invite. Ask your co-parent to check their email and sign up at switchday.app.')
+        setInviting(false)
+        return
+      }
+
+      // Insert connection row with invited_email
+      const { error: insertErr } = await supabase
+        .from('co_parent_connections')
+        .insert({ user_a_id: session.user.id, invited_email: email, status: 'pending' })
+
+      if (insertErr) {
+        Alert.alert('Error', insertErr.message)
+        return
+      }
+
+      setInviteSent(true)
+    } finally {
+      setInviting(false)
+    }
+  }
 
   useEffect(() => {
     Notifications.getPermissionsAsync().then(({ status }) => {
@@ -78,6 +127,35 @@ export default function SettingsScreen() {
 
   const { myProfile, coParentProfile, switchTime, switchTimezone } = data
 
+  // ── Profile editing ──────────────────────────────────────────────────────
+  const [showEditProfile, setShowEditProfile] = useState(false)
+  const [editName, setEditName] = useState(myProfile.display_name)
+  const [editColor, setEditColor] = useState(myProfile.color)
+  const [editSaving, setEditSaving] = useState(false)
+
+  const PROFILE_COLORS = [
+    '#2B3A5C', '#5B6B8A', '#3D6B8A', '#3D8C6A', '#6B8A3D',
+    '#8A5B3D', '#8A3D6B', '#6B3D8A', '#C4882A', '#C04848',
+    '#4A7C6B', '#7B5EA7', '#6B7535', '#5A4A7A', '#A05080',
+  ]
+
+  async function handleSaveProfile() {
+    if (!editName.trim()) { Alert.alert('Name required'); return }
+    setEditSaving(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      const { error: err } = await supabase
+        .from('profiles')
+        .update({ display_name: editName.trim(), color: editColor })
+        .eq('id', session.user.id)
+      if (err) { Alert.alert('Error', err.message); return }
+      setShowEditProfile(false)
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -93,9 +171,13 @@ export default function SettingsScreen() {
 
         {/* ── My Profile ── */}
         <Text style={styles.sectionLabel}>MY PROFILE</Text>
-        <View style={styles.card}>
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => { setEditName(myProfile.display_name); setEditColor(myProfile.color); setShowEditProfile(true) }}
+          activeOpacity={0.75}
+        >
           <View style={styles.profileRow}>
-            <View style={[styles.avatarCircle, { backgroundColor: myProfile.color }]}>
+            <View style={[styles.avatarCircle, { backgroundColor: editColor === myProfile.color ? myProfile.color : editColor }]}>
               <Text style={styles.avatarText}>
                 {myProfile.avatar_emoji ?? myProfile.initials}
               </Text>
@@ -114,11 +196,75 @@ export default function SettingsScreen() {
                 </Text>
               </View>
             </View>
+            <Ionicons name="pencil" size={15} color={colors.textSubtle} />
           </View>
-        </View>
+        </TouchableOpacity>
+
+        {/* Profile edit modal */}
+        <Modal visible={showEditProfile} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowEditProfile(false)}>
+          <View style={{ flex: 1, backgroundColor: colors.bg, padding: 24, paddingTop: 48 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+              <TouchableOpacity onPress={() => setShowEditProfile(false)}>
+                <Text style={{ color: colors.textMuted, fontSize: 16 }}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={{ fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary }}>Edit Profile</Text>
+              <TouchableOpacity onPress={handleSaveProfile} disabled={editSaving}>
+                {editSaving
+                  ? <ActivityIndicator size="small" color={colors.accent} />
+                  : <Text style={{ color: colors.accent, fontSize: 16, fontWeight: '600', fontFamily: font.semibold }}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+
+            {/* Name */}
+            <Text style={{ fontSize: 12, fontWeight: '600', fontFamily: font.semibold, color: colors.textSubtle, letterSpacing: 0.8, marginBottom: 6 }}>
+              DISPLAY NAME
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+                borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 13,
+                fontSize: 16, fontFamily: font.regular, color: colors.textPrimary, marginBottom: 28,
+              }}
+              value={editName}
+              onChangeText={setEditName}
+              maxLength={80}
+              autoFocus
+            />
+
+            {/* Color */}
+            <Text style={{ fontSize: 12, fontWeight: '600', fontFamily: font.semibold, color: colors.textSubtle, letterSpacing: 0.8, marginBottom: 12 }}>
+              ACCENT COLOR
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+              {PROFILE_COLORS.map(c => (
+                <TouchableOpacity
+                  key={c}
+                  onPress={() => setEditColor(c)}
+                  style={{
+                    width: 40, height: 40, borderRadius: 20, backgroundColor: c,
+                    borderWidth: editColor === c ? 3 : 0,
+                    borderColor: colors.textPrimary,
+                  }}
+                />
+              ))}
+            </View>
+
+            {/* Preview */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 28, padding: 16, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border }}>
+              <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: editColor, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#fff', fontWeight: '700', fontFamily: font.bold, fontSize: 16 }}>
+                  {editName.trim().charAt(0).toUpperCase() || myProfile.initials}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary }}>
+                {editName.trim() || myProfile.display_name}
+              </Text>
+            </View>
+          </View>
+        </Modal>
 
         {/* ── Co-parent ── */}
-        {coParentProfile && (
+        {coParentProfile ? (
           <>
             <Text style={styles.sectionLabel}>CO-PARENT</Text>
             <View style={styles.card}>
@@ -136,7 +282,89 @@ export default function SettingsScreen() {
               </View>
             </View>
           </>
+        ) : (
+          <>
+            <Text style={styles.sectionLabel}>CO-PARENT</Text>
+            <View style={styles.card}>
+              <Text style={{ fontSize: 13, color: colors.textMuted, marginBottom: 12, lineHeight: 18 }}>
+                Invite your co-parent to share your custody calendar, messages, and expenses.
+              </Text>
+              <TouchableOpacity
+                style={{ backgroundColor: colors.accent, borderRadius: radius.md, paddingVertical: 12, alignItems: 'center' }}
+                onPress={() => { setShowInvite(true); setInviteSent(false); setInviteEmail('') }}
+              >
+                <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15 }}>
+                  Invite co-parent
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
         )}
+
+        {/* Invite modal */}
+        <Modal visible={showInvite} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowInvite(false)}>
+          <View style={{ flex: 1, backgroundColor: colors.bg, padding: 24, paddingTop: 48 }}>
+            <TouchableOpacity onPress={() => setShowInvite(false)} style={{ marginBottom: 24, alignSelf: 'flex-start' }}>
+              <Text style={{ fontSize: 16, color: colors.textMuted }}>Cancel</Text>
+            </TouchableOpacity>
+            {inviteSent ? (
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}>
+                <Text style={{ fontSize: 48, marginBottom: 16 }}>✉️</Text>
+                <Text style={{ fontSize: 20, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, marginBottom: 8, textAlign: 'center' }}>
+                  Invite sent!
+                </Text>
+                <Text style={{ fontSize: 14, color: colors.textMuted, textAlign: 'center', lineHeight: 20, marginBottom: 32 }}>
+                  Ask your co-parent to sign up at switchday.app using the email address you entered. You'll be connected automatically.
+                </Text>
+                <TouchableOpacity
+                  style={{ backgroundColor: colors.accent, borderRadius: radius.md, paddingVertical: 14, paddingHorizontal: 32 }}
+                  onPress={() => setShowInvite(false)}
+                >
+                  <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15 }}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <Text style={{ fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, marginBottom: 8 }}>
+                  Invite your co-parent
+                </Text>
+                <Text style={{ fontSize: 14, color: colors.textMuted, marginBottom: 32, lineHeight: 20 }}>
+                  Enter their email address. They'll receive a link to create their account and will be automatically connected to you.
+                </Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', fontFamily: font.semibold, color: colors.textSecondary, marginBottom: 6 }}>
+                  CO-PARENT'S EMAIL
+                </Text>
+                <TextInput
+                  style={{
+                    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+                    borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 14,
+                    fontSize: 16, fontFamily: font.regular, color: colors.textPrimary, marginBottom: 24,
+                  }}
+                  value={inviteEmail}
+                  onChangeText={setInviteEmail}
+                  placeholder="email@example.com"
+                  placeholderTextColor={colors.textSubtle}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoFocus
+                />
+                <TouchableOpacity
+                  style={[
+                    { backgroundColor: colors.accent, borderRadius: radius.md, paddingVertical: 16, alignItems: 'center' },
+                    (inviting || !inviteEmail.trim()) && { opacity: 0.5 },
+                  ]}
+                  onPress={handleSendInvite}
+                  disabled={inviting || !inviteEmail.trim()}
+                >
+                  {inviting
+                    ? <ActivityIndicator color={colors.white} />
+                    : <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15 }}>Send invite</Text>
+                  }
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </Modal>
 
         {/* ── Switch Defaults ── */}
         <Text style={styles.sectionLabel}>SWITCH DEFAULTS</Text>

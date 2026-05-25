@@ -15,9 +15,9 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useCallback, useEffect } from 'react'
-import * as Crypto from 'expo-crypto'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '@/lib/supabase'
+import { requestExpense } from '@/lib/api/expenses'
 import { colors, radius, shadow, font } from '@/lib/theme'
 import { usePortal } from '@/lib/context/PortalContext'
 import type { ExpenseCategory } from '@/lib/types/database'
@@ -133,64 +133,7 @@ function usePortalExpenses() {
   return { expenses, childRowId, connectionId, loading, error, refresh: load }
 }
 
-// ─── submit expense ──────────────────────────────────────────────────────────
-
-async function requestExpense(params: {
-  childRowId:   string
-  connectionId: string
-  description:  string
-  amount:       number
-  category:     ExpenseCategory
-  note:         string
-}): Promise<{ error: string | null }> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return { error: 'not_signed_in' }
-
-  const { childRowId, connectionId, description, amount, category, note } = params
-
-  // Row integrity hash — matches web createChildExpenseRequest pattern
-  const sha256_hash = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    `${connectionId}|${session.user.id}|${description.trim()}|${amount}|${new Date().toISOString()}`,
-  )
-
-  const { data: expense, error: insertError } = await supabase
-    .from('expenses')
-    .insert({
-      connection_id:         connectionId,
-      submitted_by_id:       null,
-      submitted_by_child_id: childRowId,
-      description:           description.trim(),
-      amount,
-      category,
-      split_percent:         50,   // placeholder — parent sets real split on approval
-      status:                'requested' as ExpenseStatus,
-      requested_split_note:  note.trim() || null,
-      sha256_hash,
-    })
-    .select()
-    .single()
-
-  if (insertError || !expense) return { error: insertError?.message ?? 'Failed to submit request' }
-
-  // Audit log (fire-and-forget)
-  const metadata   = { expense, submitted_by_child: true }
-  const auditPayload = { actor_id: session.user.id, action: 'expense.created', resource_id: expense.id, metadata }
-  const auditHash  = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    JSON.stringify(auditPayload),
-  )
-  supabase.from('audit_log').insert({
-    actor_id:      session.user.id,
-    action:        'expense.created',
-    resource_type: 'expenses',
-    resource_id:   expense.id,
-    metadata,
-    sha256_hash:   auditHash,
-  }).then(() => {})
-
-  return { error: null }
-}
+// requestExpense is imported from @/lib/api/expenses
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 

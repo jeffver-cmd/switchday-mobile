@@ -382,6 +382,7 @@ export interface Database {
           last_message_at?: string | null
         }
         Update: {
+          thread_type?: ThreadType | 'archived'
           last_message_at?: string | null
         }
         Relationships: []

@@ -106,10 +106,10 @@ export async function createSchedule(
 
   writeAuditLog({
     actorId:      session.user.id,
-    action:       'schedule.proposed',
+    action:       (data.status as string) === 'proposed' ? 'schedule.proposed' : 'schedule.drafted',
     resourceType: 'parenting_schedules',
     resourceId:   data.id,
-    metadata:     { name: payload.name, pattern: payload.pattern, start_date: payload.start_date, end_date: payload.end_date, note: payload.note ?? null },
+    metadata:     { name: payload.name, pattern: payload.pattern, start_date: payload.start_date, end_date: payload.end_date, note: payload.note ?? null, status: data.status },
   })
 
   return { data: data as unknown as Schedule, error: null }

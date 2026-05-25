@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useState, useCallback } from 'react'
-import { useThreads, ThreadSummary } from '@/lib/hooks/useThreads'
+import { useThreads, ThreadSummary, archiveThread } from '@/lib/hooks/useThreads'
 import { supabase } from '@/lib/supabase'
 import { colors, radius, shadow, font } from '@/lib/theme'
 
@@ -153,12 +153,13 @@ function formatTime(iso: string | null): string {
 interface ThreadRowProps {
   item: ThreadSummary
   onPress: () => void
+  onLongPress?: () => void
 }
 
-function ThreadRow({ item, onPress }: ThreadRowProps) {
+function ThreadRow({ item, onPress, onLongPress }: ThreadRowProps) {
   const hasUnread = item.unreadCount > 0
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity style={styles.row} onPress={onPress} onLongPress={onLongPress} activeOpacity={0.7} delayLongPress={400}>
       {/* Avatar */}
       <View style={styles.avatarWrap}>
         <View style={[styles.avatar, hasUnread && styles.avatarUnread]}>
@@ -204,6 +205,24 @@ export default function MessagesScreen() {
     refresh()
     router.push(`/messages/${threadId}?connectionId=${connectionId}&topic=${encodeURIComponent(topic)}` as never)
   }, [refresh, router])
+
+  const handleArchive = useCallback((item: ThreadSummary) => {
+    Alert.alert(
+      'Archive conversation?',
+      `"${item.topic}" will be hidden from your inbox. You can find it in archived conversations.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Archive',
+          onPress: async () => {
+            const { error } = await archiveThread(item.id)
+            if (error) Alert.alert('Error', error)
+            else refresh()
+          },
+        },
+      ]
+    )
+  }, [refresh])
 
   if (loading) {
     return (
@@ -274,6 +293,7 @@ export default function MessagesScreen() {
           <ThreadRow
             item={item}
             onPress={() => router.push(`/messages/${item.id}?connectionId=${item.connectionId}&topic=${encodeURIComponent(item.topic)}`)}
+            onLongPress={() => handleArchive(item)}
           />
         )}
         ListEmptyComponent={
