@@ -269,7 +269,7 @@ export default function DashboardScreen() {
   const {
     myProfile, coParentProfile, todayOwnerId, isSwitch, switchTime, nextSwitch,
     unreadCount, pendingExpenseCount, upcomingEvents,
-    recentThreads, recentExpenses, checklistItems, childrenNames, connectionId,
+    recentExpenses, checklistItems, childrenNames, connectionId,
   } = data
 
   const todayOwner = todayOwnerId === myProfile.id ? myProfile : coParentProfile
@@ -440,48 +440,6 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── Recent Messages ────────────────────────────────────────────── */}
-        {recentThreads.length > 0 && (
-          <View style={styles.section}>
-            <SectionHeader
-              title="Recent Messages"
-              onViewAll={() => router.push('/(tabs)/messages')}
-            />
-            <View style={styles.card}>
-              {recentThreads.map((thread, idx) => (
-                <TouchableOpacity
-                  key={thread.id}
-                  style={[
-                    styles.threadRow,
-                    idx < recentThreads.length - 1 && styles.rowDivider,
-                  ]}
-                  activeOpacity={0.7}
-                  onPress={() => router.push(`/messages/${thread.id}?connectionId=${thread.connectionId}&topic=${encodeURIComponent(thread.topic)}` as any)}
-                >
-                  <View style={styles.threadMain}>
-                    <View style={styles.threadTopRow}>
-                      {thread.unreadCount > 0 && <View style={styles.unreadDot} />}
-                      <Text
-                        style={[styles.threadTopic, thread.unreadCount > 0 && styles.threadTopicUnread]}
-                        numberOfLines={1}
-                      >
-                        {thread.topic}
-                      </Text>
-                      <Text style={styles.threadTime}>{formatThreadTime(thread.lastMessageAt)}</Text>
-                    </View>
-                    {thread.lastMessageBody && (
-                      <Text style={styles.threadPreview} numberOfLines={1}>
-                        {thread.lastMessageBody}
-                      </Text>
-                    )}
-                  </View>
-                  <Ionicons name="chevron-forward" size={14} color={colors.textSubtle} style={styles.threadChevron} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
         {/* ── Recent Expenses ────────────────────────────────────────────── */}
         {recentExpenses.length > 0 && (
           <View style={styles.section}>
@@ -542,11 +500,11 @@ export default function DashboardScreen() {
         )}
 
         {/* ── All clear ──────────────────────────────────────────────────── */}
-        {recentThreads.length === 0 && recentExpenses.length === 0 && upcomingEvents.length === 0 && (
+        {recentExpenses.length === 0 && upcomingEvents.length === 0 && (
           <View style={styles.allClearCard}>
             <Ionicons name="checkmark-circle-outline" size={32} color={colors.success} style={{ marginBottom: 8 }} />
             <Text style={styles.allClearTitle}>All clear</Text>
-            <Text style={styles.allClearSubtitle}>No messages, expenses, or events yet.</Text>
+            <Text style={styles.allClearSubtitle}>No expenses or events yet.</Text>
           </View>
         )}
 
