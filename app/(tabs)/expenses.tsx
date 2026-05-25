@@ -79,7 +79,9 @@ interface ExpenseRowProps {
 function ExpenseRow({ item, userId, onApprove, onDecline }: ExpenseRowProps) {
   const [expanded, setExpanded] = useState(false)
   const isMyExpense = item.submittedById === userId
-  const canAct = !isMyExpense && (item.status === 'pending' || item.status === 'requested')
+  const canApprove = !isMyExpense && (item.status === 'pending' || item.status === 'requested')
+  const canDecline = !isMyExpense && item.status === 'requested' // declined is only valid from 'requested'
+  const canAct = canApprove || canDecline
   const shareAmount = (item.amount * item.splitPercent) / 100
   const statusColor = STATUS_COLORS[item.status]
 
@@ -117,18 +119,22 @@ function ExpenseRow({ item, userId, onApprove, onDecline }: ExpenseRowProps) {
           <Text style={styles.splitDetail}>{item.splitPercent}% your share · {100 - item.splitPercent}% theirs</Text>
           {canAct && (
             <View style={styles.actionBtns}>
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.approveBtn]}
-                onPress={() => onApprove(item.id)}
-              >
-                <Text style={styles.approveBtnText}>Approve</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.declineBtn]}
-                onPress={() => onDecline(item.id)}
-              >
-                <Text style={styles.declineBtnText}>Decline</Text>
-              </TouchableOpacity>
+              {canApprove && (
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.approveBtn]}
+                  onPress={() => onApprove(item.id)}
+                >
+                  <Text style={styles.approveBtnText}>Approve</Text>
+                </TouchableOpacity>
+              )}
+              {canDecline && (
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.declineBtn]}
+                  onPress={() => onDecline(item.id)}
+                >
+                  <Text style={styles.declineBtnText}>Decline</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
@@ -278,7 +284,11 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
 
             {/* Scan receipt button */}
             <TouchableOpacity
-              style={[modal.scanBtn, scanFeedback === 'scanned' && modal.scanBtnSuccess]}
+              style={[
+                modal.scanBtn,
+                scanFeedback === 'scanned' && modal.scanBtnSuccess,
+                scanFeedback === 'failed'  && modal.scanBtnFailed,
+              ]}
               onPress={handleScanReceipt}
               disabled={scanning}
               activeOpacity={0.75}
@@ -286,8 +296,16 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
               {scanning ? (
                 <ActivityIndicator size="small" color={colors.accent} />
               ) : (
-                <Text style={[modal.scanBtnText, scanFeedback === 'scanned' && modal.scanBtnTextSuccess]}>
-                  {scanFeedback === 'scanned' ? '✓ Receipt scanned — review below' : '📷  Scan Receipt'}
+                <Text style={[
+                  modal.scanBtnText,
+                  scanFeedback === 'scanned' && modal.scanBtnTextSuccess,
+                  scanFeedback === 'failed'  && modal.scanBtnTextFailed,
+                ]}>
+                  {scanFeedback === 'scanned'
+                    ? '✓ Receipt scanned — review below'
+                    : scanFeedback === 'failed'
+                    ? '⚠ Scan failed — fill in manually or try again'
+                    : '📷  Scan Receipt'}
                 </Text>
               )}
             </TouchableOpacity>
@@ -557,6 +575,10 @@ const modal = StyleSheet.create({
   scanBtnSuccess: {
     borderColor: colors.success, borderStyle: 'solid', backgroundColor: colors.successSoft,
   },
+  scanBtnFailed: {
+    borderColor: colors.warning, borderStyle: 'solid', backgroundColor: colors.warningSoft,
+  },
   scanBtnText: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.accent },
   scanBtnTextSuccess: { color: colors.success },
+  scanBtnTextFailed: { color: colors.warning },
 })

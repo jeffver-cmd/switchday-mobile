@@ -35,6 +35,7 @@ export interface RecentThread {
   id: string
   topic: string
   threadType: string
+  connectionId: string
   lastMessageAt: string | null
   lastMessageBody: string | null
   unreadCount: number
@@ -271,6 +272,7 @@ export function useDashboard() {
         id: t.id,
         topic: t.topic ?? 'Conversation',
         threadType: t.thread_type ?? 'co_parent',
+        connectionId: connection.id,
         lastMessageAt: t.last_message_at,
         lastMessageBody: lastMsgMap[t.id] ?? null,
         unreadCount: threadUnreadMap[t.id] ?? 0,

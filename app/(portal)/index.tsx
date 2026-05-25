@@ -1,20 +1,8 @@
-import { View, Text, StyleSheet } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+// This screen is hidden from the tab bar via href: null in the portal layout.
+// It serves as a fallback route entry point — navigation always goes to
+// /(portal)/home directly. This file must remain present for Expo Router.
+import { Redirect } from 'expo-router'
 
 export default function PortalEntryScreen() {
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.inner}>
-        <Text style={styles.heading}>Child Portal</Text>
-        <Text style={styles.sub}>Token-based access — coming soon</Text>
-      </View>
-    </SafeAreaView>
-  )
+  return <Redirect href="/(portal)/home" />
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
-  inner: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  heading: { fontSize: 20, fontWeight: '700', color: '#111827' },
-  sub: { marginTop: 8, fontSize: 14, color: '#6b7280', textAlign: 'center' },
-})

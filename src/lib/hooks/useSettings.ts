@@ -18,7 +18,7 @@ export interface SettingsData {
   coParentProfile: SettingsProfile | null
   switchTime: string | null   // HH:MM
   switchTimezone: string | null
-  connectionId: string
+  connectionId: string | null
 }
 
 // ─── hook ────────────────────────────────────────────────────────────────────
@@ -36,41 +36,54 @@ export function useSettings() {
       if (!session) { setError('not_signed_in'); setLoading(false); return }
       const userId = session.user.id
 
-      // Active connection
-      const { data: connection } = await supabase
-        .from('co_parent_connections')
-        .select('id, user_a_id, user_b_id, switch_time, switch_timezone')
-        .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`)
-        .eq('status', 'active')
-        .maybeSingle()
+      // Load profile and connection in parallel — profile always required,
+      // connection is optional (new users may not have one yet)
+      const [profileResult, connectionResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, display_name, initials, color, avatar_emoji, plan')
+          .eq('id', userId)
+          .maybeSingle(),
 
-      if (!connection) { setError('no_connection'); setLoading(false); return }
+        supabase
+          .from('co_parent_connections')
+          .select('id, user_a_id, user_b_id, switch_time, switch_timezone')
+          .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`)
+          .eq('status', 'active')
+          .maybeSingle(),
+      ])
 
-      const coParentId = connection.user_a_id === userId
-        ? connection.user_b_id
-        : connection.user_a_id
-
-      const profileIds = [userId, coParentId].filter(Boolean) as string[]
-
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, display_name, initials, color, avatar_emoji, plan')
-        .in('id', profileIds)
-
-      const myProfile     = (profiles ?? []).find(p => p.id === userId)
-      const coParentProfile = (profiles ?? []).find(p => p.id === coParentId) ?? null
-
+      const myProfile = profileResult.data
       if (!myProfile) { setError('profile_not_found'); setLoading(false); return }
+
+      const connection = connectionResult.data ?? null
+      let coParentProfile: SettingsProfile | null = null
+
+      if (connection) {
+        const coParentId = connection.user_a_id === userId
+          ? connection.user_b_id
+          : connection.user_a_id
+
+        if (coParentId) {
+          const { data: cpData } = await supabase
+            .from('profiles')
+            .select('id, display_name, initials, color, avatar_emoji, plan')
+            .eq('id', coParentId)
+            .maybeSingle()
+
+          coParentProfile = (cpData as SettingsProfile | null) ?? null
+        }
+      }
 
       setData({
         userId,
         myProfile: myProfile as SettingsProfile,
-        coParentProfile: coParentProfile as SettingsProfile | null,
-        switchTime:     connection.switch_time
+        coParentProfile,
+        switchTime:     connection?.switch_time
           ? String(connection.switch_time).slice(0, 5)
           : null,
-        switchTimezone: connection.switch_timezone ?? null,
-        connectionId:   connection.id,
+        switchTimezone: connection?.switch_timezone ?? null,
+        connectionId:   connection?.id ?? null,
       })
     } catch {
       setError('load_failed')

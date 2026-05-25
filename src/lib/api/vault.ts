@@ -283,11 +283,29 @@ export async function toggleDocumentShared(id: string, shared: boolean): Promise
   if (!session) return { error: 'Not signed in' }
   const userId = session.user.id
 
+  // Snapshot the document before update for audit trail
+  const { data: before } = await supabase
+    .from('vault_documents')
+    .select('id, shared, file_name')
+    .eq('id', id)
+    .eq('owner_id', userId)
+    .maybeSingle()
+
   const { error } = await supabase
     .from('vault_documents')
     .update({ shared })
     .eq('id', id)
     .eq('owner_id', userId)
+
+  if (!error) {
+    writeAuditLog({
+      actorId:      userId,
+      action:       'vault_document.updated',
+      resourceType: 'vault_documents',
+      resourceId:   id,
+      metadata:     { before: before ?? null, after: { shared }, field: 'shared' },
+    }).catch(() => {})
+  }
 
   return { error: error?.message ?? null }
 }

@@ -478,11 +478,10 @@ const styles = StyleSheet.create({
     maxHeight: 120,
   },
   sendBtn: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 44, height: 44, borderRadius: 22,
     backgroundColor: colors.accent,
     alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
-    marginBottom: 3,
   },
   sendBtnDisabled: { backgroundColor: colors.surface2 },
   sendBtnText: { color: colors.white, fontSize: 18, fontWeight: '700', lineHeight: 20 },

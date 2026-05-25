@@ -31,8 +31,22 @@ export default function TabsLayout() {
     // Handle notification taps — navigate to relevant screen
     notifListenerRef.current = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data as Record<string, unknown>
-      if (data?.screen === 'messages') {
-        router.push('/(tabs)/messages')
+      const screen = data?.screen as string | undefined
+      if (screen === 'messages') {
+        const threadId    = data?.threadId    as string | undefined
+        const connectionId = data?.connectionId as string | undefined
+        if (threadId && connectionId) {
+          // Navigate directly to the specific thread
+          router.push(`/messages/${threadId}?connectionId=${connectionId}&topic=${encodeURIComponent('Conversation')}` as any)
+        } else {
+          router.push('/(tabs)/messages')
+        }
+      } else if (screen === 'expenses') {
+        router.push('/(tabs)/expenses')
+      } else if (screen === 'schedule') {
+        router.push('/(tabs)/schedule')
+      } else if (screen === 'calendar') {
+        router.push('/(tabs)/calendar')
       }
     })
 

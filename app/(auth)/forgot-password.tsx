@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { colors, radius, font } from '@/lib/theme'
 import { Ionicons } from '@expo/vector-icons'
+import SwitchdayLogo from '@/components/SwitchdayLogo'
 
 export default function ForgotPasswordScreen() {
   const router = useRouter()
@@ -47,6 +48,10 @@ export default function ForgotPasswordScreen() {
           <Text style={styles.backText}>Back to sign in</Text>
         </TouchableOpacity>
 
+        <View style={styles.logoContainer}>
+          <SwitchdayLogo size={36} />
+        </View>
+
         <Text style={styles.heading}>Reset password</Text>
 
         {sent ? (
@@ -54,7 +59,7 @@ export default function ForgotPasswordScreen() {
             <Ionicons name="checkmark-circle" size={40} color={colors.success} style={{ marginBottom: 12 }} />
             <Text style={styles.successTitle}>Check your email</Text>
             <Text style={styles.successBody}>
-              We sent a password reset link to {email}. Tap it to choose a new password.
+              We sent a password reset link to {email}. Open the link on any device to choose a new password.
             </Text>
             <TouchableOpacity
               style={styles.button}
@@ -106,8 +111,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   inner: { flex: 1, paddingHorizontal: 24, paddingTop: 60 },
 
-  backBtn: { flexDirection: 'row', alignItems: 'center', marginBottom: 32, alignSelf: 'flex-start' },
+  backBtn: { flexDirection: 'row', alignItems: 'center', marginBottom: 24, alignSelf: 'flex-start' },
   backText: { fontSize: 15, fontFamily: font.regular, color: colors.textSecondary, marginLeft: 2 },
+
+  logoContainer: { alignSelf: 'flex-start', marginBottom: 20 },
 
   heading: { fontSize: 28, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, marginBottom: 12 },
   subtitle: { fontSize: 15, fontFamily: font.regular, color: colors.textMuted, marginBottom: 32, lineHeight: 22 },

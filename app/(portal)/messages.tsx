@@ -228,7 +228,7 @@ export default function PortalMessagesScreen() {
               >
                 <View style={[S.threadIcon, { backgroundColor: theme.surface2 }]}>
                   <Text style={S.threadIconText}>
-                    {t.threadType === 'with_child' ? '👤' : t.threadType === 'family' ? '👨‍👩‍👧' : '💬'}
+                    {t.threadType === 'child_parent' ? '👤' : t.threadType === 'family' ? '👨‍👩‍👧' : '💬'}
                   </Text>
                 </View>
                 <View style={S.threadBody}>

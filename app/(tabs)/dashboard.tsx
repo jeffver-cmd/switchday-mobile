@@ -351,7 +351,7 @@ export default function DashboardScreen() {
                     idx < recentThreads.length - 1 && styles.rowDivider,
                   ]}
                   activeOpacity={0.7}
-                  onPress={() => router.push(`/messages/${thread.id}` as any)}
+                  onPress={() => router.push(`/messages/${thread.id}?connectionId=${thread.connectionId}&topic=${encodeURIComponent(thread.topic)}` as any)}
                 >
                   <View style={styles.threadMain}>
                     <View style={styles.threadTopRow}>

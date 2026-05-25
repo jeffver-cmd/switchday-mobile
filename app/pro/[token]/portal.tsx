@@ -31,7 +31,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'communications', label: 'Communications' },
   { key: 'financial',      label: 'Financial'       },
   { key: 'schedule',       label: 'Custody Schedule'},
-  { key: 'patterns',       label: 'Behavioral Analysis' },
+  { key: 'patterns',       label: 'Patterns'            },
   { key: 'children',       label: 'Children'        },
 ]
 
