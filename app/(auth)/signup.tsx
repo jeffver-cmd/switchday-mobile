@@ -26,10 +26,15 @@ export default function SignupScreen() {
   async function handleSignup() {
     if (!name || !email || !password) return
     setLoading(true)
+    // emailRedirectTo deep-links back into the app after confirmation.
+    // Requires 'switchday://auth/callback' in Supabase Auth → URL Configuration → Redirect URLs.
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: name } },
+      options: {
+        data: { display_name: name },
+        emailRedirectTo: 'switchday://auth/callback',
+      },
     })
     setLoading(false)
     if (error) {
@@ -37,7 +42,7 @@ export default function SignupScreen() {
     } else {
       Alert.alert(
         'Check your email',
-        'We sent you a confirmation link. Tap it to activate your account.',
+        'We sent you a confirmation link. Tap it and you\'ll be signed in automatically.',
         [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]
       )
     }

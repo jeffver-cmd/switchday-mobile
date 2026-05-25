@@ -7,10 +7,19 @@ import {
   ActivityIndicator,
   useWindowDimensions,
   RefreshControl,
+  Modal,
+  TextInput,
+  Switch,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
+import * as Crypto from 'expo-crypto'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import { useCalendar, CalendarEvent } from '@/lib/hooks/useCalendar'
+import { supabase } from '@/lib/supabase'
 import { colors, radius, shadow, font } from '@/lib/theme'
 
 // ─── constants ───────────────────────────────────────────────────────────────
@@ -63,6 +72,233 @@ function eventDotColor(ev: CalendarEvent): string {
   return CATEGORY_COLORS[ev.category] ?? CATEGORY_COLORS.other
 }
 
+// ─── add event modal ─────────────────────────────────────────────────────────
+
+const EVENT_CATEGORIES: { key: string; label: string }[] = [
+  { key: 'school',   label: 'School'   },
+  { key: 'sports',   label: 'Sports'   },
+  { key: 'medical',  label: 'Medical'  },
+  { key: 'birthday', label: 'Birthday' },
+  { key: 'holiday',  label: 'Holiday'  },
+  { key: 'travel',   label: 'Travel'   },
+  { key: 'other',    label: 'Other'    },
+]
+
+interface AddEventModalProps {
+  visible:      boolean
+  onClose:      () => void
+  defaultDate:  string
+  connectionId: string
+  userId:       string
+  onSaved:      () => void
+}
+
+function AddEventModal({ visible, onClose, defaultDate, connectionId, userId, onSaved }: AddEventModalProps) {
+  const [title,         setTitle]         = useState('')
+  const [description,   setDescription]   = useState('')
+  const [category,      setCategory]      = useState('other')
+  const [allDay,        setAllDay]        = useState(true)
+  const [eventDate,     setEventDate]     = useState<Date>(new Date())
+  const [showDatePick,  setShowDatePick]  = useState(false)
+  const [startTime,     setStartTime]     = useState('')
+  const [saving,        setSaving]        = useState(false)
+
+  useEffect(() => {
+    if (visible) {
+      setTitle(''); setDescription(''); setCategory('other')
+      setAllDay(true); setStartTime(''); setSaving(false)
+      // parse defaultDate as local noon to avoid timezone day-shift
+      const parts = defaultDate.split('-').map(Number)
+      setEventDate(new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0))
+      setShowDatePick(false)
+    }
+  }, [visible, defaultDate])
+
+  function formatEventDateISO(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+  function formatEventDateDisplay(d: Date): string {
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+  }
+
+  const handleSave = useCallback(async () => {
+    if (!title.trim()) { Alert.alert('Title required', 'Give the event a name.'); return }
+    setSaving(true)
+    try {
+      const startDate = formatEventDateISO(eventDate)
+      const { data: newEvent, error } = await supabase
+        .from('calendar_events')
+        .insert({
+          connection_id: connectionId,
+          created_by_id: userId,
+          title:         title.trim(),
+          description:   description.trim() || null,
+          start_date:    startDate,
+          all_day:       allDay,
+          start_time:    allDay ? null : (startTime.trim() || null),
+          end_time:      null,
+          category,
+        })
+        .select('id')
+        .single()
+
+      if (error || !newEvent) {
+        Alert.alert('Error', 'Could not save event. Try again.')
+        return
+      }
+
+      // Audit log — fire and forget
+      const metadata = { title: title.trim(), start_date: startDate, all_day: allDay, start_time: startTime.trim() || null, category, connection_id: connectionId }
+      const auditPayload = { actor_id: userId, action: 'calendar_event.created', resource_id: newEvent.id, metadata }
+      const sha256_hash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        JSON.stringify(auditPayload),
+      )
+      supabase.from('audit_log').insert({
+        actor_id: userId, action: 'calendar_event.created',
+        resource_type: 'calendar_events', resource_id: newEvent.id,
+        metadata, sha256_hash,
+      }).then(() => {})
+
+      onSaved()
+      onClose()
+    } finally {
+      setSaving(false)
+    }
+  }, [title, description, category, allDay, eventDate, startTime, connectionId, userId, onSaved, onClose])
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={addEvStyles.root}>
+        {/* Header */}
+        <View style={addEvStyles.header}>
+          <TouchableOpacity onPress={onClose} style={addEvStyles.headerBtn} disabled={saving}>
+            <Text style={[addEvStyles.cancel, saving && { opacity: 0.4 }]}>Cancel</Text>
+          </TouchableOpacity>
+          <Text style={addEvStyles.headerTitle}>Add Event</Text>
+          <TouchableOpacity onPress={handleSave} style={addEvStyles.headerBtn} disabled={saving}>
+            {saving
+              ? <ActivityIndicator size="small" color={colors.accent} />
+              : <Text style={[addEvStyles.save, !title.trim() && { opacity: 0.4 }]}>Save</Text>}
+          </TouchableOpacity>
+        </View>
+
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <ScrollView contentContainerStyle={addEvStyles.form} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+            {/* Title */}
+            <Text style={addEvStyles.label}>TITLE</Text>
+            <TextInput
+              style={addEvStyles.input}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="What is it?"
+              placeholderTextColor={colors.textSubtle as string}
+              maxLength={100}
+              autoFocus
+            />
+
+            {/* Date */}
+            <Text style={[addEvStyles.label, { marginTop: 20 }]}>DATE</Text>
+            <TouchableOpacity
+              style={addEvStyles.dateBtn}
+              onPress={() => setShowDatePick(p => !p)}
+            >
+              <Text style={addEvStyles.dateBtnText}>{formatEventDateDisplay(eventDate)}</Text>
+            </TouchableOpacity>
+            {showDatePick && (
+              <>
+                <DateTimePicker
+                  value={eventDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                  themeVariant="light"
+                  onChange={(_e, d) => {
+                    if (d) setEventDate(d)
+                    if (Platform.OS !== 'ios') setShowDatePick(false)
+                  }}
+                />
+                {Platform.OS === 'ios' && (
+                  <TouchableOpacity style={addEvStyles.dateDone} onPress={() => setShowDatePick(false)}>
+                    <Text style={addEvStyles.dateDoneText}>Done</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+
+            {/* Category */}
+            <Text style={[addEvStyles.label, { marginTop: 20 }]}>CATEGORY</Text>
+            <View style={addEvStyles.chipRow}>
+              {EVENT_CATEGORIES.map(cat => (
+                <TouchableOpacity
+                  key={cat.key}
+                  style={[
+                    addEvStyles.chip,
+                    category === cat.key && { backgroundColor: CATEGORY_COLORS[cat.key] + '22', borderColor: CATEGORY_COLORS[cat.key] },
+                  ]}
+                  onPress={() => setCategory(cat.key)}
+                >
+                  {category === cat.key && (
+                    <View style={[addEvStyles.chipDot, { backgroundColor: CATEGORY_COLORS[cat.key] }]} />
+                  )}
+                  <Text style={[
+                    addEvStyles.chipText,
+                    category === cat.key && { color: CATEGORY_COLORS[cat.key], fontWeight: '600', fontFamily: font.semibold },
+                  ]}>
+                    {cat.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* All day */}
+            <View style={addEvStyles.toggleRow}>
+              <Text style={addEvStyles.toggleLabel}>All day</Text>
+              <Switch
+                value={allDay}
+                onValueChange={setAllDay}
+                trackColor={{ false: colors.border, true: colors.accent }}
+                thumbColor="#fff"
+              />
+            </View>
+
+            {/* Start time — only when not all day */}
+            {!allDay && (
+              <>
+                <Text style={[addEvStyles.label, { marginTop: 20 }]}>START TIME</Text>
+                <TextInput
+                  style={addEvStyles.input}
+                  value={startTime}
+                  onChangeText={setStartTime}
+                  placeholder="e.g. 3:30 PM"
+                  placeholderTextColor={colors.textSubtle as string}
+                  maxLength={20}
+                />
+              </>
+            )}
+
+            {/* Description */}
+            <Text style={[addEvStyles.label, { marginTop: 20 }]}>
+              DETAILS <Text style={addEvStyles.optional}>(optional)</Text>
+            </Text>
+            <TextInput
+              style={[addEvStyles.input, { minHeight: 80, textAlignVertical: 'top' }]}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Any extra details…"
+              placeholderTextColor={colors.textSubtle as string}
+              multiline
+              maxLength={300}
+            />
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Modal>
+  )
+}
+
 // ─── sub-components ──────────────────────────────────────────────────────────
 
 interface DayDetailProps {
@@ -106,9 +342,10 @@ export default function CalendarScreen() {
   const today = todayStr()
   const now = new Date()
 
-  const [year, setYear]  = useState(now.getFullYear())
-  const [month, setMonth] = useState(now.getMonth())
+  const [year, setYear]     = useState(now.getFullYear())
+  const [month, setMonth]   = useState(now.getMonth())
   const [selected, setSelected] = useState<string | null>(today)
+  const [showAdd, setShowAdd] = useState(false)
 
   const { data, loading, error, refresh } = useCalendar(year, month)
   const { width } = useWindowDimensions()
@@ -305,6 +542,29 @@ export default function CalendarScreen() {
 
         <View style={styles.bottomPad} />
       </ScrollView>
+
+      {/* FAB — add event */}
+      {data && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setShowAdd(true)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.fabIcon}>+</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Add event modal */}
+      {data && (
+        <AddEventModal
+          visible={showAdd}
+          onClose={() => setShowAdd(false)}
+          defaultDate={selected ?? today}
+          connectionId={data.connectionId}
+          userId={data.userId}
+          onSaved={refresh}
+        />
+      )}
     </SafeAreaView>
   )
 }
@@ -399,6 +659,70 @@ const styles = StyleSheet.create({
   legendSwatch: { width: 14, height: 14, borderRadius: 3 },
   legendSwitch: { fontSize: 14, color: colors.textMuted },
   legendLabel: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted },
+
+  // FAB
+  fab: {
+    position: 'absolute', bottom: 24, right: 20,
+    width: 52, height: 52, borderRadius: 16,
+    backgroundColor: colors.accent,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18, shadowRadius: 8, elevation: 6,
+  },
+  fabIcon: { fontSize: 28, color: '#fff', fontWeight: '300', lineHeight: 32, marginTop: -2 },
+})
+
+// ─── add event modal styles ───────────────────────────────────────────────────
+
+const addEvStyles = StyleSheet.create({
+  root:        { flex: 1, backgroundColor: colors.surface },
+  header:      {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: colors.borderHair,
+  },
+  headerBtn:   { width: 72 },
+  cancel:      { fontSize: 15, fontFamily: font.regular, color: colors.textMuted as string },
+  headerTitle: { fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary },
+  save:        { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, textAlign: 'right' },
+
+  form:   { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 60 },
+  label:  { fontSize: 11, fontWeight: '700', fontFamily: font.bold, color: colors.textSubtle as string, letterSpacing: 0.8, marginBottom: 6 },
+  optional: { fontWeight: '400', letterSpacing: 0, textTransform: 'none', color: colors.textSubtle as string },
+
+  input: {
+    backgroundColor: colors.surface2, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 15, fontFamily: font.regular, color: colors.textPrimary,
+  },
+
+  dateBtn: {
+    backgroundColor: colors.surface2, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 14, paddingVertical: 13,
+  },
+  dateBtnText: { fontSize: 15, fontFamily: font.regular, color: colors.textPrimary },
+  dateDone:     { alignItems: 'flex-end', paddingHorizontal: 4, paddingVertical: 6 },
+  dateDoneText: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.accent },
+
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 12, paddingVertical: 7,
+    backgroundColor: colors.surface2,
+  },
+  chipDot:  { width: 7, height: 7, borderRadius: 4 },
+  chipText: { fontSize: 13, fontFamily: font.medium, fontWeight: '500', color: colors.textMuted as string },
+
+  toggleRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
+    paddingHorizontal: 14, paddingVertical: 12, marginTop: 20,
+    backgroundColor: colors.surface2,
+  },
+  toggleLabel: { fontSize: 15, fontFamily: font.regular, color: colors.textPrimary },
 })
 
 const detailStyles = StyleSheet.create({

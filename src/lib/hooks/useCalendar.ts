@@ -32,6 +32,7 @@ export interface CalendarEvent {
 
 export interface CalendarData {
   userId: string
+  connectionId: string
   myProfile: Profile
   coParentProfile: Profile | null
   /** Keyed by YYYY-MM-DD */
@@ -161,6 +162,7 @@ export function useCalendar(year: number, month: number) {
 
       setData({
         userId,
+        connectionId: connection.id,
         myProfile: myProfile as Profile,
         coParentProfile,
         days,

@@ -6,12 +6,124 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+  ScrollView,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useThreads, ThreadSummary } from '@/lib/hooks/useThreads'
-import { colors, radius, font } from '@/lib/theme'
+import { supabase } from '@/lib/supabase'
+import { colors, radius, shadow, font } from '@/lib/theme'
+
+// ─── thread type options ──────────────────────────────────────────────────────
+
+const THREAD_TYPES: { key: string; label: string; description: string }[] = [
+  { key: 'co_parent',    label: 'Co-Parent',  description: 'Private conversation between you and your co-parent' },
+  { key: 'family',       label: 'Family',     description: 'Visible to both parents and any connected children'  },
+  { key: 'child_parent', label: 'Children',   description: 'Messages with your children'                         },
+]
+
+// ─── new thread modal ─────────────────────────────────────────────────────────
+
+interface NewThreadModalProps {
+  connectionId: string
+  onClose: () => void
+  onCreated: (threadId: string, topic: string, connectionId: string) => void
+}
+
+function NewThreadModal({ connectionId, onClose, onCreated }: NewThreadModalProps) {
+  const [topic,      setTopic]      = useState('')
+  const [threadType, setThreadType] = useState('co_parent')
+  const [creating,   setCreating]   = useState(false)
+
+  const handleCreate = useCallback(async () => {
+    const trimmed = topic.trim()
+    if (!trimmed) { Alert.alert('Name required', 'Give this conversation a name.'); return }
+    setCreating(true)
+    const { data: thread, error } = await supabase
+      .from('message_threads')
+      .insert({ connection_id: connectionId, topic: trimmed, thread_type: threadType })
+      .select('id')
+      .single()
+    setCreating(false)
+    if (error || !thread) { Alert.alert('Error', error?.message ?? 'Could not create conversation'); return }
+    onCreated(thread.id, trimmed, connectionId)
+  }, [topic, threadType, connectionId, onCreated])
+
+  return (
+    <Modal animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={nm.container}>
+        {/* Header */}
+        <View style={nm.header}>
+          <TouchableOpacity onPress={onClose} disabled={creating} style={nm.headerBtn}>
+            <Text style={[nm.cancel, creating && { opacity: 0.4 }]}>Cancel</Text>
+          </TouchableOpacity>
+          <Text style={nm.title}>New Conversation</Text>
+          <TouchableOpacity
+            onPress={handleCreate}
+            disabled={creating || !topic.trim()}
+            style={nm.headerBtn}
+          >
+            {creating
+              ? <ActivityIndicator size="small" color={colors.accent} />
+              : <Text style={[nm.create, !topic.trim() && { opacity: 0.4 }]}>Create</Text>}
+          </TouchableOpacity>
+        </View>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
+        >
+          <ScrollView
+            contentContainerStyle={nm.form}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Topic */}
+            <Text style={nm.label}>CONVERSATION NAME</Text>
+            <TextInput
+              style={nm.input}
+              value={topic}
+              onChangeText={setTopic}
+              placeholder="e.g. Summer schedule, Medical info…"
+              placeholderTextColor={colors.textSubtle as string}
+              maxLength={80}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleCreate}
+            />
+
+            {/* Type */}
+            <Text style={[nm.label, { marginTop: 24 }]}>TYPE</Text>
+            {THREAD_TYPES.map(t => (
+              <TouchableOpacity
+                key={t.key}
+                style={[nm.typeRow, threadType === t.key && nm.typeRowActive]}
+                onPress={() => setThreadType(t.key)}
+                activeOpacity={0.7}
+              >
+                <View style={[nm.typeRadio, threadType === t.key && nm.typeRadioActive]}>
+                  {threadType === t.key && <View style={nm.typeRadioDot} />}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[nm.typeLabel, threadType === t.key && nm.typeLabelActive]}>
+                    {t.label}
+                  </Text>
+                  <Text style={nm.typeDesc}>{t.description}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Modal>
+  )
+}
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -84,7 +196,14 @@ function ThreadRow({ item, onPress }: ThreadRowProps) {
 export default function MessagesScreen() {
   const router = useRouter()
   const { data, loading, error, refresh } = useThreads()
-  const [activeTab, setActiveTab] = useState<TabKey>('co_parent')
+  const [activeTab,  setActiveTab]  = useState<TabKey>('co_parent')
+  const [showNew,    setShowNew]    = useState(false)
+
+  const handleCreated = useCallback((threadId: string, topic: string, connectionId: string) => {
+    setShowNew(false)
+    refresh()
+    router.push(`/messages/${threadId}?connectionId=${connectionId}&topic=${encodeURIComponent(topic)}` as never)
+  }, [refresh, router])
 
   if (loading) {
     return (
@@ -110,7 +229,24 @@ export default function MessagesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.heading}>Messages</Text>
+        {data && (
+          <TouchableOpacity
+            style={styles.newBtn}
+            onPress={() => setShowNew(true)}
+          >
+            <Text style={styles.newBtnText}>+ New</Text>
+          </TouchableOpacity>
+        )}
       </View>
+
+      {/* New thread modal */}
+      {showNew && data?.connectionId && (
+        <NewThreadModal
+          connectionId={data.connectionId}
+          onClose={() => setShowNew(false)}
+          onCreated={handleCreated}
+        />
+      )}
 
       {/* Filter tabs */}
       <View style={styles.tabBar}>
@@ -162,8 +298,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   centered:  { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, paddingHorizontal: 24 },
 
-  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
   heading: { fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
+  newBtn: { backgroundColor: colors.accent, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 7 },
+  newBtnText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
 
   // Tab bar
   tabBar: {
@@ -229,4 +367,49 @@ const styles = StyleSheet.create({
   emptyBox: { paddingVertical: 60, alignItems: 'center', paddingHorizontal: 32 },
   emptyTitle: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 8, textAlign: 'center' },
   emptySubtitle: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, textAlign: 'center' },
+})
+
+// ─── new thread modal styles ──────────────────────────────────────────────────
+
+const nm = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.surface },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: colors.borderHair,
+  },
+  headerBtn: { width: 72 },
+  cancel:  { fontSize: 16, fontFamily: font.regular, color: colors.textMuted },
+  title:   { fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary },
+  create:  { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, textAlign: 'right' },
+
+  form:  { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 60 },
+  label: { fontSize: 11, fontWeight: '700', fontFamily: font.bold, color: colors.textSubtle, letterSpacing: 0.8, marginBottom: 8 },
+
+  input: {
+    backgroundColor: colors.surface2, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 15, fontFamily: font.regular, color: colors.textPrimary,
+  },
+
+  typeRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    padding: 14, borderRadius: radius.md, borderWidth: 1,
+    borderColor: colors.border, backgroundColor: colors.surface2,
+    marginBottom: 10,
+  },
+  typeRowActive: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
+
+  typeRadio: {
+    width: 20, height: 20, borderRadius: 10,
+    borderWidth: 2, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  typeRadioActive: { borderColor: colors.accent },
+  typeRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
+
+  typeLabel: { fontSize: 14, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 2 },
+  typeLabelActive: { color: colors.accent },
+  typeDesc:  { fontSize: 12, fontFamily: font.regular, color: colors.textMuted },
 })
