@@ -325,6 +325,18 @@ function AddEventModal({ visible, onClose, defaultDate, connectionId, userId, on
 
 // ─── sub-components ──────────────────────────────────────────────────────────
 
+interface OverrideRow {
+  id: string
+  date: string
+  switch_time: string
+  set_by_id: string
+  note: string | null
+  status: 'pending' | 'approved' | 'declined'
+  responded_by_id: string | null
+  responded_at: string | null
+  decline_reason: string | null
+}
+
 interface DayDetailProps {
   dateStr: string
   events: CalendarEvent[]
@@ -337,34 +349,117 @@ function DayDetail({ dateStr, events, isSwitch, connectionId, userId }: DayDetai
   const date = new Date(dateStr + 'T12:00:00')
   const label = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
-  // Switch time override state
-  const [showOverride, setShowOverride] = useState(false)
-  const [overrideTime, setOverrideTime] = useState<Date>(() => { const d = new Date(); d.setHours(15, 0, 0, 0); return d })
-  const [showTimePick, setShowTimePick] = useState(false)
-  const [overrideNote, setOverrideNote] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+  // Override state
+  const [overrideLoading, setOverrideLoading]             = useState(false)
+  const [myPendingOverride, setMyPendingOverride]         = useState<OverrideRow | null>(null)
+  const [coParentPendingOverride, setCoParentPendingOverride] = useState<OverrideRow | null>(null)
+  const [showPropose, setShowPropose]                     = useState(false)
+  const [overrideTime, setOverrideTime]                   = useState<Date>(() => { const d = new Date(); d.setHours(15, 0, 0, 0); return d })
+  const [showTimePick, setShowTimePick]                   = useState(false)
+  const [overrideNote, setOverrideNote]                   = useState('')
+  const [submitting, setSubmitting]                       = useState(false)
+  // Responding to incoming override
+  const [respondBusy, setRespondBusy]                     = useState(false)
+  const [decliningOverride, setDecliningOverride]         = useState(false)
+  const [declineReason, setDeclineReason]                 = useState('')
 
   function fmtHHMM(d: Date) { return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` }
   function fmtTimeDisplay(d: Date) { return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) }
+  function fmtTimeStr(hhmm: string): string {
+    const [h, m] = hhmm.split(':').map(Number)
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    const hour = h % 12 || 12
+    return `${hour}:${String(m).padStart(2, '0')} ${ampm}`
+  }
+
+  const loadOverrides = useCallback(async () => {
+    if (!isSwitch || !connectionId) return
+    setOverrideLoading(true)
+    const { data: rows } = await supabase
+      .from('switch_time_overrides')
+      .select('id, date, switch_time, set_by_id, note, status, responded_by_id, responded_at, decline_reason')
+      .eq('connection_id', connectionId)
+      .eq('date', dateStr)
+      .eq('status', 'pending')
+    setOverrideLoading(false)
+    if (!rows) return
+    setMyPendingOverride(rows.find((r: OverrideRow) => r.set_by_id === userId) ?? null)
+    setCoParentPendingOverride(rows.find((r: OverrideRow) => r.set_by_id !== userId) ?? null)
+  }, [connectionId, dateStr, isSwitch, userId])
+
+  useEffect(() => { loadOverrides() }, [loadOverrides])
 
   async function submitOverride() {
     setSubmitting(true)
     try {
-      const { error } = await supabase.from('switch_time_overrides').insert({
-        connection_id: connectionId,
-        date: dateStr,
-        switch_time: fmtHHMM(overrideTime),
-        set_by_id: userId,
-        note: overrideNote.trim() || null,
-        status: 'pending',
-      })
-      if (error) { Alert.alert('Error', error.message); return }
-      setShowOverride(false)
+      const timeStr = fmtHHMM(overrideTime)
+      const { data: inserted, error } = await supabase
+        .from('switch_time_overrides')
+        .insert({
+          connection_id: connectionId,
+          date: dateStr,
+          switch_time: timeStr,
+          set_by_id: userId,
+          note: overrideNote.trim() || null,
+          status: 'pending',
+        })
+        .select('id')
+        .single()
+      if (error || !inserted) { Alert.alert('Error', error?.message ?? 'Could not send.'); return }
+
+      // Audit log — fire and forget
+      const metadata = { date: dateStr, switch_time: timeStr, note: overrideNote.trim() || null, connection_id: connectionId }
+      const payload  = { actor_id: userId, action: 'switch_override.proposed', resource_id: inserted.id, metadata }
+      const sha256_hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, JSON.stringify(payload))
+      supabase.from('audit_log').insert({
+        actor_id: userId, action: 'switch_override.proposed',
+        resource_type: 'switch_time_overrides', resource_id: inserted.id,
+        metadata, sha256_hash,
+      }).then(() => {})
+
+      setShowPropose(false)
       setOverrideNote('')
+      await loadOverrides()
       Alert.alert('Proposal sent', 'Your co-parent will see the request and can approve or decline it.')
     } finally {
       setSubmitting(false)
     }
+  }
+
+  async function respondOverride(action: 'approved' | 'declined') {
+    if (!coParentPendingOverride) return
+    setRespondBusy(true)
+    const now = new Date().toISOString()
+    const { error } = await supabase
+      .from('switch_time_overrides')
+      .update({
+        status: action,
+        responded_by_id: userId,
+        responded_at: now,
+        ...(action === 'declined' && declineReason.trim() ? { decline_reason: declineReason.trim() } : {}),
+      })
+      .eq('id', coParentPendingOverride.id)
+    if (error) { Alert.alert('Error', error.message); setRespondBusy(false); return }
+
+    // Audit log — fire and forget
+    const auditAction = action === 'approved' ? 'switch_override.approved' : 'switch_override.declined'
+    const metadata = { date: dateStr, switch_time: coParentPendingOverride.switch_time, status: action, decline_reason: declineReason.trim() || null }
+    const payload  = { actor_id: userId, action: auditAction, resource_id: coParentPendingOverride.id, metadata }
+    const sha256_hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, JSON.stringify(payload))
+    supabase.from('audit_log').insert({
+      actor_id: userId, action: auditAction,
+      resource_type: 'switch_time_overrides', resource_id: coParentPendingOverride.id,
+      metadata, sha256_hash,
+    }).then(() => {})
+
+    setDecliningOverride(false)
+    setDeclineReason('')
+    setRespondBusy(false)
+    await loadOverrides()
+    Alert.alert(
+      action === 'approved' ? 'Time change approved' : 'Request declined',
+      action === 'approved' ? 'The switch time has been updated.' : 'Your co-parent will be notified.',
+    )
   }
 
   return (
@@ -388,66 +483,147 @@ function DayDetail({ dateStr, events, isSwitch, connectionId, userId }: DayDetai
         ))
       )}
 
-      {/* Switch time override CTA */}
-      {isSwitch && !showOverride && (
-        <TouchableOpacity
-          style={detailStyles.overrideBtn}
-          onPress={() => setShowOverride(true)}
-          activeOpacity={0.75}
-        >
-          <Text style={detailStyles.overrideBtnText}>⏰  Propose a different switch time</Text>
-        </TouchableOpacity>
-      )}
-
-      {isSwitch && showOverride && (
-        <View style={detailStyles.overrideForm}>
-          <Text style={detailStyles.overrideLabel}>PROPOSED TIME</Text>
-          <TouchableOpacity
-            style={detailStyles.overrideTimeBtn}
-            onPress={() => setShowTimePick(p => !p)}
-          >
-            <Text style={detailStyles.overrideTimeText}>{fmtTimeDisplay(overrideTime)}</Text>
-          </TouchableOpacity>
-          {showTimePick && (
-            <>
-              <DateTimePicker
-                value={overrideTime}
-                mode="time"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(_e, d) => { if (d) setOverrideTime(d); if (Platform.OS !== 'ios') setShowTimePick(false) }}
-              />
-              {Platform.OS === 'ios' && (
-                <TouchableOpacity onPress={() => setShowTimePick(false)} style={{ alignItems: 'center', paddingVertical: 4 }}>
-                  <Text style={{ color: colors.accent, fontFamily: font.medium, fontSize: 14 }}>Done</Text>
-                </TouchableOpacity>
-              )}
-            </>
+      {/* ── Switch time override section ────────────────────────────────── */}
+      {isSwitch && (
+        <>
+          {overrideLoading && (
+            <View style={{ paddingTop: 12, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={colors.accent} />
+            </View>
           )}
-          <Text style={[detailStyles.overrideLabel, { marginTop: 10 }]}>NOTE (OPTIONAL)</Text>
-          <TextInput
-            style={detailStyles.overrideInput}
-            value={overrideNote}
-            onChangeText={setOverrideNote}
-            placeholder="e.g. Traffic — can we do 4pm instead?"
-            placeholderTextColor={colors.textSubtle}
-            maxLength={200}
-          />
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+
+          {/* Incoming override from co-parent — needs response */}
+          {!overrideLoading && coParentPendingOverride && !decliningOverride && (
+            <View style={detailStyles.incomingCard}>
+              <Text style={detailStyles.incomingTitle}>⏰  Co-parent proposed a time change</Text>
+              <Text style={detailStyles.incomingTime}>{fmtTimeStr(coParentPendingOverride.switch_time)}</Text>
+              {coParentPendingOverride.note ? (
+                <Text style={detailStyles.incomingNote}>"{coParentPendingOverride.note}"</Text>
+              ) : null}
+              {respondBusy ? (
+                <ActivityIndicator size="small" color={colors.accent} style={{ marginTop: 10 }} />
+              ) : (
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                  <TouchableOpacity
+                    style={[detailStyles.overrideSubmit, { flex: 1, backgroundColor: colors.success }]}
+                    onPress={() => respondOverride('approved')}
+                  >
+                    <Text style={detailStyles.overrideSubmitText}>Approve</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[detailStyles.overrideSubmit, { flex: 1, backgroundColor: colors.danger }]}
+                    onPress={() => setDecliningOverride(true)}
+                  >
+                    <Text style={detailStyles.overrideSubmitText}>Decline</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Decline reason form */}
+          {!overrideLoading && coParentPendingOverride && decliningOverride && (
+            <View style={detailStyles.overrideForm}>
+              <Text style={detailStyles.overrideLabel}>DECLINE REASON (OPTIONAL)</Text>
+              <TextInput
+                style={detailStyles.overrideInput}
+                value={declineReason}
+                onChangeText={setDeclineReason}
+                placeholder="Let your co-parent know why…"
+                placeholderTextColor={colors.textSubtle}
+                maxLength={200}
+                autoFocus
+              />
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                <TouchableOpacity
+                  style={[detailStyles.overrideSubmit, { flex: 1, backgroundColor: colors.danger }]}
+                  onPress={() => respondOverride('declined')}
+                  disabled={respondBusy}
+                >
+                  <Text style={detailStyles.overrideSubmitText}>{respondBusy ? 'Declining…' : 'Confirm Decline'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={detailStyles.overrideCancel}
+                  onPress={() => { setDecliningOverride(false); setDeclineReason('') }}
+                >
+                  <Text style={detailStyles.overrideCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* My pending override — waiting for co-parent */}
+          {!overrideLoading && !coParentPendingOverride && myPendingOverride && (
+            <View style={detailStyles.waitingCard}>
+              <Text style={detailStyles.waitingCardText}>
+                ⏰  You proposed {fmtTimeStr(myPendingOverride.switch_time)} — waiting for co-parent response.
+              </Text>
+            </View>
+          )}
+
+          {/* No pending overrides — show propose CTA */}
+          {!overrideLoading && !coParentPendingOverride && !myPendingOverride && !showPropose && (
             <TouchableOpacity
-              style={[detailStyles.overrideSubmit, { flex: 1 }]}
-              onPress={submitOverride}
-              disabled={submitting}
+              style={detailStyles.overrideBtn}
+              onPress={() => setShowPropose(true)}
+              activeOpacity={0.75}
             >
-              <Text style={detailStyles.overrideSubmitText}>{submitting ? 'Sending…' : 'Send proposal'}</Text>
+              <Text style={detailStyles.overrideBtnText}>⏰  Propose a different switch time</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[detailStyles.overrideCancel]}
-              onPress={() => { setShowOverride(false); setOverrideNote('') }}
-            >
-              <Text style={detailStyles.overrideCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+          )}
+
+          {/* Proposal form */}
+          {!overrideLoading && !coParentPendingOverride && !myPendingOverride && showPropose && (
+            <View style={detailStyles.overrideForm}>
+              <Text style={detailStyles.overrideLabel}>PROPOSED TIME</Text>
+              <TouchableOpacity
+                style={detailStyles.overrideTimeBtn}
+                onPress={() => setShowTimePick(p => !p)}
+              >
+                <Text style={detailStyles.overrideTimeText}>{fmtTimeDisplay(overrideTime)}</Text>
+              </TouchableOpacity>
+              {showTimePick && (
+                <>
+                  <DateTimePicker
+                    value={overrideTime}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(_e, d) => { if (d) setOverrideTime(d); if (Platform.OS !== 'ios') setShowTimePick(false) }}
+                  />
+                  {Platform.OS === 'ios' && (
+                    <TouchableOpacity onPress={() => setShowTimePick(false)} style={{ alignItems: 'center', paddingVertical: 4 }}>
+                      <Text style={{ color: colors.accent, fontFamily: font.medium, fontSize: 14 }}>Done</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+              <Text style={[detailStyles.overrideLabel, { marginTop: 10 }]}>NOTE (OPTIONAL)</Text>
+              <TextInput
+                style={detailStyles.overrideInput}
+                value={overrideNote}
+                onChangeText={setOverrideNote}
+                placeholder="e.g. Traffic — can we do 4pm instead?"
+                placeholderTextColor={colors.textSubtle}
+                maxLength={200}
+              />
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                <TouchableOpacity
+                  style={[detailStyles.overrideSubmit, { flex: 1 }]}
+                  onPress={submitOverride}
+                  disabled={submitting}
+                >
+                  <Text style={detailStyles.overrideSubmitText}>{submitting ? 'Sending…' : 'Send proposal'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={detailStyles.overrideCancel}
+                  onPress={() => { setShowPropose(false); setOverrideNote('') }}
+                >
+                  <Text style={detailStyles.overrideCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </>
       )}
     </View>
   )
@@ -649,9 +825,10 @@ export default function CalendarScreen() {
           </View>
         )}
 
-        {/* Day detail panel */}
+        {/* Day detail panel — keyed by date so state resets on date change */}
         {selected && (
           <DayDetail
+            key={selected}
             dateStr={selected}
             events={selectedEvents}
             isSwitch={selectedDayData?.isSwitch ?? false}
@@ -903,4 +1080,21 @@ const detailStyles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, alignItems: 'center',
   },
   overrideCancelText: { color: colors.textMuted, fontFamily: font.medium, fontSize: 14 },
+
+  // Incoming override card (from co-parent)
+  incomingCard: {
+    marginTop: 12, padding: 12, borderRadius: radius.md,
+    backgroundColor: colors.info + '14',
+    borderWidth: 1, borderColor: colors.info + '40',
+  },
+  incomingTitle: { fontSize: 13, fontFamily: font.semibold, color: colors.info, marginBottom: 6 },
+  incomingTime: { fontSize: 22, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, marginBottom: 2 },
+  incomingNote: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, fontStyle: 'italic', marginTop: 2 },
+
+  // Waiting card (my proposal pending response)
+  waitingCard: {
+    marginTop: 12, padding: 12, borderRadius: radius.md,
+    backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border,
+  },
+  waitingCardText: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, fontStyle: 'italic' },
 })

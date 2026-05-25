@@ -13,13 +13,26 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import * as Crypto from 'expo-crypto'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useSchedules } from '@/lib/hooks/useSchedules'
 import { scheduleAction, deleteSchedule, Schedule, ScheduleStatus } from '@/lib/api/schedules'
 import { supabase } from '@/lib/supabase'
 import { colors, radius, shadow, font } from '@/lib/theme'
+
+// ─── types ───────────────────────────────────────────────────────────────────
+
+interface CustodySwitchRequest {
+  id: string
+  switch_date: string
+  current_owner_id: string
+  proposed_owner_id: string
+  requested_by_id: string
+  reason: string | null
+  status: 'pending' | 'counter_proposed' | 'approved' | 'declined' | 'cancelled'
+  created_at: string
+}
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -239,13 +252,19 @@ export default function ScheduleScreen() {
   const { data, loading, error, refresh } = useSchedules()
   const [showHistory, setShowHistory] = useState(false)
 
-  // ── Custody switch request ──────────────────────────────────────────────
+  // ── Custody switch request — proposal ──────────────────────────────────
   const [showSwitchReq, setShowSwitchReq] = useState(false)
   const [switchReqDate, setSwitchReqDate] = useState<Date>(new Date())
   const [showDatePick, setShowDatePick] = useState(false)
   const [switchReqReason, setSwitchReqReason] = useState('')
   const [switchReqBusy, setSwitchReqBusy] = useState(false)
   const [switchReqInfo, setSwitchReqInfo] = useState<{ownerId: string; ownerName: string} | null>(null)
+
+  // ── Custody switch request — incoming (approval) ────────────────────────
+  const [incomingSwapReqs, setIncomingSwapReqs] = useState<CustodySwitchRequest[]>([])
+  const [swapReqsBusy, setSwapReqsBusy] = useState<Record<string, boolean>>({})
+  const [decliningSwapId, setDecliningSwapId] = useState<string | null>(null)
+  const [swapDeclineReason, setSwapDeclineReason] = useState('')
 
   function fmtDateStr(d: Date) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
@@ -276,9 +295,10 @@ export default function ScheduleScreen() {
     const currentOwnerId  = switchReqInfo.ownerId
     const proposedOwnerId = isMyDay ? coParentId : data.userId
     try {
-      const hashInput = `${data.connectionId}|${data.userId}|${dateStr}|${proposedOwnerId}`
-      const sha256_hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, hashInput)
-      const { error: err } = await supabase.from('custody_switch_requests').insert({
+      // Row-level integrity hash on the custody_switch_requests record
+      const rowPayload = { connection_id: data.connectionId, requested_by_id: data.userId, switch_date: dateStr, proposed_owner_id: proposedOwnerId }
+      const sha256_hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, JSON.stringify(rowPayload))
+      const { data: inserted, error: err } = await supabase.from('custody_switch_requests').insert({
         connection_id: data.connectionId,
         requested_by_id: data.userId,
         switch_date: dateStr,
@@ -287,16 +307,85 @@ export default function ScheduleScreen() {
         reason: switchReqReason.trim() || null,
         switch_type: 'one_way',
         sha256_hash,
-      })
-      if (err) { Alert.alert('Error', err.message); return }
+      }).select('id').single()
+      if (err || !inserted) { Alert.alert('Error', err?.message ?? 'Could not send.'); return }
+
+      // Audit log — fire and forget
+      const metadata = { switch_date: dateStr, current_owner_id: currentOwnerId, proposed_owner_id: proposedOwnerId, reason: switchReqReason.trim() || null, connection_id: data.connectionId }
+      const auditPayload = { actor_id: data.userId, action: 'switch_request.proposed', resource_id: inserted.id, metadata }
+      const auditHash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, JSON.stringify(auditPayload))
+      supabase.from('audit_log').insert({
+        actor_id: data.userId, action: 'switch_request.proposed',
+        resource_type: 'custody_switch_requests', resource_id: inserted.id,
+        metadata, sha256_hash: auditHash,
+      }).then(() => {})
+
       setShowSwitchReq(false)
       setSwitchReqReason('')
       setSwitchReqInfo(null)
       Alert.alert('Request sent', 'Your co-parent can approve or decline the swap.')
       refresh()
+      loadSwapRequests()
     } finally {
       setSwitchReqBusy(false)
     }
+  }
+
+  const loadSwapRequests = useCallback(async () => {
+    if (!data) return
+    const { data: rows } = await supabase
+      .from('custody_switch_requests')
+      .select('id, switch_date, current_owner_id, proposed_owner_id, requested_by_id, reason, status, created_at')
+      .eq('connection_id', data.connectionId)
+      .neq('requested_by_id', data.userId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+    setIncomingSwapReqs((rows ?? []) as CustodySwitchRequest[])
+  }, [data])
+
+  useEffect(() => { loadSwapRequests() }, [loadSwapRequests])
+
+  async function respondSwapRequest(req: CustodySwitchRequest, action: 'approved' | 'declined') {
+    if (!data) return
+    setSwapReqsBusy(prev => ({ ...prev, [req.id]: true }))
+    const now = new Date().toISOString()
+    const { error } = await supabase
+      .from('custody_switch_requests')
+      .update({
+        status: action,
+        responded_by_id: data.userId,
+        responded_at: now,
+        ...(action === 'declined' && swapDeclineReason.trim() ? { decline_reason: swapDeclineReason.trim() } : {}),
+      })
+      .eq('id', req.id)
+    if (error) {
+      Alert.alert('Error', error.message)
+      setSwapReqsBusy(prev => ({ ...prev, [req.id]: false }))
+      return
+    }
+
+    // Audit log — fire and forget
+    const auditAction = action === 'approved' ? 'switch_request.approved' : 'switch_request.declined'
+    const metadata = { switch_date: req.switch_date, current_owner_id: req.current_owner_id, proposed_owner_id: req.proposed_owner_id, status: action, decline_reason: swapDeclineReason.trim() || null }
+    const payload  = { actor_id: data.userId, action: auditAction, resource_id: req.id, metadata }
+    const sha256_hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, JSON.stringify(payload))
+    supabase.from('audit_log').insert({
+      actor_id: data.userId, action: auditAction,
+      resource_type: 'custody_switch_requests', resource_id: req.id,
+      metadata, sha256_hash,
+    }).then(() => {})
+
+    setDecliningSwapId(null)
+    setSwapDeclineReason('')
+    setSwapReqsBusy(prev => ({ ...prev, [req.id]: false }))
+    loadSwapRequests()
+    refresh()
+    Alert.alert(
+      action === 'approved' ? 'Day swap approved' : 'Request declined',
+      action === 'approved'
+        ? 'The custody schedule will be updated.'
+        : 'Your co-parent will be notified.',
+    )
   }
 
   const { incoming, active, history } = useMemo(() => {
@@ -452,7 +541,81 @@ export default function ScheduleScreen() {
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Incoming proposals */}
+        {/* Incoming day swap requests */}
+        {incomingSwapReqs.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>NEEDS YOUR RESPONSE — DAY SWAPS</Text>
+            {incomingSwapReqs.map(req => {
+              const isBusy = !!swapReqsBusy[req.id]
+              const isDeclining = decliningSwapId === req.id
+              const swapDate = new Date(req.switch_date + 'T12:00:00').toLocaleDateString('en-US', {
+                weekday: 'short', month: 'long', day: 'numeric', year: 'numeric',
+              })
+              // Determine direction: requested_by_id is co-parent. proposed_owner_id is who would get the day.
+              const theyWantToGive = req.proposed_owner_id === data?.userId
+              const directionText = theyWantToGive
+                ? `${coParentName} wants to give you ${swapDate}.`
+                : `${coParentName} wants to take ${swapDate} from you.`
+
+              return (
+                <View key={req.id} style={swapCard.container}>
+                  <Text style={swapCard.dateText}>{swapDate}</Text>
+                  <Text style={swapCard.directionText}>{directionText}</Text>
+                  {req.reason ? (
+                    <Text style={swapCard.reasonText}>"{req.reason}"</Text>
+                  ) : null}
+
+                  {isBusy ? (
+                    <View style={{ paddingVertical: 8 }}><ActivityIndicator size="small" color={colors.accent} /></View>
+                  ) : isDeclining ? (
+                    <View style={{ marginTop: 10 }}>
+                      <Text style={swapCard.declineLabelText}>REASON (OPTIONAL)</Text>
+                      <TextInput
+                        style={swapCard.declineInput}
+                        value={swapDeclineReason}
+                        onChangeText={setSwapDeclineReason}
+                        placeholder="Let your co-parent know why…"
+                        placeholderTextColor={colors.textSubtle}
+                        maxLength={200}
+                      />
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                        <TouchableOpacity
+                          style={[swapCard.btn, swapCard.btnRed]}
+                          onPress={() => respondSwapRequest(req, 'declined')}
+                        >
+                          <Text style={swapCard.btnText}>Confirm Decline</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[swapCard.btn, swapCard.btnGhost]}
+                          onPress={() => { setDecliningSwapId(null); setSwapDeclineReason('') }}
+                        >
+                          <Text style={swapCard.btnGhostText}>Cancel</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                      <TouchableOpacity
+                        style={[swapCard.btn, swapCard.btnGreen]}
+                        onPress={() => respondSwapRequest(req, 'approved')}
+                      >
+                        <Text style={swapCard.btnText}>Approve</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[swapCard.btn, swapCard.btnRed]}
+                        onPress={() => { setDecliningSwapId(req.id); setSwapDeclineReason('') }}
+                      >
+                        <Text style={swapCard.btnText}>Decline</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              )
+            })}
+          </View>
+        )}
+
+        {/* Incoming parenting schedule proposals */}
         {incoming.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>NEEDS YOUR RESPONSE</Text>
@@ -587,4 +750,27 @@ const card = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: font.regular, color: colors.textPrimary,
     marginBottom: 10, minHeight: 60,
   },
+})
+
+const swapCard = StyleSheet.create({
+  container: {
+    backgroundColor: colors.surface, borderRadius: radius.md, padding: 16, marginBottom: 12,
+    borderLeftWidth: 3, borderLeftColor: colors.info,
+    ...shadow.sm,
+  },
+  dateText: { fontSize: 15, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, marginBottom: 4 },
+  directionText: { fontSize: 13, fontFamily: font.regular, color: colors.textSecondary, lineHeight: 18 },
+  reasonText: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, fontStyle: 'italic', marginTop: 6 },
+  declineLabelText: { fontSize: 11, fontWeight: '700', fontFamily: font.bold, color: colors.textSubtle, letterSpacing: 0.8, marginBottom: 6 },
+  declineInput: {
+    backgroundColor: colors.surface2, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: font.regular, color: colors.textPrimary,
+    minHeight: 60,
+  },
+  btn: { flex: 1, borderRadius: radius.md, paddingVertical: 10, alignItems: 'center' },
+  btnGreen: { backgroundColor: colors.success },
+  btnRed:   { backgroundColor: colors.danger },
+  btnGhost: { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
+  btnText:  { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
+  btnGhostText: { color: colors.textSecondary, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
 })
