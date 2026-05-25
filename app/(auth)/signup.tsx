@@ -15,6 +15,7 @@ import {
 import { Link, useRouter } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { colors, radius, font } from '@/lib/theme'
+import SwitchdayLogo from '@/components/SwitchdayLogo'
 
 export default function SignupScreen() {
   const router = useRouter()
@@ -54,7 +55,8 @@ export default function SignupScreen() {
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Text style={styles.logo}>Create account</Text>
+        <SwitchdayLogo size={44} />
+        <Text style={styles.heading}>Create account</Text>
         <Text style={styles.subtitle}>Get started with Switchday</Text>
 
         <Text style={styles.label}>Your name</Text>
@@ -137,8 +139,8 @@ export default function SignupScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 },
-  logo: { fontSize: 30, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, marginBottom: 8 },
-  subtitle: { fontSize: 16, fontFamily: font.regular, color: colors.textMuted, marginBottom: 40 },
+  heading: { fontSize: 22, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, marginBottom: 6, marginTop: 20 },
+  subtitle: { fontSize: 16, fontFamily: font.regular, color: colors.textMuted, marginBottom: 32 },
   label: { fontSize: 14, fontWeight: '500', fontFamily: font.medium, color: colors.textSecondary, marginBottom: 4 },
   input: {
     backgroundColor: colors.surface2,

@@ -13,6 +13,7 @@ import {
 import { Link, useRouter } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { colors, radius, font } from '@/lib/theme'
+import SwitchdayLogo from '@/components/SwitchdayLogo'
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -51,7 +52,7 @@ export default function LoginScreen() {
       style={styles.container}
     >
       <View style={styles.inner}>
-        <Text style={styles.logo}>Switchday</Text>
+        <SwitchdayLogo size={44} />
         <Text style={styles.subtitle}>Sign in to your account</Text>
 
         <Text style={styles.label}>Email</Text>
@@ -111,8 +112,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
-  logo: { fontSize: 30, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, marginBottom: 8 },
-  subtitle: { fontSize: 16, fontFamily: font.regular, color: colors.textMuted, marginBottom: 40 },
+  subtitle: { fontSize: 16, fontFamily: font.regular, color: colors.textMuted, marginBottom: 40, marginTop: 8 },
   label: { fontSize: 14, fontWeight: '500', fontFamily: font.medium, color: colors.textSecondary, marginBottom: 4 },
   input: {
     backgroundColor: colors.surface2,

@@ -942,6 +942,29 @@ export interface Database {
         }
         Relationships: []
       }
+      custody_day_caregivers: {
+        Row: {
+          id: string
+          connection_id: string
+          observer_id: string
+          date: string
+          created_by_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          connection_id: string
+          observer_id: string
+          date: string
+          created_by_id: string
+          created_at?: string
+        }
+        Update: {
+          observer_id?: string
+          date?: string
+        }
+        Relationships: []
+      }
        professional_access_tokens: {
         Row: {
           id: string

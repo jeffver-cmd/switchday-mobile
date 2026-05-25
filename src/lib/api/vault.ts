@@ -5,10 +5,12 @@
  */
 
 import * as Crypto from 'expo-crypto'
-import * as DocumentPicker from 'expo-document-picker'
-import * as ImagePicker from 'expo-image-picker'
 import { supabase } from '../supabase'
 import type { VaultCategory } from '../types/database'
+
+// expo-document-picker and expo-image-picker are native modules not available
+// in Expo Go — only in dev/production builds. Dynamic imports let us catch
+// the failure gracefully instead of crashing on module load.
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -58,8 +60,14 @@ export type PickedFile = {
   size:     number
 }
 
-/** Open the system document picker. Returns null if user cancelled. */
+/** Open the system document picker. Returns null if user cancelled or module unavailable. */
 export async function pickDocument(): Promise<PickedFile | null> {
+  let DocumentPicker: typeof import('expo-document-picker')
+  try {
+    DocumentPicker = await import('expo-document-picker')
+  } catch {
+    return null
+  }
   const result = await DocumentPicker.getDocumentAsync({
     type: '*/*',
     copyToCacheDirectory: true,
@@ -75,8 +83,14 @@ export async function pickDocument(): Promise<PickedFile | null> {
   }
 }
 
-/** Open the camera to photograph a document. Returns null if user cancelled. */
+/** Open the camera to photograph a document. Returns null if user cancelled or module unavailable. */
 export async function pickFromCamera(): Promise<PickedFile | null> {
+  let ImagePicker: typeof import('expo-image-picker')
+  try {
+    ImagePicker = await import('expo-image-picker')
+  } catch {
+    return null
+  }
   const { status } = await ImagePicker.requestCameraPermissionsAsync()
   if (status !== 'granted') return null
 
@@ -96,8 +110,14 @@ export async function pickFromCamera(): Promise<PickedFile | null> {
   }
 }
 
-/** Open the photo library. Returns null if user cancelled. */
+/** Open the photo library. Returns null if user cancelled or module unavailable. */
 export async function pickFromPhotoLibrary(): Promise<PickedFile | null> {
+  let ImagePicker: typeof import('expo-image-picker')
+  try {
+    ImagePicker = await import('expo-image-picker')
+  } catch {
+    return null
+  }
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
   if (status !== 'granted') return null
 
