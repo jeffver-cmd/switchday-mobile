@@ -20,7 +20,7 @@ import * as Crypto from 'expo-crypto'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useCalendar, CalendarEvent } from '@/lib/hooks/useCalendar'
 import { supabase } from '@/lib/supabase'
-import { colors, radius, shadow, font } from '@/lib/theme'
+import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -981,7 +981,7 @@ const addEvStyles = StyleSheet.create({
   headerBtn:   { width: 72 },
   cancel:      { fontSize: 15, fontFamily: font.regular, color: colors.textMuted as string },
   headerTitle: { fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary },
-  save:        { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, textAlign: 'right' },
+  save:        { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, textAlign: 'right', lineHeight: 15 },
 
   form:   { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 60 },
   label:  { fontSize: 11, fontWeight: '700', fontFamily: font.bold, color: colors.textSubtle as string, letterSpacing: 0.8, marginBottom: 6 },
@@ -1001,7 +1001,7 @@ const addEvStyles = StyleSheet.create({
   },
   dateBtnText: { fontSize: 15, fontFamily: font.regular, color: colors.textPrimary },
   dateDone:     { alignItems: 'flex-end', paddingHorizontal: 4, paddingVertical: 6 },
-  dateDoneText: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.accent },
+  dateDoneText: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, lineHeight: 15 },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
@@ -1074,7 +1074,7 @@ const detailStyles = StyleSheet.create({
     backgroundColor: colors.accent, borderRadius: radius.sm,
     paddingVertical: 10, alignItems: 'center',
   },
-  overrideSubmitText: { color: colors.white, fontFamily: font.semibold, fontSize: 14 },
+  overrideSubmitText: { ...buttonLabel, color: colors.white },
   overrideCancel: {
     borderRadius: radius.sm, paddingVertical: 10, paddingHorizontal: 16,
     borderWidth: 1, borderColor: colors.border, alignItems: 'center',

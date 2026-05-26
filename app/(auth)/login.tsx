@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: colors.white, fontSize: 16, fontWeight: '600', fontFamily: font.semibold },
+  buttonText: { color: colors.white, fontSize: 16, fontWeight: '600', fontFamily: font.semibold, lineHeight: 16 },
   forgotRow: { alignItems: 'center', marginTop: 16 },
   forgotText: { fontSize: 14, fontFamily: font.regular, color: colors.accent },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },

@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: colors.white, fontSize: 16, fontWeight: '600', fontFamily: font.semibold },
+  buttonText: { color: colors.white, fontSize: 16, fontWeight: '600', fontFamily: font.semibold, lineHeight: 16 },
 
   successBox: { alignItems: 'center', paddingTop: 40, paddingHorizontal: 8 },
   successTitle: { fontSize: 20, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, marginBottom: 12 },

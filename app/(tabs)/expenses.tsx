@@ -16,7 +16,7 @@ import {
 } from '@/lib/hooks/useExpenses'
 
 import type { ExpenseStatus, ExpenseCategory } from '@/lib/types/database'
-import { colors, radius, shadow, font } from '@/lib/theme'
+import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
 import { supabase } from '@/lib/supabase'
 
 // ─── constants ───────────────────────────────────────────────────────────────
@@ -562,7 +562,12 @@ export default function ExpensesScreen() {
             style={[styles.tab, activeTab === tab.key && styles.tabActive]}
             onPress={() => setActiveTab(tab.key)}
           >
-            <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
+            <Text
+              style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
               {tab.label}
             </Text>
           </TouchableOpacity>
@@ -661,11 +666,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent, borderRadius: radius.md,
     paddingHorizontal: 14, paddingVertical: 7,
   },
-  logBtnText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
+  logBtnText: { ...buttonLabel, color: colors.white },
 
   // Tabs
   tabs: {
-    flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, gap: 8,
+    flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, gap: 5,
   },
   tab: {
     flex: 1, paddingVertical: 7, borderRadius: radius.sm,
@@ -673,7 +678,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 2, elevation: 1,
   },
   tabActive: { backgroundColor: colors.accent },
-  tabText: { fontSize: 12, fontWeight: '600', fontFamily: font.semibold, color: colors.textMuted },
+  tabText: { fontSize: 11, fontWeight: '600', fontFamily: font.semibold, color: colors.textMuted, lineHeight: 14 },
   tabTextActive: { color: colors.white },
 
   // List
@@ -702,9 +707,9 @@ const styles = StyleSheet.create({
   actionBtns: { flexDirection: 'row', gap: 10 },
   actionBtn: { flex: 1, borderRadius: radius.md, paddingVertical: 10, alignItems: 'center' },
   approveBtn: { backgroundColor: colors.successSoft },
-  approveBtnText: { fontSize: 14, fontWeight: '600', fontFamily: font.semibold, color: colors.success },
+  approveBtnText: { ...buttonLabel, color: colors.success },
   declineBtn: { backgroundColor: colors.dangerSoft },
-  declineBtnText: { fontSize: 14, fontWeight: '600', fontFamily: font.semibold, color: colors.danger },
+  declineBtnText: { ...buttonLabel, color: colors.danger },
 
   // Empty
   emptyBox: { paddingVertical: 60, alignItems: 'center', paddingHorizontal: 32 },
@@ -785,7 +790,7 @@ const modal = StyleSheet.create({
   scanBtnFailed: {
     borderColor: colors.warning, borderStyle: 'solid', backgroundColor: colors.warningSoft,
   },
-  scanBtnText: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.accent },
+  scanBtnText: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, lineHeight: 15 },
   scanBtnTextSuccess: { color: colors.success },
   scanBtnTextFailed: { color: colors.warning },
 })

@@ -251,7 +251,7 @@ export default function SettingsScreen() {
               <TouchableOpacity onPress={handleSaveProfile} disabled={editSaving}>
                 {editSaving
                   ? <ActivityIndicator size="small" color={colors.accent} />
-                  : <Text style={{ color: colors.accent, fontSize: 16, fontWeight: '600', fontFamily: font.semibold }}>Save</Text>}
+                  : <Text style={{ color: colors.accent, fontSize: 16, fontWeight: '600', fontFamily: font.semibold, lineHeight: 16 }}>Save</Text>}
               </TouchableOpacity>
             </View>
 
@@ -333,7 +333,7 @@ export default function SettingsScreen() {
                 style={{ backgroundColor: colors.accent, borderRadius: radius.md, paddingVertical: 12, alignItems: 'center' }}
                 onPress={() => { setShowInvite(true); setInviteSent(false); setInviteEmail('') }}
               >
-                <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15 }}>
+                <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15, lineHeight: 15 }}>
                   Invite co-parent
                 </Text>
               </TouchableOpacity>
@@ -360,7 +360,7 @@ export default function SettingsScreen() {
                   style={{ backgroundColor: colors.accent, borderRadius: radius.md, paddingVertical: 14, paddingHorizontal: 32 }}
                   onPress={() => setShowInvite(false)}
                 >
-                  <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15 }}>Done</Text>
+                  <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15, lineHeight: 15 }}>Done</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -398,7 +398,7 @@ export default function SettingsScreen() {
                 >
                   {inviting
                     ? <ActivityIndicator color={colors.white} />
-                    : <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15 }}>Send invite</Text>
+                    : <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15, lineHeight: 15 }}>Send invite</Text>
                   }
                 </TouchableOpacity>
               </>
@@ -444,7 +444,7 @@ export default function SettingsScreen() {
               <TouchableOpacity onPress={handleProposeSwitchTime} disabled={switchTimeSaving}>
                 {switchTimeSaving
                   ? <ActivityIndicator size="small" color={colors.accent} />
-                  : <Text style={{ color: colors.accent, fontSize: 16, fontWeight: '600', fontFamily: font.semibold }}>Propose</Text>}
+                  : <Text style={{ color: colors.accent, fontSize: 16, fontWeight: '600', fontFamily: font.semibold, lineHeight: 16 }}>Propose</Text>}
               </TouchableOpacity>
             </View>
             <Text style={{ fontSize: 13, color: colors.textMuted, marginBottom: 24, lineHeight: 18 }}>

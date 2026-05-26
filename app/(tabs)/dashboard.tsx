@@ -17,7 +17,7 @@ import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useState, useEffect } from 'react'
 import { useDashboard } from '@/lib/hooks/useDashboard'
-import { colors, radius, shadow, font } from '@/lib/theme'
+import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
 import SwitchDayCelebration from '@/components/SwitchDayCelebration'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -230,7 +230,7 @@ export default function DashboardScreen() {
           onPress={() => router.push('/settings')}
           style={{ marginTop: 20, backgroundColor: colors.accent, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 13 }}
         >
-          <Text style={{ color: '#fff', fontWeight: '600', fontFamily: font.semibold, fontSize: 15 }}>
+          <Text style={{ color: '#fff', fontWeight: '600', fontFamily: font.semibold, fontSize: 15, lineHeight: 15 }}>
             Invite co-parent
           </Text>
         </TouchableOpacity>
@@ -383,7 +383,7 @@ export default function DashboardScreen() {
               >
                 {handoffSending
                   ? <ActivityIndicator color={colors.white} />
-                  : <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15 }}>Send note</Text>
+                  : <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15, lineHeight: 15 }}>Send note</Text>
                 }
               </TouchableOpacity>
             </View>
@@ -629,5 +629,5 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 18, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 8, textAlign: 'center' },
   emptySubtitle: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted, textAlign: 'center' },
   retryBtn: { marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.accent, borderRadius: radius.md },
-  retryText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
+  retryText: { ...buttonLabel, color: colors.white },
 })

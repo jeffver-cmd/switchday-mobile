@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: colors.white, fontSize: 16, fontWeight: '600', fontFamily: font.semibold },
+  buttonText: { color: colors.white, fontSize: 16, fontWeight: '600', fontFamily: font.semibold, lineHeight: 16 },
   legalNote: { fontSize: 12, fontFamily: font.regular, color: colors.textSubtle, textAlign: 'center', marginBottom: 16, lineHeight: 18 },
   legalLink: { color: colors.accent, fontFamily: font.medium, fontWeight: '500' },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },

@@ -31,7 +31,7 @@ import {
   PickedFile,
 } from '@/lib/api/vault'
 import type { VaultCategory } from '@/lib/types/database'
-import { colors, radius, shadow, font } from '@/lib/theme'
+import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent, borderRadius: radius.md,
     paddingHorizontal: 14, paddingVertical: 8,
   },
-  uploadBtnText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
+  uploadBtnText: { ...buttonLabel, color: colors.white },
 
   list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 32, flexGrow: 1 },
 
@@ -631,7 +631,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent, borderRadius: radius.md,
     paddingHorizontal: 20, paddingVertical: 10,
   },
-  proGateBtnText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
+  proGateBtnText: { ...buttonLabel, color: colors.white },
 
   // Empty
   emptyBox: { paddingTop: 60, paddingBottom: 40, alignItems: 'center', paddingHorizontal: 32 },
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent, borderRadius: radius.md,
     paddingHorizontal: 18, paddingVertical: 10,
   },
-  emptyUploadBtnText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
+  emptyUploadBtnText: { ...buttonLabel, color: colors.white },
 })
 
 const uploadStyles = StyleSheet.create({
@@ -656,7 +656,7 @@ const uploadStyles = StyleSheet.create({
   cancelText: { fontSize: 16, fontFamily: font.regular, color: colors.textMuted as string },
   title: { fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary },
   saveBtn: { width: 72, alignItems: 'flex-end' },
-  saveText: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.accent },
+  saveText: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, lineHeight: 16 },
 
   form: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 60 },
 
@@ -698,7 +698,7 @@ const uploadStyles = StyleSheet.create({
   dateDoneBtn: {
     alignItems: 'flex-end', paddingHorizontal: 4, paddingVertical: 6,
   },
-  dateDoneText: { fontSize: 15, fontFamily: font.semibold, fontWeight: '600', color: colors.accent },
+  dateDoneText: { fontSize: 15, fontFamily: font.semibold, fontWeight: '600', color: colors.accent, lineHeight: 15 },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {

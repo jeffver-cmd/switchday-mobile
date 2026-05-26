@@ -857,7 +857,7 @@ const s = StyleSheet.create({
   footer: { marginTop: 28, gap: 10 },
   btn: { borderRadius: radius.md, paddingVertical: 15, alignItems: 'center' },
   btnPrimary: { backgroundColor: colors.accent },
-  btnPrimaryText: { color: colors.white, fontWeight: '700', fontFamily: font.bold, fontSize: 15 },
+  btnPrimaryText: { color: colors.white, fontWeight: '700', fontFamily: font.bold, fontSize: 15, lineHeight: 15 },
   btnGhost: { backgroundColor: colors.surface2 },
-  btnGhostText: { color: colors.textSecondary, fontWeight: '600', fontFamily: font.semibold, fontSize: 15 },
+  btnGhostText: { color: colors.textSecondary, fontWeight: '600', fontFamily: font.semibold, fontSize: 15, lineHeight: 15 },
 })

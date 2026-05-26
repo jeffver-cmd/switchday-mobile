@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { AppState, type AppStateStatus } from 'react-native'
 import { Tabs } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import * as Notifications from 'expo-notifications'
@@ -27,6 +28,18 @@ export default function TabsLayout() {
         void registerForPushNotificationsAsync(session.user.id)
       }
     })
+
+    // Pause Supabase token auto-refresh when app is backgrounded to prevent
+    // "Auto refresh tick failed" errors on weak signal / background fetch failures.
+    // Resume when app comes back to foreground.
+    const handleAppStateChange = (state: AppStateStatus) => {
+      if (state === 'active') {
+        supabase.auth.startAutoRefresh()
+      } else {
+        supabase.auth.stopAutoRefresh()
+      }
+    }
+    const appStateSub = AppState.addEventListener('change', handleAppStateChange)
 
     // Handle session expiry — redirect to login when signed out
     const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event) => {
@@ -58,6 +71,7 @@ export default function TabsLayout() {
     })
 
     return () => {
+      appStateSub.remove()
       notifListenerRef.current?.remove()
       authSub.unsubscribe()
     }

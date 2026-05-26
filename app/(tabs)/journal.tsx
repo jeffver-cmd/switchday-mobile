@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useCallback, useEffect } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '@/lib/supabase'
-import { colors, radius, shadow, font } from '@/lib/theme'
+import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
 import type { JournalMood } from '@/lib/types/database'
 
 // ─── constants ───────────────────────────────────────────────────────────────
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
   privatePill: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   privateText: { fontSize: 11, fontFamily: font.regular, color: colors.textSubtle },
   newBtn: { backgroundColor: colors.accent, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 7, marginTop: 4 },
-  newBtnText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
+  newBtnText: { ...buttonLabel, color: colors.white },
 
   list: { paddingHorizontal: 16, paddingTop: 4, flexGrow: 1 },
   separator: { height: 1, backgroundColor: colors.borderHair, marginLeft: 60 },
@@ -414,11 +414,11 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 8, textAlign: 'center' },
   emptySubtitle: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
   emptyBtn: { backgroundColor: colors.accent, borderRadius: radius.md, paddingHorizontal: 24, paddingVertical: 12 },
-  emptyBtnText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15 },
+  emptyBtnText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15, lineHeight: 15 },
 
   // Error / retry
   retryBtn: { marginTop: 12, backgroundColor: colors.accent, borderRadius: radius.md, paddingHorizontal: 20, paddingVertical: 10 },
-  retryText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
+  retryText: { ...buttonLabel, color: colors.white },
 })
 
 const editor = StyleSheet.create({
@@ -430,7 +430,7 @@ const editor = StyleSheet.create({
   headerBtn: { width: 72 },
   cancel: { fontSize: 16, fontFamily: font.regular, color: colors.textMuted },
   title:  { fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary },
-  save:   { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, textAlign: 'right' },
+  save:   { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, textAlign: 'right', lineHeight: 16 },
 
   form: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 60 },
   label: {

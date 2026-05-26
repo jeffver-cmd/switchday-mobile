@@ -19,7 +19,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import { useSchedules } from '@/lib/hooks/useSchedules'
 import { scheduleAction, deleteSchedule, Schedule, ScheduleStatus } from '@/lib/api/schedules'
 import { supabase } from '@/lib/supabase'
-import { colors, radius, shadow, font } from '@/lib/theme'
+import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -701,8 +701,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12,
   },
   heading: { fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
-  addBtn: { backgroundColor: colors.accent, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 7 },
-  addBtnText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
+  addBtn: { backgroundColor: colors.accent, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 7 },
+  addBtnText: { ...buttonLabel, color: colors.white },
 
   section: { marginBottom: 8 },
   sectionLabel: { fontSize: 11, fontWeight: '700', fontFamily: font.bold, color: colors.textSubtle, letterSpacing: 0.8, marginBottom: 8, marginTop: 4 },
@@ -735,11 +735,11 @@ const card = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   btn: { flex: 1, minWidth: 100, borderRadius: radius.md, paddingVertical: 10, alignItems: 'center' },
   btnPrimary: { backgroundColor: colors.accent },
-  btnPrimaryText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
+  btnPrimaryText: { ...buttonLabel, color: colors.white },
   btnGreen: { backgroundColor: colors.success },
   btnRed: { backgroundColor: colors.danger },
   btnGhost: { backgroundColor: colors.surface2 },
-  btnGhostText: { color: colors.textSecondary, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
+  btnGhostText: { ...buttonLabel, color: colors.textSecondary },
 
   waitingRow: { flex: 1, justifyContent: 'center' },
   waitingText: { fontSize: 13, fontFamily: font.regular, color: colors.textSubtle, fontStyle: 'italic' },
@@ -771,6 +771,6 @@ const swapCard = StyleSheet.create({
   btnGreen: { backgroundColor: colors.success },
   btnRed:   { backgroundColor: colors.danger },
   btnGhost: { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  btnText:  { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
-  btnGhostText: { color: colors.textSecondary, fontWeight: '600', fontFamily: font.semibold, fontSize: 14 },
+  btnText:  { ...buttonLabel, color: colors.white },
+  btnGhostText: { ...buttonLabel, color: colors.textSecondary },
 })

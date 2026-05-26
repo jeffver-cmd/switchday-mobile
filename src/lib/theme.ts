@@ -75,3 +75,21 @@ export const font = {
   bold:      'PlusJakartaSans_700Bold',
   extrabold: 'PlusJakartaSans_800ExtraBold',
 }
+
+/**
+ * Shared base for button label Text styles.
+ *
+ * Plus Jakarta Sans has tall ascenders that create excess space at the top of
+ * a Text component on iOS, making button labels appear slightly below center.
+ * Setting lineHeight = fontSize removes that excess and visually re-centers
+ * the glyphs within any button that uses alignItems/justifyContent: 'center'.
+ *
+ * Usage in StyleSheet.create:
+ *   myBtnText: { ...buttonLabel, color: colors.white }
+ */
+export const buttonLabel = {
+  fontFamily: font.semibold,
+  fontWeight: '600' as const,
+  fontSize:   14,
+  lineHeight: 14,
+}
