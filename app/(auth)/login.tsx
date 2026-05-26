@@ -12,6 +12,7 @@ import {
 } from 'react-native'
 import { Link, useRouter } from 'expo-router'
 import { supabase } from '@/lib/supabase'
+import { loadMedicalKey } from '@/lib/utils/medicalCrypto'
 import { colors, radius, font } from '@/lib/theme'
 import SwitchdayLogo from '@/components/SwitchdayLogo'
 
@@ -37,6 +38,9 @@ export default function LoginScreen() {
       .select('id')
       .eq('auth_user_id', session!.user.id)
       .maybeSingle()
+
+    // Fetch medical encryption key and store in device keychain (fire-and-forget)
+    loadMedicalKey().catch(() => {})
 
     setLoading(false)
     if (childRow) {

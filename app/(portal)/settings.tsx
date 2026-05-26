@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router'
 import { useState, useEffect, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '@/lib/supabase'
+import { clearMedicalKey } from '@/lib/utils/medicalCrypto'
 import { usePortal } from '@/lib/context/PortalContext'
 import { THEME_KEYS, PORTAL_THEMES, ThemeKey } from '@/lib/childThemes'
 import { font, radius, shadow } from '@/lib/theme'
@@ -148,6 +149,7 @@ export default function PortalSettingsScreen() {
       {
         text: 'Sign Out', style: 'destructive',
         onPress: async () => {
+          await clearMedicalKey()
           await supabase.auth.signOut()
           router.replace('/(auth)/login')
         },

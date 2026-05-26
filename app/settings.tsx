@@ -19,6 +19,7 @@ import { useEffect, useState } from 'react'
 import * as Notifications from 'expo-notifications'
 import Constants from 'expo-constants'
 import { supabase } from '@/lib/supabase'
+import { clearMedicalKey } from '@/lib/utils/medicalCrypto'
 import { useSettings } from '@/lib/hooks/useSettings'
 import { colors, radius, shadow, font } from '@/lib/theme'
 
@@ -131,6 +132,7 @@ export default function SettingsScreen() {
         text: 'Sign Out',
         style: 'destructive',
         onPress: async () => {
+          await clearMedicalKey()
           await supabase.auth.signOut()
           router.replace('/(auth)/login')
         },
