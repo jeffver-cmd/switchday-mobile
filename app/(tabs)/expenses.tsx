@@ -195,7 +195,7 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
   const [split, setSplit] = useState('50')
   const [saving, setSaving] = useState(false)
   const [scanning, setScanning] = useState(false)
-  const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
+  const [receiptPath, setReceiptPath] = useState<string | null>(null)
   const [scanFeedback, setScanFeedback] = useState<'scanned' | 'failed' | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
@@ -236,13 +236,13 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
 
       if (uploadErr) { setScanFeedback('failed'); return }
 
-      const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(path)
-      setReceiptUrl(publicUrl)
+      // Store path — bucket is private, signed URLs generated server-side on demand
+      setReceiptPath(path)
 
-      // Call Edge Function
+      // Call Edge Function with storage path — function generates signed URL internally
       const { data: scan, error: fnErr } = await supabase.functions.invoke<{
         amount: number | null; description: string | null; category: string | null; date: string | null
-      }>('scan-receipt', { body: { receipt_url: publicUrl } })
+      }>('scan-receipt', { body: { storage_path: path } })
 
       if (fnErr || !scan) { setScanFeedback('failed'); return }
 
@@ -291,7 +291,7 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
       amount: amtNum,
       category,
       splitPercent: splitNum,
-      receiptUrl: receiptUrl ?? null,
+      receiptUrl: receiptPath ?? null,
     }
     const { error } = await logExpense(input)
     setSaving(false)
