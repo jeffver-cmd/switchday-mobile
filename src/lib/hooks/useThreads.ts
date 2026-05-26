@@ -3,21 +3,40 @@ import { supabase } from '../supabase'
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
+export interface LastViewedInfo {
+  userId: string
+  displayName: string
+  lastViewedAt: string
+}
+
 export interface ThreadSummary {
   id: string
   connectionId: string
   topic: string
   threadType: string
   lastMessageAt: string | null
-  lastMessageBody: string | null
-  lastMessageSenderId: string | null
   unreadCount: number
+  lastViewedByOther: LastViewedInfo | null
 }
 
 export interface ThreadsData {
   userId: string
   connectionId: string
   threads: ThreadSummary[]
+}
+
+// ─── upsert thread_last_viewed ────────────────────────────────────────────────
+
+export async function upsertThreadLastViewed(
+  threadId: string,
+  userId: string,
+): Promise<void> {
+  await supabase
+    .from('thread_last_viewed')
+    .upsert(
+      { thread_id: threadId, user_id: userId, last_viewed_at: new Date().toISOString() },
+      { onConflict: 'thread_id,user_id' },
+    )
 }
 
 // ─── hook ────────────────────────────────────────────────────────────────────
@@ -67,16 +86,8 @@ export function useThreads() {
 
       const threads = threadRows ?? []
 
-      // Get last message body per thread + unread counts
-      const [lastMsgResults, unreadResults] = await Promise.all([
-        // Last message for each thread — fetch the latest one per thread
-        supabase
-          .from('messages')
-          .select('thread_id, body, sender_id, sent_at')
-          .in('thread_id', threadIds)
-          .order('sent_at', { ascending: false })
-          .limit(threadIds.length * 1),  // at least 1 per thread — we'll dedupe below
-
+      // Unread counts + last viewed by other — run in parallel
+      const [unreadResults, lastViewedResults] = await Promise.all([
         // Unread counts per thread
         supabase
           .from('messages')
@@ -84,20 +95,46 @@ export function useThreads() {
           .in('thread_id', threadIds)
           .neq('sender_id', userId)
           .is('read_at', null),
-      ])
 
-      // Build last message map (first occurrence per thread_id in desc order = latest)
-      const lastMsgMap: Record<string, { body: string; senderId: string }> = {}
-      for (const msg of (lastMsgResults.data ?? [])) {
-        if (!lastMsgMap[msg.thread_id]) {
-          lastMsgMap[msg.thread_id] = { body: msg.body, senderId: msg.sender_id }
-        }
-      }
+        // Who else has viewed each thread (excludes current user)
+        supabase
+          .from('thread_last_viewed')
+          .select('thread_id, user_id, last_viewed_at')
+          .in('thread_id', threadIds)
+          .neq('user_id', userId),
+      ])
 
       // Build unread count map
       const unreadMap: Record<string, number> = {}
       for (const msg of (unreadResults.data ?? [])) {
         unreadMap[msg.thread_id] = (unreadMap[msg.thread_id] ?? 0) + 1
+      }
+
+      // Fetch display names for all unique viewer IDs
+      const viewedRows = lastViewedResults.data ?? []
+      const viewerIds = [...new Set(viewedRows.map(r => r.user_id))]
+      let profileMap: Record<string, string> = {}
+      if (viewerIds.length > 0) {
+        const { data: profileRows } = await supabase
+          .from('profiles')
+          .select('id, display_name')
+          .in('id', viewerIds)
+        for (const p of (profileRows ?? [])) {
+          profileMap[p.id] = p.display_name ?? 'Co-parent'
+        }
+      }
+
+      // Build last viewed map — most recent viewer per thread
+      const lastViewedMap: Record<string, LastViewedInfo> = {}
+      for (const row of viewedRows) {
+        const existing = lastViewedMap[row.thread_id]
+        if (!existing || row.last_viewed_at > existing.lastViewedAt) {
+          lastViewedMap[row.thread_id] = {
+            userId: row.user_id,
+            displayName: profileMap[row.user_id] ?? 'Co-parent',
+            lastViewedAt: row.last_viewed_at,
+          }
+        }
       }
 
       const summaries: ThreadSummary[] = threads.map(t => ({
@@ -106,9 +143,8 @@ export function useThreads() {
         topic: t.topic ?? 'Conversation',
         threadType: t.thread_type ?? 'co_parent',
         lastMessageAt: t.last_message_at,
-        lastMessageBody: lastMsgMap[t.id]?.body ?? null,
-        lastMessageSenderId: lastMsgMap[t.id]?.senderId ?? null,
         unreadCount: unreadMap[t.id] ?? 0,
+        lastViewedByOther: lastViewedMap[t.id] ?? null,
       }))
 
       setData({ userId, connectionId: connection.id, threads: summaries })
@@ -121,6 +157,7 @@ export function useThreads() {
 
   // Initial load + auth-state listener (handles token expiry / sign-in)
   const connectionIdRef = useRef<string | null>(null)
+  const userIdRef = useRef<string | null>(null)
   useEffect(() => {
     load()
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
@@ -129,14 +166,18 @@ export function useThreads() {
     return () => subscription.unsubscribe()
   }, [load])
 
-  // Realtime — refresh thread list when a new message arrives in this connection
   useEffect(() => {
     connectionIdRef.current = data?.connectionId ?? null
-  }, [data?.connectionId])
+    userIdRef.current = data?.userId ?? null
+  }, [data?.connectionId, data?.userId])
 
+  // Realtime — refresh thread list when a new message arrives or
+  // when any other user's thread_last_viewed record changes
   useEffect(() => {
     if (!data?.connectionId) return
     const connectionId = data.connectionId
+    const userId = data.userId
+
     const channel = supabase
       .channel(`threads-list:${connectionId}`)
       .on('postgres_changes', {
@@ -145,12 +186,22 @@ export function useThreads() {
         table: 'messages',
         filter: `connection_id=eq.${connectionId}`,
       }, () => {
-        // Refresh thread list when a new message arrives
+        load()
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'thread_last_viewed',
+      }, (payload: any) => {
+        // Only refresh when someone else updates their view — ignore our own upserts
+        const row = payload.new as { user_id?: string } | null
+        if (!row || row.user_id === userId) return
         load()
       })
       .subscribe()
+
     return () => { supabase.removeChannel(channel) }
-  }, [data?.connectionId, load])
+  }, [data?.connectionId, data?.userId, load])
 
   return { data, loading, error, refresh: load }
 }

@@ -14,6 +14,7 @@ import {
   ScrollView,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { useState, useCallback } from 'react'
 import { useThreads, ThreadSummary, archiveThread } from '@/lib/hooks/useThreads'
@@ -179,7 +180,7 @@ function ThreadRow({ item, onPress, onLongPress }: ThreadRowProps) {
         </View>
         <View style={styles.rowBottom}>
           <Text style={[styles.preview, hasUnread && styles.previewBold]} numberOfLines={1}>
-            {item.lastMessageBody ?? 'No messages yet'}
+            {item.lastMessageAt ? 'Active thread' : 'No messages yet'}
           </Text>
           {hasUnread && (
             <View style={styles.badge}>
@@ -187,6 +188,14 @@ function ThreadRow({ item, onPress, onLongPress }: ThreadRowProps) {
             </View>
           )}
         </View>
+        {item.lastViewedByOther && (
+          <View style={styles.seenRow}>
+            <Ionicons name="checkmark-done" size={12} color={colors.accent} style={{ marginRight: 3 }} />
+            <Text style={styles.seenText}>
+              {item.lastViewedByOther.displayName} · {formatTime(item.lastViewedByOther.lastViewedAt)}
+            </Text>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   )
@@ -376,6 +385,9 @@ const styles = StyleSheet.create({
   rowBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   preview: { fontSize: 13, fontFamily: font.regular, color: colors.textSubtle, flex: 1, marginRight: 8 },
   previewBold: { color: colors.textSecondary, fontWeight: '500', fontFamily: font.medium },
+
+  seenRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
+  seenText: { fontSize: 11, fontFamily: font.regular, color: colors.textSubtle },
 
   badge: {
     backgroundColor: colors.accent, borderRadius: radius.full,

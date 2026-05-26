@@ -17,6 +17,8 @@ import Svg, { Path } from 'react-native-svg'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useMessages, sendMessage, analyzeTone, Message, ToneAnalysisResult } from '@/lib/hooks/useMessages'
+import { upsertThreadLastViewed } from '@/lib/hooks/useThreads'
+import { supabase } from '@/lib/supabase'
 import { CoachModal } from '@/components/CoachModal'
 import { colors, radius, font } from '@/lib/theme'
 import { getPortalTheme, PortalTheme, ThemeKey } from '@/lib/childThemes'
@@ -168,6 +170,15 @@ export default function ConversationScreen() {
       spinValue.setValue(0)
     }
   }, [analyzing, spinValue])
+
+  // Mark this thread as viewed when the conversation is opened — fire-and-forget
+  useEffect(() => {
+    if (!threadId) return
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return
+      void upsertThreadLastViewed(threadId, session.user.id)
+    })
+  }, [threadId])
 
   // Scroll to bottom when messages load or a new one arrives
   useEffect(() => {
