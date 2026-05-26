@@ -44,6 +44,37 @@ export default function SettingsScreen() {
   const [inviting, setInviting] = useState(false)
   const [inviteSent, setInviteSent] = useState(false)
 
+  // ── Switch time editing ──────────────────────────────────────────────────
+  const [showSwitchTimeEdit, setShowSwitchTimeEdit] = useState(false)
+  const [editSwitchTimeDt, setEditSwitchTimeDt] = useState<Date>(() => {
+    const d = new Date()
+    d.setHours(15, 0, 0, 0)
+    return d
+  })
+  const [showSwitchTimePicker, setShowSwitchTimePicker] = useState(false)
+  const [switchTimeSaving, setSwitchTimeSaving] = useState(false)
+
+  // ── Profile editing ──────────────────────────────────────────────────────
+  const [showEditProfile, setShowEditProfile] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editColor, setEditColor] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+
+  // Sync editable fields when data loads
+  useEffect(() => {
+    if (!data) return
+    setEditName(data.myProfile.display_name)
+    setEditColor(data.myProfile.color)
+    const d = new Date()
+    if (data.switchTime) {
+      const [h, m] = data.switchTime.split(':').map(Number)
+      d.setHours(h, m, 0, 0)
+    } else {
+      d.setHours(15, 0, 0, 0)
+    }
+    setEditSwitchTimeDt(d)
+  }, [data])
+
   async function handleSendInvite() {
     const email = inviteEmail.trim().toLowerCase()
     if (!email || !email.includes('@')) { Alert.alert('Enter a valid email address'); return }
@@ -129,21 +160,6 @@ export default function SettingsScreen() {
 
   const { myProfile, coParentProfile, switchTime, switchTimezone } = data
 
-  // ── Switch time editing ──────────────────────────────────────────────────
-  const [showSwitchTimeEdit, setShowSwitchTimeEdit] = useState(false)
-  const [editSwitchTimeDt, setEditSwitchTimeDt] = useState<Date>(() => {
-    const d = new Date()
-    if (switchTime) {
-      const [h, m] = switchTime.split(':').map(Number)
-      d.setHours(h, m, 0, 0)
-    } else {
-      d.setHours(15, 0, 0, 0)
-    }
-    return d
-  })
-  const [showSwitchTimePicker, setShowSwitchTimePicker] = useState(false)
-  const [switchTimeSaving, setSwitchTimeSaving] = useState(false)
-
   async function handleProposeSwitchTime() {
     if (!data?.connectionId) return
     setSwitchTimeSaving(true)
@@ -166,12 +182,6 @@ export default function SettingsScreen() {
       setSwitchTimeSaving(false)
     }
   }
-
-  // ── Profile editing ──────────────────────────────────────────────────────
-  const [showEditProfile, setShowEditProfile] = useState(false)
-  const [editName, setEditName] = useState(myProfile.display_name)
-  const [editColor, setEditColor] = useState(myProfile.color)
-  const [editSaving, setEditSaving] = useState(false)
 
   const PROFILE_COLORS = [
     '#2B3A5C', '#5B6B8A', '#3D6B8A', '#3D8C6A', '#6B8A3D',
