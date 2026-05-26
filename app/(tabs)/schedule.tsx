@@ -443,7 +443,7 @@ export default function ScheduleScreen() {
               style={[styles.addBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
               onPress={() => { setSwitchReqDate(new Date()); setSwitchReqInfo(null); setShowSwitchReq(true) }}
             >
-              <Text style={[styles.addBtnText, { color: colors.textSecondary }]}>↔ Swap day</Text>
+              <Text style={[styles.addBtnText, { color: colors.textSecondary }]}>↔ Swap</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity

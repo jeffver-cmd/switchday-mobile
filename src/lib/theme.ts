@@ -90,6 +90,6 @@ export const font = {
 export const buttonLabel = {
   fontFamily: font.semibold,
   fontWeight: '600' as const,
-  fontSize:   14,
-  lineHeight: 14,
+  fontSize:   13,
+  lineHeight: 13,
 }
