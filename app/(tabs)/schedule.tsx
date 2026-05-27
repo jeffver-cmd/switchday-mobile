@@ -426,8 +426,8 @@ export default function ScheduleScreen() {
   if (error === 'no_connection') {
     return (
       <SafeAreaView style={styles.centered}>
-        <Text style={styles.emptyTitle}>No co-parent connected</Text>
-        <Text style={styles.emptySubtitle}>Connect with your co-parent to manage schedules.</Text>
+        <Text style={styles.emptyTitle}>Schedules require both parents</Text>
+        <Text style={styles.emptySubtitle}>Custody schedule proposals and switch requests are available once your co-parent joins.</Text>
       </SafeAreaView>
     )
   }

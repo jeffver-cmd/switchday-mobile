@@ -32,6 +32,7 @@ import {
 } from '@/lib/api/vault'
 import type { VaultCategory } from '@/lib/types/database'
 import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
+import SoloBanner from '../../src/components/SoloBanner'
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -482,6 +483,8 @@ export default function VaultScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      {!loading && !data?.connectionId && <SoloBanner />}
 
       {/* Content */}
       {loading ? (

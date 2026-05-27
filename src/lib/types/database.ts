@@ -474,7 +474,7 @@ export interface Database {
        calendar_events: {
          Row: {
            id: string
-           connection_id: string
+           connection_id: string | null
            created_by_id: string
            proposed_by_child_id: string | null
             title: string
@@ -496,7 +496,7 @@ export interface Database {
          }
          Insert: {
            id?: string
-           connection_id: string
+           connection_id?: string | null
            created_by_id: string
            proposed_by_child_id?: string | null
            title: string
@@ -531,7 +531,7 @@ export interface Database {
        expenses: {
         Row: {
           id: string
-          connection_id: string
+          connection_id: string | null
           submitted_by_id: string | null
           submitted_by_child_id: string | null
           requested_split_note: string | null
@@ -554,7 +554,7 @@ export interface Database {
         }
         Insert: {
           id?: string
-          connection_id: string
+          connection_id?: string | null
           submitted_by_id?: string | null
           submitted_by_child_id?: string | null
           requested_split_note?: string | null
@@ -771,11 +771,11 @@ export interface Database {
         Update: Record<string, never>
         Relationships: []
       }
-      imports: {
-        Row: {
-          id: string
-          connection_id: string
-          performed_by_id: string
+       imports: {
+         Row: {
+           id: string
+           connection_id: string | null
+           performed_by_id: string
           platform: ImportPlatform
           section: ImportSection
           source_pdf_url: string
@@ -788,10 +788,10 @@ export interface Database {
           started_at: string
           completed_at: string | null
         }
-        Insert: {
-          id?: string
-          connection_id: string
-          performed_by_id: string
+         Insert: {
+           id?: string
+           connection_id?: string | null
+           performed_by_id: string
           platform: ImportPlatform
           section: ImportSection
           source_pdf_url: string
@@ -1103,11 +1103,11 @@ export interface Database {
         Update: Record<string, never>
         Relationships: []
       }
-      vault_documents: {
-        Row: {
-          id: string
-          connection_id: string
-          owner_id: string
+       vault_documents: {
+         Row: {
+           id: string
+           connection_id: string | null
+           owner_id: string
           shared: boolean
           display_name: string
           category: VaultCategory
@@ -1119,10 +1119,10 @@ export interface Database {
           created_at: string
           deleted_at: string | null
         }
-        Insert: {
-          id?: string
-          connection_id: string
-          owner_id: string
+         Insert: {
+           id?: string
+           connection_id?: string | null
+           owner_id: string
           shared?: boolean
           display_name: string
           category: VaultCategory

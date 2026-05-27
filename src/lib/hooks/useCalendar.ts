@@ -77,7 +77,58 @@ export function useCalendar(year: number, month: number) {
         .eq('status', 'active')
         .maybeSingle()
 
-      if (!connection) { setError('no_connection'); setLoading(false); return }
+      if (!connection) {
+        // Solo mode: fetch events with no connection_id, no custody schedule
+        const { start, end } = monthBounds(year, month)
+
+        const [eventsResult, profileResult] = await Promise.all([
+          supabase
+            .from('calendar_events')
+            .select('id, title, start_date, start_time, end_date, end_time, all_day, category')
+            .is('connection_id', null)
+            .eq('created_by_id', userId)
+            .gte('start_date', start)
+            .lte('start_date', end)
+            .order('start_date', { ascending: true }),
+          supabase
+            .from('profiles')
+            .select('id, display_name, initials, color')
+            .eq('id', userId)
+            .single(),
+        ])
+
+        const myProfile = profileResult.data
+        if (!myProfile) { setError('profile_not_found'); setLoading(false); return }
+
+        const soloEvents = (eventsResult.data ?? []) as CalendarEvent[]
+        const eventsByDate: Record<string, CalendarEvent[]> = {}
+        for (const ev of soloEvents) {
+          if (!eventsByDate[ev.start_date]) eventsByDate[ev.start_date] = []
+          eventsByDate[ev.start_date].push(ev)
+        }
+
+        const days: Record<string, DayData> = {}
+        for (const [date, evs] of Object.entries(eventsByDate)) {
+          days[date] = {
+            date,
+            ownerId: null,
+            ownerColor: '#636E72',
+            morningColor: '#636E72',
+            isSwitch: false,
+            events: evs,
+          }
+        }
+
+        setData({
+          userId,
+          connectionId: '',
+          myProfile: myProfile as Profile,
+          coParentProfile: null,
+          days,
+          events: soloEvents,
+        })
+        return
+      }
 
       const coParentId = connection.user_a_id === userId
         ? connection.user_b_id

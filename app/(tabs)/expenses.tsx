@@ -17,6 +17,7 @@ import {
 
 import type { ExpenseStatus, ExpenseCategory } from '@/lib/types/database'
 import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
+import SoloBanner from '../../src/components/SoloBanner'
 import { supabase } from '@/lib/supabase'
 
 // ─── constants ───────────────────────────────────────────────────────────────
@@ -573,6 +574,8 @@ export default function ExpensesScreen() {
           </TouchableOpacity>
         ))}
       </View>
+
+      {!loading && !data?.connectionId && <SoloBanner />}
 
       {/* List */}
       {loading ? (

@@ -7,7 +7,7 @@ import type { ExpenseStatus, ExpenseCategory } from '../types/database'
 
 export interface Expense {
   id: string
-  connectionId: string
+  connectionId: string | null
   submittedById: string | null
   description: string
   amount: number
@@ -21,12 +21,12 @@ export interface Expense {
 
 export interface ExpensesData {
   userId: string
-  connectionId: string
+  connectionId: string | null
   expenses: Expense[]
 }
 
 export interface NewExpenseInput {
-  connectionId: string
+  connectionId: string | null
   description: string
   amount: number
   category: ExpenseCategory
@@ -96,7 +96,7 @@ export async function logExpense(input: NewExpenseInput): Promise<{ error: strin
   const { data: expense, error: insertError } = await supabase
     .from('expenses')
     .insert({
-      connection_id:   input.connectionId,
+      connection_id:   input.connectionId ?? null,
       submitted_by_id: session.user.id,
       description:     input.description.trim(),
       amount:          input.amount,
@@ -258,14 +258,19 @@ export function useExpenses(statusFilter?: ExpenseStatus[]) {
         .eq('status', 'active')
         .maybeSingle()
 
-      if (!connection) { setError('no_connection'); setLoading(false); return }
+      const connectionId: string | null = connection?.id ?? null
 
       let query = supabase
         .from('expenses')
         .select('id, connection_id, submitted_by_id, description, amount, category, split_percent, status, receipt_url, submitted_at, requested_split_note')
-        .eq('connection_id', connection.id)
         .order('submitted_at', { ascending: false })
         .limit(50)
+
+      if (connectionId) {
+        query = query.eq('connection_id', connectionId)
+      } else {
+        query = query.is('connection_id', null).eq('submitted_by_id', userId)
+      }
 
       if (statusFilter && statusFilter.length > 0) {
         query = query.in('status', statusFilter)
@@ -289,7 +294,7 @@ export function useExpenses(statusFilter?: ExpenseStatus[]) {
         requestedSplitNote: r.requested_split_note,
       }))
 
-      setData({ userId, connectionId: connection.id, expenses })
+      setData({ userId, connectionId, expenses })
     } catch {
       setError('load_failed')
     } finally {

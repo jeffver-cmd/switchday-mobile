@@ -21,6 +21,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import { useCalendar, CalendarEvent } from '@/lib/hooks/useCalendar'
 import { supabase } from '@/lib/supabase'
 import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
+import SoloBanner from '../../src/components/SoloBanner'
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -679,6 +680,7 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {!loading && data !== null && data.coParentProfile === null && <SoloBanner />}
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />}

@@ -244,8 +244,8 @@ export default function MessagesScreen() {
   if (error === 'no_connection') {
     return (
       <SafeAreaView style={styles.centered}>
-        <Text style={styles.emptyTitle}>No co-parent connected</Text>
-        <Text style={styles.emptySubtitle}>Connect with your co-parent to start messaging.</Text>
+        <Text style={styles.emptyTitle}>Messages require both parents</Text>
+        <Text style={styles.emptySubtitle}>Co-parent messaging and your tamper-evident record are available once your co-parent joins. Every message will be cryptographically signed from day one.</Text>
       </SafeAreaView>
     )
   }

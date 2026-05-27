@@ -6,7 +6,7 @@ import type { VaultCategory } from '../types/database'
 
 export interface VaultDoc {
   id: string
-  connectionId: string
+  connectionId: string | null
   ownerId: string
   shared: boolean
   displayName: string
@@ -22,7 +22,7 @@ export interface VaultDoc {
 
 export interface VaultData {
   userId: string
-  connectionId: string
+  connectionId: string | null
   isPro: boolean
   documents: VaultDoc[]
 }
@@ -71,20 +71,22 @@ export function useVault(): {
         .limit(1)
         .maybeSingle()
 
-      if (!connection) {
-        setData({ userId, connectionId: '', isPro, documents: [] })
-        return
-      }
-
-      const connectionId = connection.id
-
       // ── Documents ─────────────────────────────────────────────────────────
-      const { data: rows, error: docsError } = await supabase
+      let docsQuery = supabase
         .from('vault_documents')
         .select('id, connection_id, owner_id, shared, display_name, category, document_date, storage_path, sha256_hash, file_size_bytes, content_type, created_at')
-        .eq('connection_id', connectionId)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
+
+      if (connection) {
+        docsQuery = docsQuery.eq('connection_id', connection.id)
+      } else {
+        docsQuery = docsQuery.is('connection_id', null).eq('owner_id', userId)
+      }
+
+      const connectionId = connection?.id ?? null
+
+      const { data: rows, error: docsError } = await docsQuery
 
       if (docsError) { setError(docsError.message); return }
 
