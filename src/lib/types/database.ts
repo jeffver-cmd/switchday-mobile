@@ -68,6 +68,7 @@ export interface Database {
           background_url: string | null
           created_at: string
           updated_at: string
+          welcome_seen_at: string | null
         }
         Insert: {
           id: string
@@ -111,6 +112,7 @@ export interface Database {
           avatar_emoji?: string | null
           avatar_url?: string | null
           background_url?: string | null
+          welcome_seen_at?: string | null
         }
         Relationships: []
       }

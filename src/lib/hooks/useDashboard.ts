@@ -68,14 +68,29 @@ export interface DashboardData {
   childrenNames: string[]
 }
 
+// ── Solo mode data ────────────────────────────────────────────────────────────
+
+export interface SoloData {
+  userId: string
+  displayName: string
+  welcomeSeen: boolean               // whether welcome_seen_at is set on profile
+  pendingInviteEmail: string | null  // invited_email from pending co_parent_connection
+  hasChildren: boolean               // at least one solo child (connection_id IS NULL)
+  hasImport: boolean                 // at least one completed import
+}
+
+// ── Hook ─────────────────────────────────────────────────────────────────────
+
 export function useDashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
+  const [soloData, setSoloData] = useState<SoloData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setSoloData(null)
     try {
       // 1. Session
       const { data: { session } } = await supabase.auth.getSession()
@@ -91,6 +106,41 @@ export function useDashboard() {
         .maybeSingle()
 
       if (!connection) {
+        // Solo mode — fetch profile + pending invite + solo counts in parallel
+        const [profileResult, pendingInviteResult, childrenResult, importsResult] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('id, display_name, welcome_seen_at')
+            .eq('id', userId)
+            .maybeSingle(),
+          supabase
+            .from('co_parent_connections')
+            .select('invited_email')
+            .eq('user_a_id', userId)
+            .eq('status', 'pending')
+            .order('invited_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('children')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .is('connection_id', null),
+          supabase
+            .from('imports')
+            .select('id', { count: 'exact', head: true })
+            .eq('performed_by_id', userId)
+            .eq('status', 'complete'),
+        ])
+
+        setSoloData({
+          userId,
+          displayName: profileResult.data?.display_name ?? 'there',
+          welcomeSeen: !!profileResult.data?.welcome_seen_at,
+          pendingInviteEmail: pendingInviteResult.data?.invited_email ?? null,
+          hasChildren: (childrenResult.count ?? 0) > 0,
+          hasImport: (importsResult.count ?? 0) > 0,
+        })
         setError('no_connection')
         setLoading(false)
         return
@@ -312,5 +362,5 @@ export function useDashboard() {
 
   useEffect(() => { load() }, [load])
 
-  return { data, loading, error, refresh: load }
+  return { data, soloData, loading, error, refresh: load }
 }

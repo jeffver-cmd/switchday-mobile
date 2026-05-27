@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useState, useEffect } from 'react'
-import { useDashboard } from '@/lib/hooks/useDashboard'
+import { useDashboard, type SoloData } from '@/lib/hooks/useDashboard'
 import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
 import SwitchDayCelebration from '@/components/SwitchDayCelebration'
 
@@ -161,6 +161,357 @@ const sectionStyles = StyleSheet.create({
   },
 })
 
+// ─── Solo dashboard (no co-parent connection) ────────────────────────────────
+
+/**
+ * Shown when the user has no active co-parent connection.
+ * Two modes:
+ *   1. Welcome card (first visit) — warm intro, two CTAs
+ *   2. Solo checklist (returning) — progressive items with one active step
+ */
+function SoloDashboardScreen({
+  soloData,
+  onGoToSettings,
+  onRefresh,
+}: {
+  soloData: SoloData | null
+  onGoToSettings: () => void
+  onRefresh: () => void
+}) {
+  const firstName = soloData?.displayName?.split(' ')[0] ?? 'there'
+  const [welcomeSeen, setWelcomeSeen] = useState(soloData?.welcomeSeen ?? false)
+
+  async function markWelcomeSeen() {
+    if (!soloData?.userId) return
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      await supabase
+        .from('profiles')
+        .update({ welcome_seen_at: new Date().toISOString() })
+        .eq('id', soloData.userId)
+    } catch {
+      // fire-and-forget
+    }
+    setWelcomeSeen(true)
+  }
+
+  function handleInvite() {
+    markWelcomeSeen()
+    onGoToSettings()
+  }
+
+  function handleStartSolo() {
+    markWelcomeSeen()
+  }
+
+  if (!welcomeSeen) {
+    // ── Welcome card (first visit) ─────────────────────────────────────────
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+        <ScrollView
+          contentContainerStyle={{ padding: 24, paddingTop: 48 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={soloStyles.heading}>Hi {firstName}, welcome to Switchday.</Text>
+          <Text style={soloStyles.sub}>
+            Your secure record of messages, expenses, schedules, and documents — cryptographically
+            timestamped and court-ready.
+          </Text>
+
+          <View style={soloStyles.card}>
+            <View style={soloStyles.cardIconRow}>
+              <Ionicons name="people-outline" size={20} color={colors.accent} />
+            </View>
+            <Text style={soloStyles.cardTitle}>Invite your co-parent</Text>
+            <Text style={soloStyles.cardBody}>
+              When both parents are connected, you unlock shared messaging, a custody schedule, and
+              a bilateral record of every switch, expense, and conversation.
+            </Text>
+            <TouchableOpacity
+              style={soloStyles.primaryBtn}
+              onPress={handleInvite}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="person-add-outline" size={16} color={colors.white} />
+              <Text style={soloStyles.primaryBtnText}>Invite co-parent →</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity onPress={handleStartSolo} style={{ marginTop: 8, alignItems: 'center' }}>
+            <Text style={soloStyles.skipLink}>Start documenting solo instead</Text>
+          </TouchableOpacity>
+
+          <View style={soloStyles.soloNoteCard}>
+            <Text style={soloStyles.soloNoteTitle}>Available right now</Text>
+            {['Document vault', 'Expense log', 'Personal calendar', 'Import records (web)'].map(item => (
+              <View key={item} style={soloStyles.soloNoteRow}>
+                <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+                <Text style={soloStyles.soloNoteText}>{item}</Text>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    )
+  }
+
+  // ── Returning solo dashboard ─────────────────────────────────────────────
+  const hasInvite = !!soloData?.pendingInviteEmail
+  const hasChildren = soloData?.hasChildren ?? false
+
+  const checklistItems = [
+    {
+      key: 'children',
+      label: 'Add your children',
+      done: hasChildren,
+      onPress: onGoToSettings,
+      soloAccessible: true,
+    },
+    {
+      key: 'invite',
+      label: hasInvite ? 'Co-parent invited' : 'Invite your co-parent',
+      subLabel: hasInvite ? `Waiting for ${soloData?.pendingInviteEmail ?? 'co-parent'}` : 'Unlock shared features',
+      done: hasInvite,
+      onPress: onGoToSettings,
+      soloAccessible: true,
+    },
+    {
+      key: 'schedule',
+      label: 'Set up custody schedule',
+      subLabel: 'Requires co-parent connection',
+      done: false,
+      onPress: null,
+      soloAccessible: false,
+    },
+  ]
+
+  const activeIndex = checklistItems.findIndex(i => !i.done && i.soloAccessible)
+  const soloItemsDone = checklistItems.filter(i => i.soloAccessible).every(i => i.done)
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 24, paddingTop: 20 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={false} onRefresh={onRefresh} tintColor={colors.accent} />
+        }
+      >
+        <Text style={soloStyles.heading}>
+          Welcome back, {firstName}.
+        </Text>
+        <Text style={soloStyles.sub}>
+          {hasInvite
+            ? `Waiting for ${soloData?.pendingInviteEmail ?? 'your co-parent'} to accept.`
+            : "You're documenting solo. Invite your co-parent whenever you're ready."}
+        </Text>
+
+        <View style={{ marginTop: 20 }}>
+          <Text style={soloStyles.checklistTitle}>GETTING STARTED</Text>
+          {checklistItems.map((item, idx) => {
+            const isActive = idx === activeIndex
+            const isGreyed = !item.soloAccessible && !item.done
+
+            return (
+              <TouchableOpacity
+                key={item.key}
+                style={[
+                  soloStyles.checklistRow,
+                  isActive && soloStyles.checklistRowActive,
+                  isGreyed && soloStyles.checklistRowGreyed,
+                ]}
+                onPress={item.onPress ?? undefined}
+                disabled={!item.onPress || item.done || isGreyed}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={item.done ? 'checkmark-circle' : isGreyed ? 'lock-closed-outline' : 'radio-button-off'}
+                  size={18}
+                  color={item.done ? colors.success : isActive ? colors.accent : colors.textSubtle}
+                  style={{ marginRight: 10 }}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={[
+                    soloStyles.checklistLabel,
+                    item.done && { color: colors.textSubtle, textDecorationLine: 'line-through' },
+                    isGreyed && { color: colors.textSubtle },
+                  ]}>
+                    {item.label}
+                  </Text>
+                  {item.subLabel && (
+                    <Text style={soloStyles.checklistSub}>{item.subLabel}</Text>
+                  )}
+                </View>
+                {isActive && !item.done && (
+                  <Ionicons name="chevron-forward" size={15} color={colors.accent} />
+                )}
+              </TouchableOpacity>
+            )
+          })}
+
+          {soloItemsDone && (
+            <View style={soloStyles.allDoneRow}>
+              <Ionicons name="checkmark-circle" size={15} color={colors.success} />
+              <Text style={soloStyles.allDoneText}>Solo setup complete — waiting for co-parent to join.</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  )
+}
+
+const soloStyles = StyleSheet.create({
+  heading: {
+    fontSize: 24,
+    fontWeight: '800',
+    fontFamily: font.bold,
+    color: colors.textPrimary,
+    marginBottom: 8,
+    letterSpacing: -0.4,
+  },
+  sub: {
+    fontSize: 14,
+    fontFamily: font.regular,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: 20,
+    marginTop: 20,
+    gap: 10,
+    ...shadow.sm,
+  },
+  cardIconRow: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    fontFamily: font.bold,
+    color: colors.textPrimary,
+    letterSpacing: -0.2,
+  },
+  cardBody: {
+    fontSize: 13,
+    fontFamily: font.regular,
+    color: colors.textSecondary,
+    lineHeight: 19,
+  },
+  primaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.accent,
+    borderRadius: radius.md,
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    marginTop: 4,
+  },
+  primaryBtnText: {
+    color: colors.white,
+    fontWeight: '600',
+    fontFamily: font.semibold,
+    fontSize: 15,
+    lineHeight: 15,
+  },
+  skipLink: {
+    fontSize: 13,
+    fontFamily: font.regular,
+    color: colors.textMuted,
+    textDecorationLine: 'underline',
+    paddingVertical: 8,
+  },
+  soloNoteCard: {
+    backgroundColor: colors.surface2,
+    borderRadius: radius.md,
+    padding: 16,
+    marginTop: 20,
+    gap: 8,
+  },
+  soloNoteTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: font.bold,
+    color: colors.textSubtle,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  soloNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  soloNoteText: {
+    fontSize: 13,
+    fontFamily: font.regular,
+    color: colors.textSecondary,
+  },
+  checklistTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: font.bold,
+    color: colors.textSubtle,
+    letterSpacing: 0.6,
+    marginBottom: 8,
+  },
+  checklistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    marginBottom: 6,
+    ...shadow.sm,
+  },
+  checklistRowActive: {
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  checklistRowGreyed: {
+    backgroundColor: colors.surface2,
+    opacity: 0.6,
+  },
+  checklistLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    fontFamily: font.medium,
+    color: colors.textPrimary,
+  },
+  checklistSub: {
+    fontSize: 11,
+    fontFamily: font.regular,
+    color: colors.textSubtle,
+    marginTop: 1,
+  },
+  allDoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 14,
+    borderRadius: radius.md,
+    backgroundColor: colors.successSoft,
+    marginTop: 4,
+  },
+  allDoneText: {
+    fontSize: 13,
+    fontFamily: font.regular,
+    color: colors.textSecondary,
+  },
+})
+
 // ─── screen ──────────────────────────────────────────────────────────────────
 
 // Module-level guard — persists across component remounts and hot-reloads
@@ -170,7 +521,7 @@ let _celebrationShownDate: string | null = null
 
 export default function DashboardScreen() {
   const router = useRouter()
-  const { data, loading, error, refresh } = useDashboard()
+  const { data, soloData, loading, error, refresh } = useDashboard()
 
   // ── Switch day celebration ─────────────────────────────────────────────
   const [showCelebration, setShowCelebration] = useState(false)
@@ -222,19 +573,11 @@ export default function DashboardScreen() {
 
   if (error === 'no_connection') {
     return (
-      <SafeAreaView style={styles.centered}>
-        <Text style={{ fontSize: 40, marginBottom: 12 }}>👪</Text>
-        <Text style={styles.emptyTitle}>No co-parent connected</Text>
-        <Text style={styles.emptySubtitle}>Invite your co-parent to get started with shared custody tracking.</Text>
-        <TouchableOpacity
-          onPress={() => router.push('/settings')}
-          style={{ marginTop: 20, backgroundColor: colors.accent, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 13 }}
-        >
-          <Text style={{ color: '#fff', fontWeight: '600', fontFamily: font.semibold, fontSize: 15, lineHeight: 15 }}>
-            Invite co-parent
-          </Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+      <SoloDashboardScreen
+        soloData={soloData}
+        onGoToSettings={() => router.push('/settings')}
+        onRefresh={refresh}
+      />
     )
   }
 
