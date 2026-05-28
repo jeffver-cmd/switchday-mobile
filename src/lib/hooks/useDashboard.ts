@@ -66,6 +66,8 @@ export interface DashboardData {
   recentExpenses: RecentExpense[]
   checklistItems: string[]
   childrenNames: string[]
+  celebrationUnseen: boolean  // true the first time each parent loads post-connection
+  isUserA: boolean            // whether this user is user_a_id on the connection
 }
 
 // ── Solo mode data ────────────────────────────────────────────────────────────
@@ -101,7 +103,7 @@ export function useDashboard() {
       // 2. Active connection
       const { data: connection } = await supabase
         .from('co_parent_connections')
-        .select('id, user_a_id, user_b_id, switch_time, switch_timezone, switch_location_mode')
+        .select('id, user_a_id, user_b_id, switch_time, switch_timezone, switch_location_mode, user_a_celebration_seen_at, user_b_celebration_seen_at')
         .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`)
         .eq('status', 'active')
         .maybeSingle()
@@ -339,6 +341,11 @@ export function useDashboard() {
         unreadCount: threadUnreadMap[t.id] ?? 0,
       }))
 
+      const isUserA = connection.user_a_id === userId
+      const celebrationUnseen = isUserA
+        ? connection.user_a_celebration_seen_at === null
+        : connection.user_b_celebration_seen_at === null
+
       setData({
         userId,
         connectionId: connection.id,
@@ -362,6 +369,8 @@ export function useDashboard() {
         })) as RecentExpense[],
         checklistItems: (checklistResult.data ?? []).map(r => r.item_text as string),
         childrenNames: (childrenResult.data ?? []).map(r => r.name as string),
+        celebrationUnseen,
+        isUserA,
       })
     } catch (e) {
       setError('Failed to load dashboard')

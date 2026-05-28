@@ -11,11 +11,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Animated,
+  Dimensions,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useDashboard, type SoloData } from '@/lib/hooks/useDashboard'
 import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
 import SwitchDayCelebration from '@/components/SwitchDayCelebration'
@@ -559,6 +561,45 @@ export default function DashboardScreen() {
   // ── Switch day celebration ─────────────────────────────────────────────
   const [showCelebration, setShowCelebration] = useState(false)
 
+  // ── Connected celebration (one-time, both parents) ─────────────────────
+  const connectedCelebrationInitialized = useRef(false)
+  const [showConnectedCelebration, setShowConnectedCelebration] = useState(false)
+  const { width: SCREEN_WIDTH } = Dimensions.get('window')
+  const leftPanelX = useRef(new Animated.Value(-SCREEN_WIDTH)).current
+  const rightPanelX = useRef(new Animated.Value(SCREEN_WIDTH)).current
+  const contentOpacity = useRef(new Animated.Value(0)).current
+
+  // Initialize from data once (when hook first resolves)
+  useEffect(() => {
+    if (!connectedCelebrationInitialized.current && data !== null) {
+      connectedCelebrationInitialized.current = true
+      if (data.celebrationUnseen) setShowConnectedCelebration(true)
+    }
+  }, [data])
+
+  // Run panel slide + content fade when overlay becomes visible
+  useEffect(() => {
+    if (!showConnectedCelebration) return
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(leftPanelX, { toValue: 0, duration: 700, useNativeDriver: true }),
+        Animated.timing(rightPanelX, { toValue: 0, duration: 700, useNativeDriver: true }),
+      ]),
+      Animated.timing(contentOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+    ]).start()
+  }, [showConnectedCelebration]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function dismissConnectedCelebration() {
+    setShowConnectedCelebration(false)
+    if (!data) return
+    const { supabase: sb } = await import('@/lib/supabase')
+    const updateData = data.isUserA
+      ? { user_a_celebration_seen_at: new Date().toISOString() }
+      : { user_b_celebration_seen_at: new Date().toISOString() }
+    // Fire-and-forget — never block the user on this
+    sb.from('co_parent_connections').update(updateData).eq('id', data.connectionId).then(() => {})
+  }
+
   // ── Handoff notes ─────────────────────────────────────────────────────
   const [showHandoff, setShowHandoff] = useState(false)
   const [handoffContent, setHandoffContent] = useState('')
@@ -878,9 +919,141 @@ export default function DashboardScreen() {
           onDismiss={() => setShowCelebration(false)}
         />
       )}
+
+      {/* ── Connected celebration overlay (one-time, both parents) ────────── */}
+      <Modal
+        visible={showConnectedCelebration}
+        transparent
+        animationType="none"
+        statusBarTranslucent
+      >
+        <View style={{ flex: 1, overflow: 'hidden' }}>
+          {/* Left panel — my color */}
+          <Animated.View
+            style={{
+              position: 'absolute', top: 0, left: 0, bottom: 0, width: '50%',
+              backgroundColor: data?.myProfile.color ?? '#6b7280',
+              transform: [{ translateX: leftPanelX }],
+            }}
+          />
+          {/* Right panel — co-parent's color */}
+          <Animated.View
+            style={{
+              position: 'absolute', top: 0, right: 0, bottom: 0, width: '50%',
+              backgroundColor: data?.coParentProfile?.color ?? '#374151',
+              transform: [{ translateX: rightPanelX }],
+            }}
+          />
+          {/* Center content */}
+          <Animated.View
+            style={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              alignItems: 'center', justifyContent: 'center',
+              opacity: contentOpacity,
+              paddingHorizontal: 24,
+            }}
+          >
+            {/* Avatar pair */}
+            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
+              <ConnectedAvatar
+                initials={data?.myProfile.initials ?? '?'}
+                color={data?.myProfile.color ?? '#6b7280'}
+              />
+              <ConnectedAvatar
+                initials={data?.coParentProfile?.initials ?? '?'}
+                color={data?.coParentProfile?.color ?? '#374151'}
+              />
+            </View>
+            {/* Headline */}
+            <Text style={celebrationStyles.headline}>
+              You&apos;re connected!
+            </Text>
+            {/* Subline */}
+            <Text style={celebrationStyles.subline}>
+              You and {data?.coParentProfile?.display_name ?? 'your co-parent'} are ready to co-parent on Switchday.
+            </Text>
+            {/* CTA */}
+            <TouchableOpacity
+              onPress={dismissConnectedCelebration}
+              style={celebrationStyles.ctaBtn}
+              activeOpacity={0.85}
+            >
+              <Text style={celebrationStyles.ctaText}>Let&apos;s go →</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
+
+// ── Connected celebration helpers ─────────────────────────────────────────────
+
+function ConnectedAvatar({ initials, color }: { initials: string; color: string }) {
+  return (
+    <View style={[celebrationStyles.avatar, { backgroundColor: color }]}>
+      <Text style={celebrationStyles.avatarText}>{initials}</Text>
+    </View>
+  )
+}
+
+const celebrationStyles = StyleSheet.create({
+  avatar: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  avatarText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  headline: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 12,
+    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
+  },
+  subline: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.92)',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 28,
+    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  ctaBtn: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 36,
+    paddingVertical: 14,
+    borderRadius: 9999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  ctaText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+})
 
 // ─── styles ──────────────────────────────────────────────────────────────────
 

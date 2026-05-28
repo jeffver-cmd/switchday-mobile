@@ -117,7 +117,7 @@ export interface Database {
         Relationships: []
       }
       co_parent_connections: {
-        Row: {
+         Row: {
           id: string
           user_a_id: string
           user_b_id: string | null
@@ -139,6 +139,8 @@ export interface Database {
           pending_switch_location: { mode: 'neutral' | 'per_parent'; neutral_id?: string; a_id?: string; b_id?: string } | null
           pending_switch_location_proposed_by: string | null
           pending_switch_location_proposed_at: string | null
+          user_a_celebration_seen_at: string | null
+          user_b_celebration_seen_at: string | null
         }
         Insert: {
           id?: string
@@ -161,6 +163,8 @@ export interface Database {
           pending_switch_location?: { mode: 'neutral' | 'per_parent'; neutral_id?: string; a_id?: string; b_id?: string } | null
           pending_switch_location_proposed_by?: string | null
           pending_switch_location_proposed_at?: string | null
+          user_a_celebration_seen_at?: string | null
+          user_b_celebration_seen_at?: string | null
         }
         Update: {
           status?: ConnectionStatus
@@ -181,6 +185,8 @@ export interface Database {
           pending_switch_location?: { mode: 'neutral' | 'per_parent'; neutral_id?: string; a_id?: string; b_id?: string } | null
           pending_switch_location_proposed_by?: string | null
           pending_switch_location_proposed_at?: string | null
+          user_a_celebration_seen_at?: string | null
+          user_b_celebration_seen_at?: string | null
         }
         Relationships: []
       }
