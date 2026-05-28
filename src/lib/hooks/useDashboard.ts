@@ -73,10 +73,11 @@ export interface DashboardData {
 export interface SoloData {
   userId: string
   displayName: string
-  welcomeSeen: boolean               // whether welcome_seen_at is set on profile
-  pendingInviteEmail: string | null  // invited_email from pending co_parent_connection
-  hasChildren: boolean               // at least one solo child (connection_id IS NULL)
-  hasImport: boolean                 // at least one completed import
+  welcomeSeen: boolean                // whether welcome_seen_at is set on profile
+  pendingInviteEmail: string | null   // invited_email from pending co_parent_connection
+  declinedInviteEmail: string | null  // invited_email from most recent declined co_parent_connection
+  hasChildren: boolean                // at least one solo child (connection_id IS NULL)
+  hasImport: boolean                  // at least one completed import
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -106,8 +107,8 @@ export function useDashboard() {
         .maybeSingle()
 
       if (!connection) {
-        // Solo mode — fetch profile + pending invite + solo counts in parallel
-        const [profileResult, pendingInviteResult, childrenResult, importsResult] = await Promise.all([
+        // Solo mode — fetch profile + pending invite + declined invite + solo counts in parallel
+        const [profileResult, pendingInviteResult, declinedInviteResult, childrenResult, importsResult] = await Promise.all([
           supabase
             .from('profiles')
             .select('id, display_name, welcome_seen_at')
@@ -118,6 +119,14 @@ export function useDashboard() {
             .select('invited_email')
             .eq('user_a_id', userId)
             .eq('status', 'pending')
+            .order('invited_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('co_parent_connections')
+            .select('invited_email')
+            .eq('user_a_id', userId)
+            .eq('status', 'declined')
             .order('invited_at', { ascending: false })
             .limit(1)
             .maybeSingle(),
@@ -138,6 +147,7 @@ export function useDashboard() {
           displayName: profileResult.data?.display_name ?? 'there',
           welcomeSeen: !!profileResult.data?.welcome_seen_at,
           pendingInviteEmail: pendingInviteResult.data?.invited_email ?? null,
+          declinedInviteEmail: declinedInviteResult.data?.invited_email ?? null,
           hasChildren: (childrenResult.count ?? 0) > 0,
           hasImport: (importsResult.count ?? 0) > 0,
         })

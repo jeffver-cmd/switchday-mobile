@@ -180,6 +180,9 @@ function SoloDashboardScreen({
 }) {
   const firstName = soloData?.displayName?.split(' ')[0] ?? 'there'
   const [welcomeSeen, setWelcomeSeen] = useState(soloData?.welcomeSeen ?? false)
+  const pendingInviteEmail = soloData?.pendingInviteEmail ?? null
+  const declinedInviteEmail = soloData?.declinedInviteEmail ?? null
+  const wasDeclined = !!declinedInviteEmail && !pendingInviteEmail
 
   async function markWelcomeSeen() {
     if (!soloData?.userId) return
@@ -220,20 +223,28 @@ function SoloDashboardScreen({
 
           <View style={soloStyles.card}>
             <View style={soloStyles.cardIconRow}>
-              <Ionicons name="people-outline" size={20} color={colors.accent} />
+              <Ionicons name={wasDeclined ? 'alert-circle-outline' : 'people-outline'} size={20} color={wasDeclined ? colors.warning : colors.accent} />
             </View>
-            <Text style={soloStyles.cardTitle}>Invite your co-parent</Text>
-            <Text style={soloStyles.cardBody}>
-              When both parents are connected, you unlock shared messaging, a custody schedule, and
-              a bilateral record of every switch, expense, and conversation.
-            </Text>
+            <Text style={soloStyles.cardTitle}>{wasDeclined ? 'Invite declined' : 'Invite your co-parent'}</Text>
+            {wasDeclined ? (
+              <View style={soloStyles.declinedNotice}>
+                <Text style={soloStyles.declinedNoticeText}>
+                  {declinedInviteEmail} declined your previous invite. You can send a new one from Settings.
+                </Text>
+              </View>
+            ) : (
+              <Text style={soloStyles.cardBody}>
+                When both parents are connected, you unlock shared messaging, a custody schedule, and
+                a bilateral record of every switch, expense, and conversation.
+              </Text>
+            )}
             <TouchableOpacity
-              style={soloStyles.primaryBtn}
+              style={[soloStyles.primaryBtn, wasDeclined && soloStyles.primaryBtnWarning]}
               onPress={handleInvite}
               activeOpacity={0.8}
             >
               <Ionicons name="person-add-outline" size={16} color={colors.white} />
-              <Text style={soloStyles.primaryBtnText}>Invite co-parent →</Text>
+              <Text style={soloStyles.primaryBtnText}>{wasDeclined ? 'Send a new invite →' : 'Invite co-parent →'}</Text>
             </TouchableOpacity>
           </View>
 
@@ -256,7 +267,7 @@ function SoloDashboardScreen({
   }
 
   // ── Returning solo dashboard ─────────────────────────────────────────────
-  const hasInvite = !!soloData?.pendingInviteEmail
+  const hasInvite = !!pendingInviteEmail
   const hasChildren = soloData?.hasChildren ?? false
 
   const checklistItems = [
@@ -269,8 +280,12 @@ function SoloDashboardScreen({
     },
     {
       key: 'invite',
-      label: hasInvite ? 'Co-parent invited' : 'Invite your co-parent',
-      subLabel: hasInvite ? `Waiting for ${soloData?.pendingInviteEmail ?? 'co-parent'}` : 'Unlock shared features',
+      label: hasInvite ? 'Co-parent invited' : wasDeclined ? 'Invite declined — send a new one' : 'Invite your co-parent',
+      subLabel: hasInvite
+        ? `Waiting for ${pendingInviteEmail ?? 'co-parent'}`
+        : wasDeclined
+          ? `${declinedInviteEmail} declined`
+          : 'Unlock shared features',
       done: hasInvite,
       onPress: onGoToSettings,
       soloAccessible: true,
@@ -302,8 +317,10 @@ function SoloDashboardScreen({
         </Text>
         <Text style={soloStyles.sub}>
           {hasInvite
-            ? `Waiting for ${soloData?.pendingInviteEmail ?? 'your co-parent'} to accept.`
-            : "You're documenting solo. Invite your co-parent whenever you're ready."}
+            ? `Waiting for ${pendingInviteEmail ?? 'your co-parent'} to accept.`
+            : wasDeclined
+              ? `${declinedInviteEmail} declined your invite. Send a new one from Settings.`
+              : "You're documenting solo. Invite your co-parent whenever you're ready."}
         </Text>
 
         <View style={{ marginTop: 20 }}>
@@ -431,6 +448,22 @@ const soloStyles = StyleSheet.create({
     color: colors.textMuted,
     textDecorationLine: 'underline',
     paddingVertical: 8,
+  },
+  declinedNotice: {
+    backgroundColor: 'rgba(192,122,42,0.10)',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(192,122,42,0.25)',
+  },
+  declinedNoticeText: {
+    fontSize: 13,
+    fontFamily: font.regular,
+    color: colors.warning,
+    lineHeight: 18,
+  },
+  primaryBtnWarning: {
+    backgroundColor: colors.warning,
   },
   soloNoteCard: {
     backgroundColor: colors.surface2,
