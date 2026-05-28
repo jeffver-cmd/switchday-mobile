@@ -568,6 +568,7 @@ export default function DashboardScreen() {
   const leftPanelX = useRef(new Animated.Value(-SCREEN_WIDTH)).current
   const rightPanelX = useRef(new Animated.Value(SCREEN_WIDTH)).current
   const contentOpacity = useRef(new Animated.Value(0)).current
+  const contentY = useRef(new Animated.Value(18)).current
 
   // Initialize from data once (when hook first resolves)
   useEffect(() => {
@@ -577,15 +578,24 @@ export default function DashboardScreen() {
     }
   }, [data])
 
-  // Run panel slide + content fade when overlay becomes visible
+  // Spring panels (staggered) then fade+rise content
   useEffect(() => {
     if (!showConnectedCelebration) return
     Animated.sequence([
       Animated.parallel([
-        Animated.timing(leftPanelX, { toValue: 0, duration: 700, useNativeDriver: true }),
-        Animated.timing(rightPanelX, { toValue: 0, duration: 700, useNativeDriver: true }),
+        // Left panel: immediate spring
+        Animated.spring(leftPanelX, { toValue: 0, friction: 8, tension: 40, useNativeDriver: true }),
+        // Right panel: 70ms stagger
+        Animated.sequence([
+          Animated.delay(70),
+          Animated.spring(rightPanelX, { toValue: 0, friction: 8, tension: 40, useNativeDriver: true }),
+        ]),
       ]),
-      Animated.timing(contentOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      // Content fades in and rises after panels snap together
+      Animated.parallel([
+        Animated.timing(contentOpacity, { toValue: 1, duration: 450, useNativeDriver: true }),
+        Animated.timing(contentY, { toValue: 0, duration: 450, useNativeDriver: true }),
+      ]),
     ]).start()
   }, [showConnectedCelebration]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -928,28 +938,31 @@ export default function DashboardScreen() {
         statusBarTranslucent
       >
         <View style={{ flex: 1, overflow: 'hidden' }}>
-          {/* Left panel — my color */}
+          {/* Left panel — my color, semi-transparent */}
           <Animated.View
             style={{
               position: 'absolute', top: 0, left: 0, bottom: 0, width: '50%',
               backgroundColor: data?.myProfile.color ?? '#6b7280',
+              opacity: 0.88,
               transform: [{ translateX: leftPanelX }],
             }}
           />
-          {/* Right panel — co-parent's color */}
+          {/* Right panel — co-parent's color, semi-transparent */}
           <Animated.View
             style={{
               position: 'absolute', top: 0, right: 0, bottom: 0, width: '50%',
               backgroundColor: data?.coParentProfile?.color ?? '#374151',
+              opacity: 0.88,
               transform: [{ translateX: rightPanelX }],
             }}
           />
-          {/* Center content */}
+          {/* Center content — fades in and rises after panels snap */}
           <Animated.View
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
               alignItems: 'center', justifyContent: 'center',
               opacity: contentOpacity,
+              transform: [{ translateY: contentY }],
               paddingHorizontal: 24,
             }}
           >
