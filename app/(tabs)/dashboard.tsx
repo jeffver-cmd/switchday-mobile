@@ -564,6 +564,7 @@ export default function DashboardScreen() {
   // ── Connected celebration (one-time, both parents) ─────────────────────
   const connectedCelebrationInitialized = useRef(false)
   const [showConnectedCelebration, setShowConnectedCelebration] = useState(false)
+  const celebrationExiting = useRef(false)
   const { width: SCREEN_WIDTH } = Dimensions.get('window')
   const leftPanelX = useRef(new Animated.Value(-SCREEN_WIDTH)).current
   const rightPanelX = useRef(new Animated.Value(SCREEN_WIDTH)).current
@@ -600,14 +601,34 @@ export default function DashboardScreen() {
   }, [showConnectedCelebration]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function dismissConnectedCelebration() {
-    setShowConnectedCelebration(false)
-    if (!data) return
-    const { supabase: sb } = await import('@/lib/supabase')
-    const updateData = data.isUserA
-      ? { user_a_celebration_seen_at: new Date().toISOString() }
-      : { user_b_celebration_seen_at: new Date().toISOString() }
-    // Fire-and-forget — never block the user on this
-    sb.from('co_parent_connections').update(updateData).eq('id', data.connectionId).then(() => {})
+    if (celebrationExiting.current) return
+    celebrationExiting.current = true
+
+    // Fire-and-forget DB update
+    if (data) {
+      const { supabase: sb } = await import('@/lib/supabase')
+      const updateData = data.isUserA
+        ? { user_a_celebration_seen_at: new Date().toISOString() }
+        : { user_b_celebration_seen_at: new Date().toISOString() }
+      sb.from('co_parent_connections').update(updateData).eq('id', data.connectionId).then(() => {})
+    }
+
+    // Content drops out first, then panels peel apart
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(contentOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+        Animated.timing(contentY, { toValue: 10, duration: 180, useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.sequence([
+          Animated.delay(120),
+          Animated.spring(leftPanelX, { toValue: -SCREEN_WIDTH, friction: 8, tension: 40, useNativeDriver: true }),
+        ]),
+        Animated.spring(rightPanelX, { toValue: SCREEN_WIDTH, friction: 8, tension: 40, useNativeDriver: true }),
+      ]),
+    ]).start(() => {
+      setShowConnectedCelebration(false)
+    })
   }
 
   // ── Handoff notes ─────────────────────────────────────────────────────
