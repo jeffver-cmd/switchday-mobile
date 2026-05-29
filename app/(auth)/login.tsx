@@ -10,7 +10,7 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native'
-import { Link, useRouter } from 'expo-router'
+import { Link, useRouter, useLocalSearchParams } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { loadMedicalKey } from '@/lib/utils/medicalCrypto'
 import { colors, radius, font } from '@/lib/theme'
@@ -18,6 +18,7 @@ import SwitchdayLogo from '@/components/SwitchdayLogo'
 
 export default function LoginScreen() {
   const router = useRouter()
+  const { reason } = useLocalSearchParams<{ reason?: string }>()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -58,6 +59,12 @@ export default function LoginScreen() {
       <View style={styles.inner}>
         <SwitchdayLogo size={44} />
         <Text style={styles.subtitle}>Sign in to your account</Text>
+
+        {reason === 'inactivity' && (
+          <View style={styles.notice}>
+            <Text style={styles.noticeText}>You were signed out due to inactivity.</Text>
+          </View>
+        )}
 
         <Text style={styles.label}>Email</Text>
         <TextInput
@@ -144,4 +151,14 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
   footerText: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted },
   footerLink: { fontSize: 14, fontWeight: '500', fontFamily: font.medium, color: colors.accent },
+  notice: {
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 20,
+  },
+  noticeText: { fontSize: 13, fontFamily: font.regular, color: colors.textSecondary },
 })

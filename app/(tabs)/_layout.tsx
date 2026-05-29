@@ -17,9 +17,15 @@ function tabIcon(active: IoniconsName, inactive: IoniconsName) {
   )
 }
 
+const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
+
 export default function TabsLayout() {
   const router = useRouter()
   const notifListenerRef = useRef<EventSubscription | null>(null)
+  // Timestamp (ms) when the app was last backgrounded; null if currently active.
+  const backgroundedAtRef = useRef<number | null>(null)
+  // Flag so the SIGNED_OUT handler can append ?reason=inactivity on the redirect.
+  const inactivityLogoutRef = useRef(false)
 
   useEffect(() => {
     // Register push token after the tab bar mounts (user is authenticated)
@@ -32,19 +38,38 @@ export default function TabsLayout() {
     // Pause Supabase token auto-refresh when app is backgrounded to prevent
     // "Auto refresh tick failed" errors on weak signal / background fetch failures.
     // Resume when app comes back to foreground.
+    // Also enforce inactivity logout: if the app was backgrounded for longer than
+    // INACTIVITY_TIMEOUT_MS, sign the user out when they return.
     const handleAppStateChange = (state: AppStateStatus) => {
       if (state === 'active') {
         supabase.auth.startAutoRefresh()
+        const backgroundedAt = backgroundedAtRef.current
+        backgroundedAtRef.current = null
+        if (backgroundedAt !== null && Date.now() - backgroundedAt >= INACTIVITY_TIMEOUT_MS) {
+          inactivityLogoutRef.current = true
+          supabase.auth.signOut().catch(() => {})
+        }
       } else {
         supabase.auth.stopAutoRefresh()
+        // Record when we went to background (only on first transition per session)
+        if (backgroundedAtRef.current === null) {
+          backgroundedAtRef.current = Date.now()
+        }
       }
     }
     const appStateSub = AppState.addEventListener('change', handleAppStateChange)
 
-    // Handle session expiry — redirect to login when signed out
+    // Handle session expiry — redirect to login when signed out.
+    // If the sign-out was triggered by inactivity, pass reason so the login
+    // screen can show an explanatory notice.
     const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
-        router.replace('/(auth)/login')
+        if (inactivityLogoutRef.current) {
+          inactivityLogoutRef.current = false
+          router.replace('/(auth)/login?reason=inactivity' as any)
+        } else {
+          router.replace('/(auth)/login')
+        }
       }
     })
 

@@ -55,3 +55,15 @@ No more web API proxy calls in mobile.
 `createSchedule` inserts the `parenting_schedules` row directly without generating pending custody days. Custody day generation is complex server-side logic that currently only runs on the web when a schedule is accepted. For the mobile MVP, this is acceptable: the co-parent can accept via the web to trigger full day generation.
 
 `scheduleAction('accept')` updates the status to `'accepted'` directly but also does not generate custody days. Until a mobile-compatible server endpoint exists, full custody day generation on mobile accept is deferred.
+
+---
+
+# App Store / Google Play submission — requires express consent
+
+**Never run `eas submit` or any equivalent store-submission command without Jeff's explicit go-ahead in the current session.**
+
+This applies to both platforms:
+- Apple App Store (`eas submit --platform ios`)
+- Google Play (`eas submit --platform android`)
+
+Building (`eas build`) is fine without special consent. Submitting to a store is a one-way action that puts the app in front of reviewers and potentially live users — it requires Jeff to confirm before any agent executes it.
