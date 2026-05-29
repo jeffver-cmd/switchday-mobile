@@ -211,12 +211,8 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={22} color={colors.textSecondary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <View style={styles.backBtn} />
+      <View style={styles.header}>
+        <Text style={styles.heading}>Settings</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -562,12 +558,8 @@ const styles = StyleSheet.create({
   errorText:  { fontSize: 14, fontFamily: font.regular, color: colors.danger, textAlign: 'center' },
 
   // Header
-  headerRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
-  },
-  backBtn:     { width: 32, alignItems: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
+  header:  { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
+  heading: { fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
 
   // Scroll
   scroll:        { paddingHorizontal: 16, paddingTop: 8 },

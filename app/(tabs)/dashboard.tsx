@@ -680,7 +680,7 @@ export default function DashboardScreen() {
     return (
       <SoloDashboardScreen
         soloData={soloData}
-        onGoToSettings={() => router.push('/settings')}
+        onGoToSettings={() => router.navigate('/settings')}
         onRefresh={refresh}
       />
     )
@@ -724,13 +724,7 @@ export default function DashboardScreen() {
             <Text style={styles.greetingText}>{greeting(myProfile.display_name)}</Text>
             <Text style={styles.headerDate}>{formatHeaderDate()}</Text>
           </View>
-          <TouchableOpacity
-            onPress={() => router.push('/settings')}
-            style={styles.gearBtn}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          >
-            <Ionicons name="settings-outline" size={22} color={colors.textSecondary} />
-          </TouchableOpacity>
+
         </View>
 
         {/* ── Custody card ───────────────────────────────────────────────── */}
@@ -1105,7 +1099,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
   greetingText: { fontSize: 22, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary, marginBottom: 2 },
   headerDate: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted },
-  gearBtn: { padding: 10, marginTop: -2, marginRight: -6 },
+
 
   // ── Custody card
   custodyCard: {

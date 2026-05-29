@@ -148,6 +148,10 @@ export default function TabsLayout() {
         name="vault"
         options={{ title: 'Vault', tabBarIcon: tabIcon('folder', 'folder-outline') }}
       />
+      <Tabs.Screen
+        name="settings"
+        options={{ title: 'Settings', tabBarIcon: tabIcon('settings', 'settings-outline') }}
+      />
     </Tabs>
   )
 }
