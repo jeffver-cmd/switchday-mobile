@@ -937,28 +937,6 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* ── More ───────────────────────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>MORE</Text>
-        <View style={styles.moreCard}>
-          <TouchableOpacity style={styles.moreRow} onPress={() => router.push('/(tabs)/schedule')}>
-            <Ionicons name="calendar-number-outline" size={20} color={colors.textSecondary} style={styles.moreIcon} />
-            <Text style={styles.moreLabel}>Schedule</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
-          </TouchableOpacity>
-          <View style={styles.moreDivider} />
-          <TouchableOpacity style={styles.moreRow} onPress={() => router.push('/(tabs)/journal')}>
-            <Ionicons name="journal-outline" size={20} color={colors.textSecondary} style={styles.moreIcon} />
-            <Text style={styles.moreLabel}>Journal</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
-          </TouchableOpacity>
-          <View style={styles.moreDivider} />
-          <TouchableOpacity style={styles.moreRow} onPress={() => router.push('/(tabs)/vault')}>
-            <Ionicons name="folder-outline" size={20} color={colors.textSecondary} style={styles.moreIcon} />
-            <Text style={styles.moreLabel}>Vault</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.bottomPad} />
       </ScrollView>
 
@@ -1218,26 +1196,6 @@ const styles = StyleSheet.create({
   eventInfo: { flex: 1 },
   eventTitle: { fontSize: 14, fontWeight: '500', fontFamily: font.medium, color: colors.textPrimary },
   eventTime: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, marginTop: 2 },
-
-  // ── Section label
-  sectionLabel: {
-    fontSize: 11, fontWeight: '700', fontFamily: font.bold,
-    color: colors.textSubtle, letterSpacing: 0.8,
-    marginTop: 20, marginBottom: 8, marginLeft: 4,
-  },
-
-  // ── More section
-  moreCard: {
-    backgroundColor: colors.surface, borderRadius: radius.md,
-    overflow: 'hidden', marginBottom: 12, ...shadow.sm,
-  },
-  moreRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 15,
-  },
-  moreIcon: { marginRight: 12 },
-  moreLabel: { flex: 1, fontSize: 15, fontFamily: font.regular, color: colors.textPrimary },
-  moreDivider: { height: 1, backgroundColor: colors.borderHair, marginLeft: 48 },
 
   // ── All clear
   allClearCard: {

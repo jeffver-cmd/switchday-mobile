@@ -1,5 +1,8 @@
-import { useEffect, useRef } from 'react'
-import { AppState, type AppStateStatus } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import {
+  AppState, Modal, StyleSheet, Text, TouchableOpacity, View,
+  type AppStateStatus,
+} from 'react-native'
 import { Tabs } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import * as Notifications from 'expo-notifications'
@@ -7,7 +10,7 @@ import { type EventSubscription } from 'expo-modules-core'
 import { useRouter } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { registerForPushNotificationsAsync } from '@/lib/notifications'
-import { colors, font } from '@/lib/theme'
+import { colors, radius, font } from '@/lib/theme'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -19,27 +22,27 @@ function tabIcon(active: IoniconsName, inactive: IoniconsName) {
 
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
 
+const MORE_ITEMS: { label: string; icon: IoniconsName; route: string }[] = [
+  { label: 'Schedule', icon: 'calendar-number-outline', route: '/(tabs)/schedule' },
+  { label: 'Journal',  icon: 'journal-outline',         route: '/(tabs)/journal'  },
+  { label: 'Vault',    icon: 'folder-outline',           route: '/(tabs)/vault'    },
+  { label: 'Settings', icon: 'settings-outline',         route: '/(tabs)/settings' },
+]
+
 export default function TabsLayout() {
   const router = useRouter()
   const notifListenerRef = useRef<EventSubscription | null>(null)
-  // Timestamp (ms) when the app was last backgrounded; null if currently active.
   const backgroundedAtRef = useRef<number | null>(null)
-  // Flag so the SIGNED_OUT handler can append ?reason=inactivity on the redirect.
   const inactivityLogoutRef = useRef(false)
+  const [showMore, setShowMore] = useState(false)
 
   useEffect(() => {
-    // Register push token after the tab bar mounts (user is authenticated)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user?.id) {
         void registerForPushNotificationsAsync(session.user.id)
       }
     })
 
-    // Pause Supabase token auto-refresh when app is backgrounded to prevent
-    // "Auto refresh tick failed" errors on weak signal / background fetch failures.
-    // Resume when app comes back to foreground.
-    // Also enforce inactivity logout: if the app was backgrounded for longer than
-    // INACTIVITY_TIMEOUT_MS, sign the user out when they return.
     const handleAppStateChange = (state: AppStateStatus) => {
       if (state === 'active') {
         supabase.auth.startAutoRefresh()
@@ -51,7 +54,6 @@ export default function TabsLayout() {
         }
       } else {
         supabase.auth.stopAutoRefresh()
-        // Record when we went to background (only on first transition per session)
         if (backgroundedAtRef.current === null) {
           backgroundedAtRef.current = Date.now()
         }
@@ -59,9 +61,6 @@ export default function TabsLayout() {
     }
     const appStateSub = AppState.addEventListener('change', handleAppStateChange)
 
-    // Handle session expiry — redirect to login when signed out.
-    // If the sign-out was triggered by inactivity, pass reason so the login
-    // screen can show an explanatory notice.
     const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
         if (inactivityLogoutRef.current) {
@@ -73,15 +72,13 @@ export default function TabsLayout() {
       }
     })
 
-    // Handle notification taps — navigate to relevant screen
     notifListenerRef.current = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data as Record<string, unknown>
       const screen = data?.screen as string | undefined
       if (screen === 'messages') {
-        const threadId    = data?.threadId    as string | undefined
+        const threadId     = data?.threadId     as string | undefined
         const connectionId = data?.connectionId as string | undefined
         if (threadId && connectionId) {
-          // Navigate directly to the specific thread
           router.push(`/messages/${threadId}?connectionId=${connectionId}&topic=${encodeURIComponent('Conversation')}` as any)
         } else {
           router.push('/(tabs)/messages')
@@ -102,56 +99,164 @@ export default function TabsLayout() {
     }
   }, [router])
 
+  function navigate(route: string) {
+    setShowMore(false)
+    // Small delay so the sheet closes before the screen pushes
+    setTimeout(() => router.push(route as any), 50)
+  }
+
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.borderHair,
-          borderTopWidth: 1,
-        },
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textSubtle,
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
-          fontFamily: font.medium,
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="dashboard"
-        options={{ title: 'Home', tabBarIcon: tabIcon('home', 'home-outline') }}
-      />
-      <Tabs.Screen
-        name="calendar"
-        options={{ title: 'Calendar', tabBarIcon: tabIcon('calendar', 'calendar-outline') }}
-      />
-      <Tabs.Screen
-        name="messages"
-        options={{ title: 'Messages', tabBarIcon: tabIcon('chatbubble', 'chatbubble-outline') }}
-      />
-      <Tabs.Screen
-        name="expenses"
-        options={{ title: 'Expenses', tabBarIcon: tabIcon('receipt', 'receipt-outline') }}
-      />
-      <Tabs.Screen
-        name="schedule"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="journal"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="vault"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{ title: 'Settings', tabBarIcon: tabIcon('settings', 'settings-outline') }}
-      />
-    </Tabs>
+    <>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.borderHair,
+            borderTopWidth: 1,
+          },
+          tabBarActiveTintColor: colors.accent,
+          tabBarInactiveTintColor: colors.textSubtle,
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: '500',
+            fontFamily: font.medium,
+          },
+        }}
+      >
+        <Tabs.Screen
+          name="dashboard"
+          options={{ title: 'Home', tabBarIcon: tabIcon('home', 'home-outline') }}
+        />
+        <Tabs.Screen
+          name="calendar"
+          options={{ title: 'Calendar', tabBarIcon: tabIcon('calendar', 'calendar-outline') }}
+        />
+        <Tabs.Screen
+          name="messages"
+          options={{ title: 'Messages', tabBarIcon: tabIcon('chatbubble', 'chatbubble-outline') }}
+        />
+        <Tabs.Screen
+          name="expenses"
+          options={{ title: 'Expenses', tabBarIcon: tabIcon('receipt', 'receipt-outline') }}
+        />
+        {/* More tab — custom button that opens the bottom sheet */}
+        <Tabs.Screen
+          name="more"
+          options={{
+            title: 'More',
+            tabBarIcon: ({ color }) => <Ionicons name="ellipsis-horizontal" size={22} color={color} />,
+            tabBarButton: (props) => (
+              <TouchableOpacity
+                style={props.style}
+                onPress={() => setShowMore(true)}
+                activeOpacity={0.7}
+              >
+                {props.children}
+              </TouchableOpacity>
+            ),
+          }}
+        />
+        {/* Hidden routes — accessible via the More sheet */}
+        <Tabs.Screen name="schedule" options={{ href: null }} />
+        <Tabs.Screen name="journal"  options={{ href: null }} />
+        <Tabs.Screen name="vault"    options={{ href: null }} />
+        <Tabs.Screen name="settings" options={{ href: null }} />
+      </Tabs>
+
+      {/* ── More bottom sheet ──────────────────────────────────────────────── */}
+      <Modal
+        visible={showMore}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMore(false)}
+      >
+        <View style={sheet.overlay}>
+          {/* Tap backdrop to dismiss */}
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowMore(false)}
+            activeOpacity={1}
+          />
+          <View style={sheet.container}>
+            <View style={sheet.handle} />
+
+            {MORE_ITEMS.map((item, i) => (
+              <TouchableOpacity
+                key={item.route}
+                style={[sheet.row, i < MORE_ITEMS.length - 1 && sheet.rowBorder]}
+                onPress={() => navigate(item.route)}
+                activeOpacity={0.7}
+              >
+                <View style={sheet.iconWrap}>
+                  <Ionicons name={item.icon} size={20} color={colors.accent} />
+                </View>
+                <Text style={sheet.rowLabel}>{item.label}</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+              </TouchableOpacity>
+            ))}
+
+            <TouchableOpacity
+              style={sheet.cancelBtn}
+              onPress={() => setShowMore(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={sheet.cancelText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </>
   )
 }
+
+const sheet = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  container: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 36,
+    paddingHorizontal: 16,
+  },
+  handle: {
+    width: 36, height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.borderHair,
+    alignSelf: 'center',
+    marginTop: 10, marginBottom: 8,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 14,
+  },
+  rowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderHair,
+  },
+  iconWrap: {
+    width: 36, height: 36, borderRadius: radius.sm,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  rowLabel: {
+    flex: 1,
+    fontSize: 16, fontFamily: font.medium, color: colors.textPrimary,
+  },
+  cancelBtn: {
+    marginTop: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderRadius: radius.md,
+    backgroundColor: colors.surface2,
+  },
+  cancelText: {
+    fontSize: 15, fontFamily: font.medium, color: colors.textMuted,
+  },
+})
