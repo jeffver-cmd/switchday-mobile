@@ -577,9 +577,9 @@ export default function NewScheduleScreen() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.cancelBtn} hitSlop={12}>
-          <Text style={s.cancelText}>Cancel</Text>
+          <Text style={s.cancelText} numberOfLines={1}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={s.title}>
+        <Text style={s.title} numberOfLines={1}>
           {supersedesId ? 'Propose Replacement' : 'New Schedule'}
         </Text>
         <View style={{ width: 64 }} />
@@ -788,7 +788,7 @@ const s = StyleSheet.create({
   },
   cancelBtn: { width: 64 },
   cancelText: { fontSize: 16, fontFamily: font.regular, color: colors.textMuted },
-  title: { fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary },
+  title: { flex: 1, fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, textAlign: 'center' },
 
   form: { paddingHorizontal: 20, paddingTop: 20 },
   label: { fontSize: 13, fontWeight: '600', fontFamily: font.semibold, color: colors.textSecondary, marginBottom: 6, marginTop: 16 },

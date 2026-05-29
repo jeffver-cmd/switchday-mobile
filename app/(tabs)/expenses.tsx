@@ -305,13 +305,13 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
       <SafeAreaView style={modal.container}>
         <View style={modal.header}>
           <TouchableOpacity onPress={onClose} style={modal.closeBtn}>
-            <Text style={modal.closeText}>Cancel</Text>
+            <Text style={modal.closeText} numberOfLines={1}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={modal.title}>Log Expense</Text>
+          <Text style={modal.title} numberOfLines={1}>Log Expense</Text>
           <TouchableOpacity onPress={handleSave} style={modal.saveBtn} disabled={saving || scanning}>
             {saving
               ? <ActivityIndicator size="small" color={colors.accent} />
-              : <Text style={modal.saveText}>Save</Text>
+              : <Text style={modal.saveText} numberOfLines={1}>Save</Text>
             }
           </TouchableOpacity>
         </View>
@@ -761,7 +761,7 @@ const modal = StyleSheet.create({
   },
   closeBtn: { width: 64 },
   closeText: { fontSize: 16, fontFamily: font.regular, color: colors.textMuted },
-  title: { fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary },
+  title: { flex: 1, fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, textAlign: 'center' },
   saveBtn: { width: 64, alignItems: 'flex-end' },
   saveText: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.accent },
   form: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
