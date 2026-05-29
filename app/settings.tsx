@@ -473,12 +473,15 @@ export default function SettingsScreen() {
             </TouchableOpacity>
             {showSwitchTimePicker && (
               <>
-                <DateTimePicker
-                  value={editSwitchTimeDt}
-                  mode="time"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(_e, d) => { if (d) setEditSwitchTimeDt(d); if (Platform.OS !== 'ios') setShowSwitchTimePicker(false) }}
-                />
+                <View style={{ backgroundColor: colors.surface, borderRadius: 12, overflow: 'hidden' }}>
+                  <DateTimePicker
+                    value={editSwitchTimeDt}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    textColor={colors.textPrimary}
+                    onChange={(_e, d) => { if (d) setEditSwitchTimeDt(d); if (Platform.OS !== 'ios') setShowSwitchTimePicker(false) }}
+                  />
+                </View>
                 {Platform.OS === 'ios' && (
                   <TouchableOpacity onPress={() => setShowSwitchTimePicker(false)} style={{ alignItems: 'center', paddingVertical: 8 }}>
                     <Text style={{ color: colors.accent, fontFamily: font.medium, fontSize: 15 }}>Done</Text>

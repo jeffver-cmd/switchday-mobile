@@ -493,6 +493,7 @@ export default function ScheduleScreen() {
                   value={switchReqDate}
                   mode="date"
                   display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                  themeVariant="light"
                   minimumDate={new Date()}
                   onChange={(_e, d) => {
                     if (d) { setSwitchReqDate(d); lookupDayOwner(d) }

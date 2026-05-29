@@ -128,6 +128,7 @@ function DateField({ label, value, min, max, onChange }: DateFieldProps) {
                 value={value ?? new Date()}
                 mode="date"
                 display="spinner"
+                themeVariant="light"
                 minimumDate={min}
                 maximumDate={max}
                 onChange={handleChange}

@@ -283,15 +283,18 @@ function AddEventModal({ visible, onClose, defaultDate, connectionId, userId, on
                 </TouchableOpacity>
                 {showTimePick && (
                   <>
-                    <DateTimePicker
-                      value={startTimeDt}
-                      mode="time"
-                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                      onChange={(_e, d) => {
-                        if (d) setStartTimeDt(d)
-                        if (Platform.OS !== 'ios') setShowTimePick(false)
-                      }}
-                    />
+                    <View style={{ backgroundColor: colors.surface, borderRadius: radius.md, overflow: 'hidden' }}>
+                      <DateTimePicker
+                        value={startTimeDt}
+                        mode="time"
+                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                        textColor={colors.textPrimary}
+                        onChange={(_e, d) => {
+                          if (d) setStartTimeDt(d)
+                          if (Platform.OS !== 'ios') setShowTimePick(false)
+                        }}
+                      />
+                    </View>
                     {Platform.OS === 'ios' && (
                       <TouchableOpacity style={addEvStyles.dateDone} onPress={() => setShowTimePick(false)}>
                         <Text style={addEvStyles.dateDoneText}>Done</Text>
@@ -607,12 +610,15 @@ function DayDetail({ dateStr, events, isSwitch, connectionId, userId }: DayDetai
               </TouchableOpacity>
               {showTimePick && (
                 <>
-                  <DateTimePicker
-                    value={overrideTime}
-                    mode="time"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={(_e, d) => { if (d) setOverrideTime(d); if (Platform.OS !== 'ios') setShowTimePick(false) }}
-                  />
+                  <View style={{ backgroundColor: colors.surface, borderRadius: radius.md, overflow: 'hidden' }}>
+                    <DateTimePicker
+                      value={overrideTime}
+                      mode="time"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      textColor={colors.textPrimary}
+                      onChange={(_e, d) => { if (d) setOverrideTime(d); if (Platform.OS !== 'ios') setShowTimePick(false) }}
+                    />
+                  </View>
                   {Platform.OS === 'ios' && (
                     <TouchableOpacity onPress={() => setShowTimePick(false)} style={{ alignItems: 'center', paddingVertical: 4 }}>
                       <Text style={{ color: colors.accent, fontFamily: font.medium, fontSize: 14 }}>Done</Text>

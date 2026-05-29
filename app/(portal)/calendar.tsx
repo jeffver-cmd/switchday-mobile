@@ -392,12 +392,15 @@ function AddEventModal({
               </TouchableOpacity>
               {showTimePick && (
                 <>
-                  <DateTimePicker
-                    value={startTimeDt}
-                    mode="time"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={(_e, d) => { if (d) setStartTimeDt(d); if (Platform.OS !== 'ios') setShowTimePick(false) }}
-                  />
+                  <View style={{ backgroundColor: theme.surface, borderRadius: 12, overflow: 'hidden' }}>
+                    <DateTimePicker
+                      value={startTimeDt}
+                      mode="time"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      textColor={theme.textPrimary}
+                      onChange={(_e, d) => { if (d) setStartTimeDt(d); if (Platform.OS !== 'ios') setShowTimePick(false) }}
+                    />
+                  </View>
                   {Platform.OS === 'ios' && (
                     <TouchableOpacity onPress={() => setShowTimePick(false)} style={{ alignItems: 'center', paddingVertical: 8 }}>
                       <Text style={{ color: theme.accent, fontFamily: font.semibold, fontSize: 15 }}>Done</Text>
