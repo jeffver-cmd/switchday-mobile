@@ -12,15 +12,21 @@ import {
   Platform,
   Alert,
   ScrollView,
+  Image,
+  Linking,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useCallback, useEffect } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '@/lib/supabase'
-import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
+import { colors, radius, font, buttonLabel } from '@/lib/theme'
 import type { JournalMood } from '@/lib/types/database'
+import { pickDocument, pickFromCamera, pickFromPhotoLibrary, type PickedFile } from '@/lib/api/vault'
 
 // ─── constants ───────────────────────────────────────────────────────────────
+
+const JOURNAL_BUCKET = 'journal-attachments'
+const MAX_ATTACH_BYTES = 20 * 1024 * 1024 // 20 MB
 
 const MOODS: { key: JournalMood; emoji: string; label: string; color: string }[] = [
   { key: 'calm',       emoji: '😌', label: 'Calm',       color: '#3D8C6A' },
@@ -30,22 +36,11 @@ const MOODS: { key: JournalMood; emoji: string; label: string; color: string }[]
   { key: 'angry',      emoji: '😠', label: 'Angry',      color: '#8B0000' },
 ]
 
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
 function moodFor(key: JournalMood | null) {
   return MOODS.find(m => m.key === key) ?? null
 }
-
-// ─── types ───────────────────────────────────────────────────────────────────
-
-interface JournalEntry {
-  id: string
-  title: string | null
-  content: string
-  mood: JournalMood | null
-  created_at: string
-  archived_at: string | null
-}
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
 
 function formatEntryDate(iso: string): string {
   const d = new Date(iso)
@@ -55,6 +50,65 @@ function formatEntryDate(iso: string): string {
   if (diff === 1) return 'Yesterday'
   if (diff < 7) return d.toLocaleDateString('en-US', { weekday: 'long' })
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined })
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+// ─── types ───────────────────────────────────────────────────────────────────
+
+interface JournalAttachment {
+  id: string
+  storage_path: string
+  file_name: string
+  file_size: number | null
+  mime_type: string | null
+}
+
+interface JournalEntry {
+  id: string
+  title: string | null
+  content: string
+  mood: JournalMood | null
+  created_at: string
+  archived_at: string | null
+  journal_attachments?: { id: string }[]
+}
+
+// ─── attachment chip ──────────────────────────────────────────────────────────
+
+interface AttachChipProps {
+  name: string
+  isImage: boolean
+  imageUrl?: string   // signed URL or local URI
+  isPending?: boolean
+  onDelete: () => void
+}
+
+function AttachChip({ name, isImage, imageUrl, isPending, onDelete }: AttachChipProps) {
+  return (
+    <View style={editor.chip}>
+      {isImage && imageUrl ? (
+        <Image source={{ uri: imageUrl }} style={editor.chipThumb} />
+      ) : (
+        <View style={editor.chipIconWrap}>
+          <Ionicons name="document-outline" size={15} color={colors.textSubtle} />
+        </View>
+      )}
+      <View style={{ flex: 1 }}>
+        <Text style={editor.chipName} numberOfLines={1}>{name}</Text>
+        {isPending && (
+          <Text style={editor.chipPending}>Uploads on save</Text>
+        )}
+      </View>
+      <TouchableOpacity onPress={onDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Ionicons name="close-circle" size={18} color={colors.textSubtle} />
+      </TouchableOpacity>
+    </View>
+  )
 }
 
 // ─── entry row ───────────────────────────────────────────────────────────────
@@ -67,6 +121,7 @@ interface EntryRowProps {
 
 function EntryRow({ item, onPress, onDelete }: EntryRowProps) {
   const mood = moodFor(item.mood)
+  const attachCount = item.journal_attachments?.length ?? 0
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} onLongPress={onDelete} delayLongPress={500} activeOpacity={0.8}>
       <View style={styles.rowLeft}>
@@ -80,7 +135,15 @@ function EntryRow({ item, onPress, onDelete }: EntryRowProps) {
         <Text style={[styles.rowContent2, item.title ? null : styles.rowContent2NoTitle]} numberOfLines={2}>
           {item.content}
         </Text>
-        <Text style={styles.rowDate}>{formatEntryDate(item.created_at)}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+          <Text style={styles.rowDate}>{formatEntryDate(item.created_at)}</Text>
+          {attachCount > 0 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+              <Ionicons name="attach" size={11} color={colors.textSubtle} />
+              <Text style={styles.rowDate}>{attachCount}</Text>
+            </View>
+          )}
+        </View>
       </View>
       <Ionicons name="chevron-forward" size={14} color={colors.textSubtle} style={{ marginTop: 4 }} />
     </TouchableOpacity>
@@ -92,25 +155,178 @@ function EntryRow({ item, onPress, onDelete }: EntryRowProps) {
 interface EditorProps {
   visible: boolean
   entry: JournalEntry | null  // null = new entry
+  isPro: boolean
   onClose: () => void
   onSaved: (entry: JournalEntry) => void
   onDeleted?: (id: string) => void
 }
 
-function EntryEditor({ visible, entry, onClose, onSaved, onDeleted }: EditorProps) {
-  const [title,   setTitle]   = useState('')
-  const [content, setContent] = useState('')
-  const [mood,    setMood]    = useState<JournalMood | null>(null)
-  const [saving,  setSaving]  = useState(false)
-  const [deleting,setDeleting]= useState(false)
+function EntryEditor({ visible, entry, isPro, onClose, onSaved, onDeleted }: EditorProps) {
+  const [title,    setTitle]    = useState('')
+  const [content,  setContent]  = useState('')
+  const [mood,     setMood]     = useState<JournalMood | null>(null)
+  const [saving,   setSaving]   = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
+  // Attachment state
+  const [attachments,  setAttachments]  = useState<JournalAttachment[]>([])
+  const [pendingFiles, setPendingFiles] = useState<PickedFile[]>([])
+  const [uploading,    setUploading]    = useState(false)
+  const [signedUrls,   setSignedUrls]   = useState<Record<string, string>>({})
+
+  // Reset + load when editor opens
   useEffect(() => {
-    if (visible) {
-      setTitle(entry?.title ?? '')
-      setContent(entry?.content ?? '')
-      setMood(entry?.mood ?? null)
+    if (!visible) return
+    setTitle(entry?.title ?? '')
+    setContent(entry?.content ?? '')
+    setMood(entry?.mood ?? null)
+    setAttachments([])
+    setPendingFiles([])
+    setSignedUrls({})
+    setUploading(false)
+    if (entry) loadAttachments(entry.id)
+  }, [visible, entry?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function loadAttachments(entryId: string) {
+    const { data } = await supabase
+      .from('journal_attachments')
+      .select('id, storage_path, file_name, file_size, mime_type')
+      .eq('entry_id', entryId)
+      .order('created_at', { ascending: true })
+    if (!data) return
+    setAttachments(data as JournalAttachment[])
+    // Fetch signed URLs for image attachments
+    for (const att of data as JournalAttachment[]) {
+      if (att.mime_type?.startsWith('image/')) {
+        const { data: urlData } = await supabase.storage
+          .from(JOURNAL_BUCKET)
+          .createSignedUrl(att.storage_path, 3600)
+        if (urlData?.signedUrl) {
+          setSignedUrls(prev => ({ ...prev, [att.id]: urlData.signedUrl }))
+        }
+      }
     }
-  }, [visible, entry])
+  }
+
+  async function uploadAndInsert(
+    file: PickedFile,
+    entryId: string,
+    userId: string,
+  ): Promise<JournalAttachment | null> {
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const storagePath = `journal/${userId}/${entryId}/${Date.now()}_${safeName}`
+
+      const response = await fetch(file.uri)
+      const arrayBuffer = await response.arrayBuffer()
+      const blob = new Blob([arrayBuffer], { type: file.mimeType })
+
+      const { error: uploadError } = await supabase.storage
+        .from(JOURNAL_BUCKET)
+        .upload(storagePath, blob, { contentType: file.mimeType, upsert: false })
+
+      if (uploadError) return null
+
+      const { data: att, error: insertError } = await supabase
+        .from('journal_attachments')
+        .insert({
+          entry_id:     entryId,
+          user_id:      userId,
+          storage_path: storagePath,
+          file_name:    file.name,
+          file_size:    file.size || null,
+          mime_type:    file.mimeType || null,
+        })
+        .select('id, storage_path, file_name, file_size, mime_type')
+        .single()
+
+      if (insertError || !att) {
+        await supabase.storage.from(JOURNAL_BUCKET).remove([storagePath])
+        return null
+      }
+
+      // Fetch signed URL if image
+      if (file.mimeType.startsWith('image/')) {
+        const { data: urlData } = await supabase.storage
+          .from(JOURNAL_BUCKET)
+          .createSignedUrl(storagePath, 3600)
+        if (urlData?.signedUrl) {
+          setSignedUrls(prev => ({ ...prev, [(att as JournalAttachment).id]: urlData.signedUrl }))
+        }
+      }
+
+      return att as JournalAttachment
+    } catch {
+      return null
+    }
+  }
+
+  async function handleAttach() {
+    Alert.alert('Add attachment', undefined, [
+      {
+        text: 'Photo Library',
+        onPress: async () => {
+          const file = await pickFromPhotoLibrary()
+          if (!file) return
+          if (file.size > MAX_ATTACH_BYTES) { Alert.alert('File too large', 'Maximum attachment size is 20 MB.'); return }
+          await stageOrUpload(file)
+        },
+      },
+      {
+        text: 'Camera',
+        onPress: async () => {
+          const file = await pickFromCamera()
+          if (!file) return
+          if (file.size > MAX_ATTACH_BYTES) { Alert.alert('File too large', 'Maximum attachment size is 20 MB.'); return }
+          await stageOrUpload(file)
+        },
+      },
+      {
+        text: 'File',
+        onPress: async () => {
+          const file = await pickDocument()
+          if (!file) return
+          if (file.size > MAX_ATTACH_BYTES) { Alert.alert('File too large', 'Maximum attachment size is 20 MB.'); return }
+          await stageOrUpload(file)
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ])
+  }
+
+  async function stageOrUpload(file: PickedFile) {
+    if (!entry) {
+      // New entry — stage locally until Save
+      setPendingFiles(prev => [...prev, file])
+      return
+    }
+    // Existing entry — upload immediately
+    setUploading(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { setUploading(false); return }
+    const att = await uploadAndInsert(file, entry.id, session.user.id)
+    setUploading(false)
+    if (att) {
+      setAttachments(prev => [...prev, att])
+    } else {
+      Alert.alert('Upload failed', 'Could not attach the file. Try again.')
+    }
+  }
+
+  async function handleDeleteAttachment(att: JournalAttachment) {
+    Alert.alert('Remove attachment?', att.file_name, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove', style: 'destructive',
+        onPress: async () => {
+          await supabase.storage.from(JOURNAL_BUCKET).remove([att.storage_path])
+          await supabase.from('journal_attachments').delete().eq('id', att.id)
+          setAttachments(prev => prev.filter(a => a.id !== att.id))
+          setSignedUrls(prev => { const n = { ...prev }; delete n[att.id]; return n })
+        },
+      },
+    ])
+  }
 
   async function handleSave() {
     if (!content.trim()) { Alert.alert('Write something first'); return }
@@ -118,26 +334,56 @@ function EntryEditor({ visible, entry, onClose, onSaved, onDeleted }: EditorProp
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
+      const userId = session.user.id
 
       if (entry) {
-        // Update
+        // ── Update existing entry ──────────────────────────────────────────
         const { data: updated, error } = await supabase
           .from('journal_entries')
           .update({ title: title.trim() || null, content: content.trim(), mood, updated_at: new Date().toISOString() })
           .eq('id', entry.id)
-          .eq('user_id', session.user.id)
+          .eq('user_id', userId)
           .select()
           .single()
         if (error || !updated) { Alert.alert('Error', error?.message ?? 'Failed to save'); return }
+
+        // Upload any files staged while editing an existing entry
+        if (isPro && pendingFiles.length > 0) {
+          setUploading(true)
+          const failed: string[] = []
+          for (const file of pendingFiles) {
+            const att = await uploadAndInsert(file, entry.id, userId)
+            if (att) setAttachments(prev => [...prev, att])
+            else failed.push(file.name)
+          }
+          setPendingFiles([])
+          setUploading(false)
+          if (failed.length > 0) Alert.alert('Some uploads failed', failed.join(', '))
+        }
+
         onSaved(updated as JournalEntry)
       } else {
-        // Insert
+        // ── Insert new entry ───────────────────────────────────────────────
         const { data: created, error } = await supabase
           .from('journal_entries')
           .insert({ content: content.trim(), title: title.trim() || null, mood })
           .select()
           .single()
         if (error || !created) { Alert.alert('Error', error?.message ?? 'Failed to save'); return }
+
+        // Upload pending files now that we have an entry ID
+        if (isPro && pendingFiles.length > 0) {
+          setUploading(true)
+          const failed: string[] = []
+          for (const file of pendingFiles) {
+            const att = await uploadAndInsert(file, created.id, userId)
+            if (!att) failed.push(file.name)
+          }
+          setPendingFiles([])
+          setUploading(false)
+          if (failed.length > 0) Alert.alert('Some uploads failed', failed.join(', '))
+        }
+
         onSaved(created as JournalEntry)
       }
     } finally {
@@ -163,17 +409,19 @@ function EntryEditor({ visible, entry, onClose, onSaved, onDeleted }: EditorProp
     ])
   }
 
+  const isBusy = saving || uploading
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
         {/* Header */}
         <View style={editor.header}>
-          <TouchableOpacity onPress={onClose} style={editor.headerBtn} disabled={saving}>
-            <Text style={[editor.cancel, saving && { opacity: 0.4 }]}>Cancel</Text>
+          <TouchableOpacity onPress={onClose} style={editor.headerBtn} disabled={isBusy}>
+            <Text style={[editor.cancel, isBusy && { opacity: 0.4 }]}>Cancel</Text>
           </TouchableOpacity>
           <Text style={editor.title}>{entry ? 'Edit entry' : 'New entry'}</Text>
-          <TouchableOpacity onPress={handleSave} style={editor.headerBtn} disabled={saving}>
-            {saving
+          <TouchableOpacity onPress={handleSave} style={editor.headerBtn} disabled={isBusy}>
+            {isBusy
               ? <ActivityIndicator size="small" color={colors.accent} />
               : <Text style={editor.save}>Save</Text>}
           </TouchableOpacity>
@@ -181,6 +429,7 @@ function EntryEditor({ visible, entry, onClose, onSaved, onDeleted }: EditorProp
 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={editor.form} keyboardShouldPersistTaps="handled">
+
             {/* Mood picker */}
             <Text style={editor.label}>HOW ARE YOU FEELING?</Text>
             <View style={editor.moodRow}>
@@ -220,6 +469,63 @@ function EntryEditor({ visible, entry, onClose, onSaved, onDeleted }: EditorProp
               autoFocus={!entry}
             />
 
+            {/* Attachments */}
+            <Text style={[editor.label, { marginTop: 20 }]}>ATTACHMENTS</Text>
+
+            {!isPro ? (
+              <TouchableOpacity
+                style={editor.proGateRow}
+                onPress={() => Linking.openURL('https://switchday.app/app/settings?tab=plan&upgrade=1')}
+              >
+                <Ionicons name="lock-closed" size={13} color={colors.textSubtle} />
+                <Text style={editor.proGateText}>Attachments require Pro — tap to upgrade</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                {/* Existing + pending attachment chips */}
+                {(attachments.length > 0 || pendingFiles.length > 0) && (
+                  <View style={editor.chipList}>
+                    {attachments.map(att => (
+                      <AttachChip
+                        key={att.id}
+                        name={att.file_name}
+                        isImage={att.mime_type?.startsWith('image/') ?? false}
+                        imageUrl={signedUrls[att.id]}
+                        onDelete={() => handleDeleteAttachment(att)}
+                      />
+                    ))}
+                    {pendingFiles.map((file, i) => (
+                      <AttachChip
+                        key={`pending-${i}`}
+                        name={file.name}
+                        isImage={file.mimeType.startsWith('image/')}
+                        imageUrl={file.mimeType.startsWith('image/') ? file.uri : undefined}
+                        isPending
+                        onDelete={() => setPendingFiles(prev => prev.filter((_, idx) => idx !== i))}
+                      />
+                    ))}
+                  </View>
+                )}
+
+                {/* Attach button */}
+                <TouchableOpacity
+                  style={editor.attachBtn}
+                  onPress={handleAttach}
+                  disabled={isBusy}
+                  activeOpacity={0.7}
+                >
+                  {uploading ? (
+                    <ActivityIndicator size="small" color={colors.accent} />
+                  ) : (
+                    <>
+                      <Ionicons name="attach" size={15} color={colors.accent} />
+                      <Text style={editor.attachBtnText}>Attach file</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+
             {/* Delete button (edit only) */}
             {entry && onDeleted && (
               <TouchableOpacity
@@ -244,6 +550,7 @@ export default function JournalScreen() {
   const [entries, setEntries] = useState<JournalEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
+  const [isPro,   setIsPro]   = useState(false)
   const [showNew, setShowNew] = useState(false)
   const [editing, setEditing] = useState<JournalEntry | null>(null)
 
@@ -252,9 +559,19 @@ export default function JournalScreen() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { setError('not_signed_in'); return }
+
+      // Check plan
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('plan')
+        .eq('id', session.user.id)
+        .single()
+      setIsPro(['pro', 'standard', 'premium'].includes(profile?.plan ?? ''))
+
+      // Fetch entries with attachment counts
       const { data, error: err } = await supabase
         .from('journal_entries')
-        .select('id, title, content, mood, created_at, archived_at')
+        .select('id, title, content, mood, created_at, archived_at, journal_attachments(id)')
         .eq('user_id', session.user.id)
         .is('archived_at', null)
         .order('created_at', { ascending: false })
@@ -267,16 +584,10 @@ export default function JournalScreen() {
 
   useEffect(() => { load() }, [load])
 
-  function handleSaved(entry: JournalEntry) {
-    setEntries(prev => {
-      const idx = prev.findIndex(e => e.id === entry.id)
-      if (idx >= 0) {
-        const next = [...prev]; next[idx] = entry; return next
-      }
-      return [entry, ...prev]
-    })
+  function handleSaved(_entry: JournalEntry) {
     setShowNew(false)
     setEditing(null)
+    load() // Refresh to pick up new attachment counts
   }
 
   function handleDeleted(id: string) {
@@ -359,6 +670,7 @@ export default function JournalScreen() {
       <EntryEditor
         visible={showNew}
         entry={null}
+        isPro={isPro}
         onClose={() => setShowNew(false)}
         onSaved={handleSaved}
       />
@@ -366,6 +678,7 @@ export default function JournalScreen() {
       <EntryEditor
         visible={!!editing}
         entry={editing}
+        isPro={isPro}
         onClose={() => setEditing(null)}
         onSaved={handleSaved}
         onDeleted={handleDeleted}
@@ -456,6 +769,38 @@ const editor = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12,
     fontSize: 15, fontFamily: font.regular, color: colors.textPrimary,
   },
+
+  // Pro gate row
+  proGateRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 14, paddingVertical: 12,
+    backgroundColor: colors.surface2, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  proGateText: { fontSize: 13, fontFamily: font.medium, color: colors.textSubtle, flex: 1 },
+
+  // Attachment chip list
+  chipList: { gap: 8, marginBottom: 10 },
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.surface, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.border,
+    paddingVertical: 8, paddingHorizontal: 10,
+    overflow: 'hidden',
+  },
+  chipThumb: { width: 40, height: 40, borderRadius: 6, backgroundColor: colors.surface2 },
+  chipIconWrap: { width: 40, height: 40, borderRadius: 6, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
+  chipName: { fontSize: 13, fontFamily: font.medium, color: colors.textPrimary, flex: 1 },
+  chipPending: { fontSize: 11, fontFamily: font.regular, color: colors.textSubtle, marginTop: 1 },
+
+  // Attach button
+  attachBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 11, paddingHorizontal: 16,
+    borderRadius: radius.md, borderWidth: 1, borderColor: colors.accent,
+    borderStyle: 'dashed',
+  },
+  attachBtnText: { fontSize: 14, fontFamily: font.medium, color: colors.accent },
 
   // Delete
   deleteBtn: {
