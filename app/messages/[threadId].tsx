@@ -139,7 +139,7 @@ export default function ConversationScreen() {
   const pt: PortalTheme | null = themeKey ? getPortalTheme(themeKey as ThemeKey) : null
 
   const { data, loading, loadingMore, hasMore, loadMore, error } = useMessages(threadId)
-  const isFirstLoad = useRef(true)
+
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
@@ -180,12 +180,6 @@ export default function ConversationScreen() {
     })
   }, [threadId])
 
-  // Scroll to bottom when messages load or a new one arrives
-  useEffect(() => {
-    if (data?.messages.length) {
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 100)
-    }
-  }, [data?.messages.length])
 
   /** Final send — writes the message with optional tone metadata. */
   const commitSend = useCallback(async (
@@ -271,7 +265,8 @@ export default function ConversationScreen() {
     setCoachResult(null)
   }, [pendingBody])
 
-  // Build list items: inject day separators
+  // Build list items: inject day separators, then reverse for inverted FlatList
+  // (inverted renders index-0 at the visual bottom, so newest-first = newest at bottom)
   const listItems: Array<{ type: 'sep'; label: string } | { type: 'msg'; msg: Message; isMe: boolean; showTime: boolean }> = []
 
   if (data) {
@@ -291,6 +286,7 @@ export default function ConversationScreen() {
         (new Date(next.sentAt).getTime() - new Date(msg.sentAt).getTime()) > 5 * 60 * 1000
       listItems.push({ type: 'msg', msg, isMe, showTime })
     }
+    listItems.reverse()
   }
 
   return (
@@ -340,7 +336,8 @@ export default function ConversationScreen() {
                     receivedTextColor={pt?.textPrimary}
                   />
             }
-            ListHeaderComponent={
+            inverted
+            ListFooterComponent={
               hasMore ? (
                 <TouchableOpacity
                   onPress={loadMore}
@@ -356,13 +353,6 @@ export default function ConversationScreen() {
             }
             contentContainerStyle={styles.messageList}
             showsVerticalScrollIndicator={false}
-            onContentSizeChange={() => {
-              // Only auto-scroll to end on first load, not when prepending older messages
-              if (isFirstLoad.current) {
-                listRef.current?.scrollToEnd({ animated: false })
-                isFirstLoad.current = false
-              }
-            }}
           />
         )}
 
