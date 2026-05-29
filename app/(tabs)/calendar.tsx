@@ -496,7 +496,7 @@ function DayDetail({ dateStr, events, isSwitch, connectionId, userId }: DayDetai
           {/* Incoming override from co-parent — needs response */}
           {!overrideLoading && coParentPendingOverride && !decliningOverride && (
             <View style={detailStyles.incomingCard}>
-              <Text style={detailStyles.incomingTitle}>⏰  Co-parent proposed a time change</Text>
+              <Text style={detailStyles.incomingTitle}>Co-parent proposed a time change</Text>
               <Text style={detailStyles.incomingTime}>{fmtTimeStr(coParentPendingOverride.switch_time)}</Text>
               {coParentPendingOverride.note ? (
                 <Text style={detailStyles.incomingNote}>"{coParentPendingOverride.note}"</Text>
@@ -557,7 +557,7 @@ function DayDetail({ dateStr, events, isSwitch, connectionId, userId }: DayDetai
           {!overrideLoading && !coParentPendingOverride && myPendingOverride && (
             <View style={detailStyles.waitingCard}>
               <Text style={detailStyles.waitingCardText}>
-                ⏰  You proposed {fmtTimeStr(myPendingOverride.switch_time)} — waiting for co-parent response.
+                You proposed {fmtTimeStr(myPendingOverride.switch_time)} — waiting for co-parent response.
               </Text>
             </View>
           )}
@@ -569,13 +569,35 @@ function DayDetail({ dateStr, events, isSwitch, connectionId, userId }: DayDetai
               onPress={() => setShowPropose(true)}
               activeOpacity={0.75}
             >
-              <Text style={detailStyles.overrideBtnText}>⏰  Propose a different switch time</Text>
+              <Text style={detailStyles.overrideBtnText}>Propose a different switch time</Text>
             </TouchableOpacity>
           )}
 
-          {/* Proposal form */}
-          {!overrideLoading && !coParentPendingOverride && !myPendingOverride && showPropose && (
-            <View style={detailStyles.overrideForm}>
+        </>
+      )}
+
+      {/* Propose time modal */}
+      <Modal
+        visible={showPropose}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => { setShowPropose(false); setOverrideNote(''); setShowTimePick(false) }}
+      >
+        <SafeAreaView style={proposeStyles.sheet}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+            {/* Header */}
+            <View style={proposeStyles.header}>
+              <Text style={proposeStyles.title}>Propose a different switch time</Text>
+              <TouchableOpacity
+                onPress={() => { setShowPropose(false); setOverrideNote(''); setShowTimePick(false) }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={proposeStyles.cancelLink}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={proposeStyles.body}>
+              {/* Time picker */}
               <Text style={detailStyles.overrideLabel}>PROPOSED TIME</Text>
               <TouchableOpacity
                 style={detailStyles.overrideTimeBtn}
@@ -598,7 +620,9 @@ function DayDetail({ dateStr, events, isSwitch, connectionId, userId }: DayDetai
                   )}
                 </>
               )}
-              <Text style={[detailStyles.overrideLabel, { marginTop: 10 }]}>NOTE (OPTIONAL)</Text>
+
+              {/* Note */}
+              <Text style={[detailStyles.overrideLabel, { marginTop: 20 }]}>NOTE (OPTIONAL)</Text>
               <TextInput
                 style={detailStyles.overrideInput}
                 value={overrideNote}
@@ -607,25 +631,19 @@ function DayDetail({ dateStr, events, isSwitch, connectionId, userId }: DayDetai
                 placeholderTextColor={colors.textSubtle}
                 maxLength={200}
               />
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                <TouchableOpacity
-                  style={[detailStyles.overrideSubmit, { flex: 1 }]}
-                  onPress={submitOverride}
-                  disabled={submitting}
-                >
-                  <Text style={detailStyles.overrideSubmitText}>{submitting ? 'Sending…' : 'Send proposal'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={detailStyles.overrideCancel}
-                  onPress={() => { setShowPropose(false); setOverrideNote('') }}
-                >
-                  <Text style={detailStyles.overrideCancelText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
+
+              {/* Send */}
+              <TouchableOpacity
+                style={[detailStyles.overrideSubmit, { marginTop: 24 }]}
+                onPress={submitOverride}
+                disabled={submitting}
+              >
+                <Text style={detailStyles.overrideSubmitText}>{submitting ? 'Sending…' : 'Send proposal'}</Text>
+              </TouchableOpacity>
             </View>
-          )}
-        </>
-      )}
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
     </View>
   )
 }
@@ -1076,7 +1094,7 @@ const detailStyles = StyleSheet.create({
     backgroundColor: colors.accent, borderRadius: radius.sm,
     paddingVertical: 10, alignItems: 'center',
   },
-  overrideSubmitText: { ...buttonLabel, color: colors.white },
+  overrideSubmitText: { ...buttonLabel, color: colors.white, textAlign: 'center' },
   overrideCancel: {
     borderRadius: radius.sm, paddingVertical: 10, paddingHorizontal: 16,
     borderWidth: 1, borderColor: colors.border, alignItems: 'center',
@@ -1099,4 +1117,35 @@ const detailStyles = StyleSheet.create({
     backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border,
   },
   waitingCardText: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, fontStyle: 'italic' },
+})
+
+const proposeStyles = StyleSheet.create({
+  sheet: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderHair,
+  },
+  title: {
+    fontSize: 16,
+    fontFamily: font.bold,
+    color: colors.textPrimary,
+    flex: 1,
+    marginRight: 12,
+  },
+  cancelLink: {
+    fontSize: 15,
+    fontFamily: font.medium,
+    color: colors.accent,
+  },
+  body: {
+    padding: 20,
+  },
 })
