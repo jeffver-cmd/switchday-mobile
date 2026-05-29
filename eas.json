@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 16.0.0"
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -20,7 +21,7 @@
       "ios": {
         "appleId": "jeff@switchday.app",
         "ascAppId": "FILL_IN_APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "FILL_IN_TEAM_ID"
+        "appleTeamId": "3XBSJGRKVT"
       },
       "android": {
         "serviceAccountKeyPath": "./google-play-key.json",
