@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
+  ScrollView,
   Platform,
   ActivityIndicator,
   Alert,
@@ -56,7 +57,12 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <View style={styles.inner}>
+      <ScrollView
+        contentContainerStyle={styles.inner}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+      >
         <SwitchdayLogo size={44} />
         <Text style={styles.subtitle}>Sign in to your account</Text>
 
@@ -66,28 +72,39 @@ export default function LoginScreen() {
           </View>
         )}
 
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="you@example.com"
-          placeholderTextColor={colors.textSubtle}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoComplete="email"
-          value={email}
-          onChangeText={setEmail}
-        />
+        {/* Email — wrapped so label + input move as one unit */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="you@example.com"
+            placeholderTextColor={colors.textSubtle}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            textContentType="username"
+            returnKeyType="next"
+            value={email}
+            onChangeText={setEmail}
+          />
+        </View>
 
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={[styles.input, styles.inputSpacingBottom]}
-          placeholder="••••••••"
-          placeholderTextColor={colors.textSubtle}
-          secureTextEntry
-          autoComplete="password"
-          value={password}
-          onChangeText={setPassword}
-        />
+        {/* Password — wrapped so label + input move as one unit */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>Password</Text>
+          <TextInput
+            style={[styles.input, styles.inputSpacingBottom]}
+            placeholder="••••••••"
+            placeholderTextColor={colors.textSubtle}
+            secureTextEntry
+            autoComplete="password"
+            textContentType="password"
+            returnKeyType="go"
+            onSubmitEditing={handleLogin}
+            value={password}
+            onChangeText={setPassword}
+          />
+        </View>
 
         <TouchableOpacity
           onPress={handleLogin}
@@ -115,15 +132,18 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </Link>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  inner: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 },
   subtitle: { fontSize: 16, fontFamily: font.regular, color: colors.textMuted, marginBottom: 40, marginTop: 8 },
+
+  // Each label+input pair is a single layout unit — prevents drift during keyboard animation
+  fieldGroup: { marginBottom: 0 },
   label: { fontSize: 14, fontWeight: '500', fontFamily: font.medium, color: colors.textSecondary, marginBottom: 4 },
   input: {
     backgroundColor: colors.surface2,
@@ -145,7 +165,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: colors.white, fontSize: 16, fontWeight: '600', fontFamily: font.semibold, lineHeight: 16 },
+  buttonText: { color: colors.white, fontSize: 16, fontWeight: '600', fontFamily: font.semibold },
   forgotRow: { alignItems: 'center', marginTop: 16 },
   forgotText: { fontSize: 14, fontFamily: font.regular, color: colors.accent },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
