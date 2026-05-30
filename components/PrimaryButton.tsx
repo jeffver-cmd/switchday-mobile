@@ -85,7 +85,8 @@ const styles = StyleSheet.create({
   },
   btnSmall: {
     paddingHorizontal: 14,
-    paddingVertical: 7,
+    height: 36,
+    justifyContent: 'center',
   },
   btnRow: { flexDirection: 'row', alignItems: 'center' },
   iconWrap: { marginRight: 6 },
