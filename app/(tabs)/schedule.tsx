@@ -20,6 +20,7 @@ import { useSchedules } from '@/lib/hooks/useSchedules'
 import { scheduleAction, deleteSchedule, Schedule, ScheduleStatus } from '@/lib/api/schedules'
 import { supabase } from '@/lib/supabase'
 import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
+import { PrimaryButton } from '../../components/PrimaryButton'
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -437,21 +438,16 @@ export default function ScheduleScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.heading}>Schedule</Text>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
           {data && (
             <TouchableOpacity
-              style={[styles.addBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
+              style={styles.swapBtn}
               onPress={() => { setSwitchReqDate(new Date()); setSwitchReqInfo(null); setShowSwitchReq(true) }}
             >
-              <Text style={[styles.addBtnText, { color: colors.textSecondary }]}>↔ Swap</Text>
+              <Text style={styles.swapBtnText}>↔ Swap</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => router.push('/schedule/new')}
-          >
-            <Text style={styles.addBtnText}>+ New</Text>
-          </TouchableOpacity>
+          <PrimaryButton label="+ New" onPress={() => router.push('/schedule/new')} small />
         </View>
       </View>
 
@@ -703,8 +699,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12,
   },
   heading: { fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
-  addBtn: { backgroundColor: colors.accent, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 7 },
-  addBtnText: { ...buttonLabel, color: colors.white },
+  swapBtn: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 12, height: 36, justifyContent: 'center' },
+  swapBtnText: { ...buttonLabel, color: colors.textSecondary },
 
   section: { marginBottom: 8 },
   sectionLabel: { fontSize: 11, fontWeight: '700', fontFamily: font.bold, color: colors.textSubtle, letterSpacing: 0.8, marginBottom: 8, marginTop: 4 },

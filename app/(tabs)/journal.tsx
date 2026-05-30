@@ -20,6 +20,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '@/lib/supabase'
 import { colors, radius, font, buttonLabel } from '@/lib/theme'
+import { PrimaryButton } from '../../components/PrimaryButton'
 import type { JournalMood } from '@/lib/types/database'
 import { pickDocument, pickFromCamera, pickFromPhotoLibrary, type PickedFile } from '@/lib/api/vault'
 
@@ -621,9 +622,7 @@ export default function JournalScreen() {
             <Text style={styles.privateText}>Private to you only</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.newBtn} onPress={() => setShowNew(true)}>
-          <Text style={styles.newBtnText}>+ New</Text>
-        </TouchableOpacity>
+        <PrimaryButton label="+ New" onPress={() => setShowNew(true)} small />
       </View>
 
       {loading ? (
@@ -700,9 +699,6 @@ const styles = StyleSheet.create({
   heading: { fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
   privatePill: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   privateText: { fontSize: 11, fontFamily: font.regular, color: colors.textSubtle },
-  newBtn: { backgroundColor: colors.accent, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 7, marginTop: 4 },
-  newBtnText: { ...buttonLabel, color: colors.white },
-
   list: { paddingHorizontal: 16, paddingTop: 4, flexGrow: 1 },
   separator: { height: 1, backgroundColor: colors.borderHair, marginLeft: 60 },
 

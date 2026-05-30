@@ -4,10 +4,10 @@
  * Use for any primary call-to-action (+ Log, Propose, Save, etc.).
  * Drop-in replacement for the plain TouchableOpacity + navy background pattern.
  */
-import { Animated, Pressable, StyleSheet, Text, ViewStyle, TextStyle } from 'react-native'
+import { Animated, Pressable, StyleSheet, Text, View, ViewStyle, TextStyle } from 'react-native'
+import { ReactNode, useRef } from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
-import { useRef } from 'react'
 import { colors, font, radius } from '../src/lib/theme'
 
 interface PrimaryButtonProps {
@@ -17,9 +17,10 @@ interface PrimaryButtonProps {
   style?: ViewStyle
   textStyle?: TextStyle
   small?: boolean
+  leftIcon?: ReactNode
 }
 
-export function PrimaryButton({ label, onPress, disabled = false, style, textStyle, small = false }: PrimaryButtonProps) {
+export function PrimaryButton({ label, onPress, disabled = false, style, textStyle, small = false, leftIcon }: PrimaryButtonProps) {
   const scale = useRef(new Animated.Value(1)).current
 
   function handlePressIn() {
@@ -48,8 +49,9 @@ export function PrimaryButton({ label, onPress, disabled = false, style, textSty
           colors={disabled ? ['#8A9BB8', '#6B7D9E'] : ['#3D506A', '#243558']}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
-          style={[styles.btn, small && styles.btnSmall]}
+          style={[styles.btn, small && styles.btnSmall, !!leftIcon && styles.btnRow]}
         >
+          {leftIcon && <View style={styles.iconWrap}>{leftIcon}</View>}
           <Text style={[styles.label, small && styles.labelSmall, textStyle]}>{label}</Text>
         </LinearGradient>
       </Animated.View>
@@ -85,6 +87,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
   },
+  btnRow: { flexDirection: 'row', alignItems: 'center' },
+  iconWrap: { marginRight: 6 },
   label: {
     color: colors.white,
     fontSize: 14,

@@ -20,6 +20,7 @@ import { useState, useCallback } from 'react'
 import { useThreads, ThreadSummary, archiveThread } from '@/lib/hooks/useThreads'
 import { supabase } from '@/lib/supabase'
 import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
+import { PrimaryButton } from '../../components/PrimaryButton'
 
 // ─── thread type options ──────────────────────────────────────────────────────
 
@@ -258,12 +259,7 @@ export default function MessagesScreen() {
       <View style={styles.header}>
         <Text style={styles.heading}>Messages</Text>
         {data && (
-          <TouchableOpacity
-            style={styles.newBtn}
-            onPress={() => setShowNew(true)}
-          >
-            <Text style={styles.newBtnText}>+ New</Text>
-          </TouchableOpacity>
+          <PrimaryButton label="+ New" onPress={() => setShowNew(true)} small />
         )}
       </View>
 
@@ -329,9 +325,6 @@ const styles = StyleSheet.create({
 
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
   heading: { fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
-  newBtn: { backgroundColor: colors.accent, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 7 },
-  newBtnText: { ...buttonLabel, color: colors.white },
-
   // Tab bar
   tabBar: {
     flexDirection: 'row',

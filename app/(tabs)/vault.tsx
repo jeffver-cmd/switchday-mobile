@@ -33,6 +33,7 @@ import {
 import type { VaultCategory } from '@/lib/types/database'
 import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
 import SoloBanner from '../../src/components/SoloBanner'
+import { PrimaryButton } from '../../components/PrimaryButton'
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -474,13 +475,12 @@ export default function VaultScreen() {
           <Text style={styles.subheading}>SHA-256 tamper-evident records</Text>
         </View>
         {isPro && (
-          <TouchableOpacity
-            style={styles.uploadBtn}
+          <PrimaryButton
+            label="Upload"
             onPress={() => setShowUpload(true)}
-          >
-            <Ionicons name="cloud-upload-outline" size={16} color={colors.white} />
-            <Text style={styles.uploadBtnText}>Upload</Text>
-          </TouchableOpacity>
+            leftIcon={<Ionicons name="cloud-upload-outline" size={16} color={colors.white} />}
+            small
+          />
         )}
       </View>
 
@@ -572,13 +572,6 @@ const styles = StyleSheet.create({
   },
   heading: { fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
   subheading: { fontSize: 12, fontFamily: font.regular, color: colors.textSubtle as string, marginTop: 2 },
-
-  uploadBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.accent, borderRadius: radius.md,
-    paddingHorizontal: 14, paddingVertical: 8,
-  },
-  uploadBtnText: { ...buttonLabel, color: colors.white },
 
   list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 32, flexGrow: 1 },
 
