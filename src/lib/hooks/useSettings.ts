@@ -10,6 +10,7 @@ export interface SettingsProfile {
   color: string
   avatar_emoji: string | null
   plan: string | null
+  last_login_at: string | null
 }
 
 export interface SettingsData {
@@ -41,7 +42,7 @@ export function useSettings() {
       const [profileResult, connectionResult] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, display_name, initials, color, avatar_emoji, plan')
+          .select('id, display_name, initials, color, avatar_emoji, plan, last_login_at')
           .eq('id', userId)
           .maybeSingle(),
 
@@ -67,7 +68,7 @@ export function useSettings() {
         if (coParentId) {
           const { data: cpData } = await supabase
             .from('profiles')
-            .select('id, display_name, initials, color, avatar_emoji, plan')
+            .select('id, display_name, initials, color, avatar_emoji, plan, last_login_at')
             .eq('id', coParentId)
             .maybeSingle()
 

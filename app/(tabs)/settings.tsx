@@ -52,7 +52,7 @@ const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0'
 
 export default function SettingsScreen() {
   const router = useRouter()
-  const { data, loading, error } = useSettings()
+  const { data, loading, error, refresh } = useSettings()
   const [notifEnabled, setNotifEnabled] = useState<boolean | null>(null)
   const [showInvite, setShowInvite] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
