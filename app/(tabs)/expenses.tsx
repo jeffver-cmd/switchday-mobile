@@ -243,6 +243,7 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
       // Call Edge Function with storage path — function generates signed URL internally
       const { data: scan, error: fnErr } = await supabase.functions.invoke<{
         amount: number | null; description: string | null; category: string | null; date: string | null
+        scan_status: 'ok' | 'no_data' | 'no_key' | 'storage_error' | 'api_error' | 'error'
       }>('scan-receipt', { body: { storage_path: path } })
 
       if (fnErr || !scan) { setScanFeedback('failed'); return }
@@ -254,7 +255,7 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
         setCategory(scan.category as ExpenseCategory)
       }
 
-      setScanFeedback(scan.amount || scan.description ? 'scanned' : 'failed')
+      setScanFeedback(scan.scan_status === 'ok' ? 'scanned' : 'failed')
     } catch {
       setScanFeedback('failed')
     } finally {
