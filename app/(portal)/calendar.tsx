@@ -671,9 +671,9 @@ const detailS = StyleSheet.create({
 
 const modalS = StyleSheet.create({
   root:        { flex: 1 },
-  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
-  headerBtn:   { width: 72 },
-  headerTitle: { fontSize: 16, fontWeight: '700', fontFamily: font.bold },
+  header:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
+  headerBtn:   { minWidth: 70 },
+  headerTitle: { flex: 1, fontSize: 16, fontWeight: '700', fontFamily: font.bold, textAlign: 'center' },
   cancel:      { fontSize: 15, fontFamily: font.regular },
   save:        { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, textAlign: 'right' },
   disabled:    { opacity: 0.4 },

@@ -406,13 +406,13 @@ const styles = StyleSheet.create({
 const nm = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: colors.borderHair,
   },
-  headerBtn: { width: 72 },
+  headerBtn: { minWidth: 70 },
   cancel:  { fontSize: 16, fontFamily: font.regular, color: colors.textMuted },
-  title:   { fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary },
+  title:   { flex: 1, fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, textAlign: 'center' },
   create:  { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, textAlign: 'right' },
 
   form:  { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 60 },

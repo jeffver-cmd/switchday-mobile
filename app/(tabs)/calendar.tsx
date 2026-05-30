@@ -1000,14 +1000,14 @@ const styles = StyleSheet.create({
 const addEvStyles = StyleSheet.create({
   root:        { flex: 1, backgroundColor: colors.surface },
   header:      {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: colors.borderHair,
   },
-  headerBtn:   { width: 72 },
+  headerBtn:   { minWidth: 70 },
   cancel:      { fontSize: 15, fontFamily: font.regular, color: colors.textMuted as string },
-  headerTitle: { fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary },
-  save:        { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, textAlign: 'right', lineHeight: 15 },
+  headerTitle: { flex: 1, fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, textAlign: 'center' },
+  save:        { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, textAlign: 'right' },
 
   form:   { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 60 },
   label:  { fontSize: 11, fontWeight: '700', fontFamily: font.bold, color: colors.textSubtle as string, letterSpacing: 0.8, marginBottom: 6 },

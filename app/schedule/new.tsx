@@ -577,12 +577,12 @@ export default function NewScheduleScreen() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.cancelBtn} hitSlop={12}>
-          <Text style={s.cancelText} numberOfLines={1}>Cancel</Text>
+          <Text style={s.cancelText}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={s.title} numberOfLines={1}>
+        <Text style={s.title}>
           {supersedesId ? 'Propose Replacement' : 'New Schedule'}
         </Text>
-        <View style={{ width: 64 }} />
+        <View style={{ minWidth: 70 }} />
       </View>
 
       <ScrollView
