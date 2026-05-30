@@ -85,6 +85,7 @@ const styles = StyleSheet.create({
   },
   btnSmall: {
     paddingHorizontal: 14,
+    paddingVertical: 0,
     height: 36,
     justifyContent: 'center',
   },
@@ -100,6 +101,6 @@ const styles = StyleSheet.create({
   },
   labelSmall: {
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 20,
   },
 })
