@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  AppState, Modal, StyleSheet, Text, TouchableOpacity, View,
+  Alert, AppState, Modal, StyleSheet, Text, TouchableOpacity, View,
   type AppStateStatus,
 } from 'react-native'
 import { Tabs } from 'expo-router'
@@ -10,6 +10,7 @@ import { type EventSubscription } from 'expo-modules-core'
 import { useRouter } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { registerForPushNotificationsAsync } from '@/lib/notifications'
+import { clearMedicalKey } from '@/lib/utils/medicalCrypto'
 import { colors, radius, font } from '@/lib/theme'
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name']
@@ -105,6 +106,21 @@ export default function TabsLayout() {
     setTimeout(() => router.push(route as any), 50)
   }
 
+  function handleSignOut() {
+    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          setShowMore(false)
+          await clearMedicalKey()
+          await supabase.auth.signOut()
+        },
+      },
+    ])
+  }
+
   return (
     <>
       <Tabs
@@ -184,7 +200,7 @@ export default function TabsLayout() {
             {MORE_ITEMS.map((item, i) => (
               <TouchableOpacity
                 key={item.route}
-                style={[sheet.row, i < MORE_ITEMS.length - 1 && sheet.rowBorder]}
+                style={[sheet.row, sheet.rowBorder]}
                 onPress={() => navigate(item.route)}
                 activeOpacity={0.7}
               >
@@ -195,6 +211,18 @@ export default function TabsLayout() {
                 <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
               </TouchableOpacity>
             ))}
+
+            {/* Sign out */}
+            <TouchableOpacity
+              style={[sheet.row, sheet.rowBorder]}
+              onPress={handleSignOut}
+              activeOpacity={0.7}
+            >
+              <View style={[sheet.iconWrap, sheet.iconWrapDanger]}>
+                <Ionicons name="log-out-outline" size={20} color={colors.danger} />
+              </View>
+              <Text style={[sheet.rowLabel, sheet.rowLabelDanger]}>Sign Out</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={sheet.cancelBtn}
@@ -245,9 +273,15 @@ const sheet = StyleSheet.create({
     backgroundColor: colors.accentSoft,
     alignItems: 'center', justifyContent: 'center',
   },
+  iconWrapDanger: {
+    backgroundColor: 'rgba(192,72,72,0.10)',
+  },
   rowLabel: {
     flex: 1,
     fontSize: 16, fontFamily: font.medium, color: colors.textPrimary,
+  },
+  rowLabelDanger: {
+    color: colors.danger,
   },
   cancelBtn: {
     marginTop: 8,
