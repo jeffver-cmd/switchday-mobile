@@ -1,9 +1,10 @@
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator,
   RefreshControl, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform, Alert, ActionSheetIOS, Linking,
+  Animated,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   useExpenses,
   approveExpense,
@@ -471,8 +472,22 @@ function RecurringRow({ item, userId, onTogglePause }: {
 export default function ExpensesScreen() {
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
   const [showLog, setShowLog] = useState(false)
+  const [showFilterSheet, setShowFilterSheet] = useState(false)
+  const slideAnim = useRef(new Animated.Value(300)).current
   const statusFilter = FILTER_STATUSES[activeTab]
   const { data, loading, error, refresh } = useExpenses(statusFilter)
+
+  function openFilterSheet() {
+    setShowFilterSheet(true)
+    Animated.timing(slideAnim, { toValue: 0, duration: 250, useNativeDriver: true }).start()
+  }
+  function closeFilterSheet() {
+    Animated.timing(slideAnim, { toValue: 300, duration: 200, useNativeDriver: true }).start(() => setShowFilterSheet(false))
+  }
+  function selectFilter(tab: FilterTab) {
+    setActiveTab(tab)
+    closeFilterSheet()
+  }
 
   // Recurring expenses
   const [recurring, setRecurring] = useState<RecurringExpense[]>([])
@@ -557,34 +572,40 @@ export default function ExpensesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.heading}>Expenses</Text>
-        <TouchableOpacity
-          style={styles.logBtn}
-          onPress={() => setShowLog(true)}
-          disabled={!data?.connectionId}
-        >
-          <Text style={styles.logBtnText}>+ Log</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Filter tabs */}
-      <View style={styles.tabs}>
-        {FILTER_TABS.map(tab => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[styles.tab, activeTab === tab.key && styles.tabActive]}
-            onPress={() => setActiveTab(tab.key)}
-          >
-            <Text
-              style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.8}
-            >
-              {tab.label}
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.filterBtn} onPress={openFilterSheet}>
+            <Text style={styles.filterBtnText}>
+              {FILTER_TABS.find(t => t.key === activeTab)?.label ?? 'All'} ▾
             </Text>
           </TouchableOpacity>
-        ))}
+          <TouchableOpacity
+            style={styles.logBtn}
+            onPress={() => setShowLog(true)}
+            disabled={!data?.connectionId}
+          >
+            <Text style={styles.logBtnText}>+ Log</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Filter sheet */}
+      <Modal visible={showFilterSheet} transparent animationType="none" onRequestClose={closeFilterSheet}>
+        <View style={styles.sheetContainer}>
+          <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={closeFilterSheet} />
+          <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Filter</Text>
+            {FILTER_TABS.map(tab => (
+              <TouchableOpacity key={tab.key} style={styles.sheetRow} onPress={() => selectFilter(tab.key)}>
+                <Text style={[styles.sheetRowText, activeTab === tab.key && styles.sheetRowTextActive]}>
+                  {tab.label}
+                </Text>
+                {activeTab === tab.key && <Text style={styles.sheetCheck}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+          </Animated.View>
+        </View>
+      </Modal>
 
       {!loading && !data?.connectionId && <SoloBanner />}
 
@@ -676,24 +697,40 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   heading: { fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  filterBtn: {
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
+    paddingHorizontal: 12, paddingVertical: 7,
+  },
+  filterBtnText: { fontSize: 13, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, lineHeight: 18 },
   logBtn: {
     backgroundColor: colors.accent, borderRadius: radius.md,
     paddingHorizontal: 14, paddingVertical: 7,
   },
   logBtnText: { ...buttonLabel, color: colors.white },
 
-  // Tabs
-  tabs: {
-    flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, gap: 5,
+  // Filter bottom sheet
+  sheetContainer: { flex: 1, justifyContent: 'flex-end' },
+  sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
+  sheet: {
+    backgroundColor: colors.white, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingBottom: 36, paddingHorizontal: 20,
   },
-  tab: {
-    flex: 1, paddingVertical: 7, borderRadius: radius.sm,
-    backgroundColor: colors.surface, alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 2, elevation: 1,
+  sheetHandle: {
+    width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border,
+    alignSelf: 'center', marginTop: 12, marginBottom: 16,
   },
-  tabActive: { backgroundColor: colors.accent },
-  tabText: { fontSize: 11, fontWeight: '600', fontFamily: font.semibold, color: colors.textMuted, lineHeight: 14 },
-  tabTextActive: { color: colors.white },
+  sheetTitle: {
+    fontSize: 16, fontWeight: '700', fontFamily: font.bold,
+    color: colors.textPrimary, marginBottom: 8,
+  },
+  sheetRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  sheetRowText: { fontSize: 15, fontFamily: font.regular, color: colors.textPrimary, lineHeight: 20 },
+  sheetRowTextActive: { fontFamily: font.semibold, color: colors.accent },
+  sheetCheck: { fontSize: 16, color: colors.accent },
 
   // List
   list: { paddingHorizontal: 16, paddingTop: 4, flexGrow: 1 },
