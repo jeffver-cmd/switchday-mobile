@@ -42,9 +42,9 @@ export function PrimaryButton({ label, onPress, disabled = false, style, textSty
       onPressOut={handlePressOut}
       onPress={handlePress}
       disabled={disabled}
-      style={[styles.shadow, style, disabled && styles.disabled]}
+      style={[styles.shadow, small && styles.shadowSmall, style, disabled && styles.disabled]}
     >
-      <Animated.View style={{ transform: [{ scale }] }}>
+      <Animated.View style={[{ transform: [{ scale }] }, small && styles.shadowSmall]}>
         <LinearGradient
           colors={disabled ? ['#8A9BB8', '#6B7D9E'] : ['#3D506A', '#243558']}
           start={{ x: 0, y: 0 }}
@@ -72,6 +72,11 @@ const styles = StyleSheet.create({
   disabled: {
     shadowOpacity: 0,
     elevation: 0,
+  },
+  // Locks the wrapper to fixed dimensions so parent flex context can't distort the button
+  shadowSmall: {
+    height: 36,
+    alignSelf: 'center',
   },
   btn: {
     borderRadius: radius.md,
