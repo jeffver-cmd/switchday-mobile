@@ -19,6 +19,7 @@ import {
 import type { ExpenseStatus, ExpenseCategory } from '@/lib/types/database'
 import { colors, radius, shadow, font, buttonLabel } from '@/lib/theme'
 import SoloBanner from '../../src/components/SoloBanner'
+import { PrimaryButton } from '../../components/PrimaryButton'
 import { supabase } from '@/lib/supabase'
 
 // ─── constants ───────────────────────────────────────────────────────────────
@@ -578,13 +579,12 @@ export default function ExpensesScreen() {
               {FILTER_TABS.find(t => t.key === activeTab)?.label ?? 'All'} ▾
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.logBtn}
+          <PrimaryButton
+            label="+ Log"
             onPress={() => setShowLog(true)}
             disabled={!data?.connectionId}
-          >
-            <Text style={styles.logBtnText}>+ Log</Text>
-          </TouchableOpacity>
+            small
+          />
         </View>
       </View>
 
@@ -703,11 +703,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 7,
   },
   filterBtnText: { fontSize: 13, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, lineHeight: 18 },
-  logBtn: {
-    backgroundColor: colors.accent, borderRadius: radius.md,
-    paddingHorizontal: 14, paddingVertical: 7,
-  },
-  logBtnText: { ...buttonLabel, color: colors.white },
+
 
   // Filter bottom sheet
   sheetContainer: { flex: 1, justifyContent: 'flex-end' },
