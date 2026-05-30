@@ -32,6 +32,20 @@ function formatTime(hhmm: string): string {
   return `${hour}:${String(m).padStart(2, '0')} ${ampm}`
 }
 
+function fmtLastLogin(iso: string | null | undefined): string {
+  if (!iso) return 'Never'
+  const now = Date.now()
+  const then = new Date(iso).getTime()
+  const mins  = Math.floor((now - then) / 60000)
+  const hours = Math.floor(mins / 60)
+  const days  = Math.floor(hours / 24)
+  if (mins < 5)    return 'Just now'
+  if (hours < 1)   return `${mins}m ago`
+  if (hours < 24)  return hours === 1 ? '1 hour ago' : `${hours} hours ago`
+  if (days < 7)    return days === 1 ? 'Yesterday' : `${days} days ago`
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 // ─── screen ──────────────────────────────────────────────────────────────────
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0'
@@ -58,14 +72,15 @@ export default function SettingsScreen() {
   // ── Profile editing ──────────────────────────────────────────────────────
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [editName, setEditName] = useState('')
-  const [editColor, setEditColor] = useState('')
   const [editSaving, setEditSaving] = useState(false)
+
+  // ── Color swap ───────────────────────────────────────────────────────────
+  const [swapping, setSwapping] = useState(false)
 
   // Sync editable fields when data loads
   useEffect(() => {
     if (!data) return
     setEditName(data.myProfile.display_name)
-    setEditColor(data.myProfile.color)
     const d = new Date()
     if (data.switchTime) {
       const [h, m] = data.switchTime.split(':').map(Number)
@@ -185,12 +200,6 @@ export default function SettingsScreen() {
     }
   }
 
-  const PROFILE_COLORS = [
-    '#2B3A5C', '#5B6B8A', '#3D6B8A', '#3D8C6A', '#6B8A3D',
-    '#8A5B3D', '#8A3D6B', '#6B3D8A', '#C4882A', '#C04848',
-    '#4A7C6B', '#7B5EA7', '#6B7535', '#5A4A7A', '#A05080',
-  ]
-
   async function handleSaveProfile() {
     if (!editName.trim()) { Alert.alert('Name required'); return }
     setEditSaving(true)
@@ -199,12 +208,27 @@ export default function SettingsScreen() {
       if (!session) return
       const { error: err } = await supabase
         .from('profiles')
-        .update({ display_name: editName.trim(), color: editColor })
+        .update({ display_name: editName.trim() })
         .eq('id', session.user.id)
       if (err) { Alert.alert('Error', err.message); return }
       setShowEditProfile(false)
+      refresh()
     } finally {
       setEditSaving(false)
+    }
+  }
+
+  async function handleSwapColors() {
+    if (!data?.connectionId) return
+    setSwapping(true)
+    try {
+      const { error: err } = await supabase.rpc('swap_parent_colors', {
+        connection_id_arg: data.connectionId,
+      })
+      if (err) { Alert.alert('Error', err.message); return }
+      refresh()
+    } finally {
+      setSwapping(false)
     }
   }
 
@@ -225,7 +249,7 @@ export default function SettingsScreen() {
           activeOpacity={0.75}
         >
           <View style={styles.profileRow}>
-            <View style={[styles.avatarCircle, { backgroundColor: editColor === myProfile.color ? myProfile.color : editColor }]}>
+            <View style={[styles.avatarCircle, { backgroundColor: myProfile.color }]}>
               <Text style={styles.avatarText}>
                 {myProfile.avatar_emoji ?? myProfile.initials}
               </Text>
@@ -259,7 +283,7 @@ export default function SettingsScreen() {
               <TouchableOpacity onPress={handleSaveProfile} disabled={editSaving}>
                 {editSaving
                   ? <ActivityIndicator size="small" color={colors.accent} />
-                  : <Text style={{ color: colors.accent, fontSize: 16, fontWeight: '600', fontFamily: font.semibold, lineHeight: 16 }}>Save</Text>}
+                  : <Text style={{ color: colors.accent, fontSize: 16, fontWeight: '600', fontFamily: font.semibold }}>Save</Text>}
               </TouchableOpacity>
             </View>
 
@@ -279,27 +303,9 @@ export default function SettingsScreen() {
               autoFocus
             />
 
-            {/* Color */}
-            <Text style={{ fontSize: 12, fontWeight: '600', fontFamily: font.semibold, color: colors.textSubtle, letterSpacing: 0.8, marginBottom: 12 }}>
-              ACCENT COLOR
-            </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              {PROFILE_COLORS.map(c => (
-                <TouchableOpacity
-                  key={c}
-                  onPress={() => setEditColor(c)}
-                  style={{
-                    width: 40, height: 40, borderRadius: 20, backgroundColor: c,
-                    borderWidth: editColor === c ? 3 : 0,
-                    borderColor: colors.textPrimary,
-                  }}
-                />
-              ))}
-            </View>
-
             {/* Preview */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 28, padding: 16, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border }}>
-              <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: editColor, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border }}>
+              <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: myProfile.color, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ color: '#fff', fontWeight: '700', fontFamily: font.bold, fontSize: 16 }}>
                   {editName.trim().charAt(0).toUpperCase() || myProfile.initials}
                 </Text>
@@ -316,7 +322,8 @@ export default function SettingsScreen() {
           <>
             <Text style={styles.sectionLabel}>CO-PARENT</Text>
             <View style={styles.card}>
-              <View style={styles.profileRow}>
+              {/* Co-parent profile row */}
+              <View style={[styles.profileRow, { borderBottomWidth: 1, borderBottomColor: colors.borderHair }]}>
                 <View style={[styles.avatarCircle, { backgroundColor: coParentProfile.color }]}>
                   <Text style={styles.avatarText}>{coParentProfile.initials}</Text>
                 </View>
@@ -327,6 +334,38 @@ export default function SettingsScreen() {
                     <Text style={styles.connectedText}>Connected</Text>
                   </View>
                 </View>
+              </View>
+
+              {/* Parent colors + swap */}
+              <View style={styles.infoRow}>
+                <Ionicons name="color-palette-outline" size={18} color={colors.textSubtle} style={styles.infoIcon} />
+                <Text style={styles.infoLabel}>Parent colors</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: myProfile.color }} />
+                  <Ionicons name="swap-horizontal" size={14} color={colors.textSubtle} />
+                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: coParentProfile.color }} />
+                  <TouchableOpacity
+                    onPress={handleSwapColors}
+                    disabled={swapping}
+                    style={{ marginLeft: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, backgroundColor: colors.accentSoft }}
+                  >
+                    {swapping
+                      ? <ActivityIndicator size="small" color={colors.accent} />
+                      : <Text style={{ fontSize: 12, color: colors.accent, fontFamily: font.semibold }}>Swap</Text>}
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Last logins */}
+              <View style={styles.infoRow}>
+                <Ionicons name="time-outline" size={18} color={colors.textSubtle} style={styles.infoIcon} />
+                <Text style={styles.infoLabel}>Your last login</Text>
+                <Text style={styles.infoValue}>{fmtLastLogin(myProfile.last_login_at)}</Text>
+              </View>
+              <View style={[styles.infoRow, styles.infoRowBorderless]}>
+                <Ionicons name="time-outline" size={18} color={colors.textSubtle} style={styles.infoIcon} />
+                <Text style={styles.infoLabel}>{coParentProfile.display_name}'s last login</Text>
+                <Text style={styles.infoValue}>{fmtLastLogin(coParentProfile.last_login_at)}</Text>
               </View>
             </View>
           </>
@@ -341,7 +380,7 @@ export default function SettingsScreen() {
                 style={{ backgroundColor: colors.accent, borderRadius: radius.md, paddingVertical: 12, alignItems: 'center' }}
                 onPress={() => { setShowInvite(true); setInviteSent(false); setInviteEmail('') }}
               >
-                <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15, lineHeight: 15 }}>
+                <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15 }}>
                   Invite co-parent
                 </Text>
               </TouchableOpacity>
@@ -368,7 +407,7 @@ export default function SettingsScreen() {
                   style={{ backgroundColor: colors.accent, borderRadius: radius.md, paddingVertical: 14, paddingHorizontal: 32 }}
                   onPress={() => setShowInvite(false)}
                 >
-                  <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15, lineHeight: 15 }}>Done</Text>
+                  <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15 }}>Done</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -406,7 +445,7 @@ export default function SettingsScreen() {
                 >
                   {inviting
                     ? <ActivityIndicator color={colors.white} />
-                    : <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15, lineHeight: 15 }}>Send invite</Text>
+                    : <Text style={{ color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15 }}>Send invite</Text>
                   }
                 </TouchableOpacity>
               </>
@@ -452,7 +491,7 @@ export default function SettingsScreen() {
               <TouchableOpacity onPress={handleProposeSwitchTime} disabled={switchTimeSaving}>
                 {switchTimeSaving
                   ? <ActivityIndicator size="small" color={colors.accent} />
-                  : <Text style={{ color: colors.accent, fontSize: 16, fontWeight: '600', fontFamily: font.semibold, lineHeight: 16 }}>Propose</Text>}
+                  : <Text style={{ color: colors.accent, fontSize: 16, fontWeight: '600', fontFamily: font.semibold }}>Propose</Text>}
               </TouchableOpacity>
             </View>
             <Text style={{ fontSize: 13, color: colors.textMuted, marginBottom: 24, lineHeight: 18 }}>

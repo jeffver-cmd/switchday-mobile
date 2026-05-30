@@ -795,7 +795,7 @@ const modal = StyleSheet.create({
   scanBtnFailed: {
     borderColor: colors.warning, borderStyle: 'solid', backgroundColor: colors.warningSoft,
   },
-  scanBtnText: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, lineHeight: 15 },
+  scanBtnText: { fontSize: 15, fontWeight: '600', fontFamily: font.semibold, color: colors.accent },
   scanBtnTextSuccess: { color: colors.success },
   scanBtnTextFailed: { color: colors.warning },
 })

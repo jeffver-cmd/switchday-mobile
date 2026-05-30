@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, marginBottom: 8, textAlign: 'center' },
   emptySubtitle: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
   emptyBtn: { backgroundColor: colors.accent, borderRadius: radius.md, paddingHorizontal: 24, paddingVertical: 12 },
-  emptyBtnText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15, lineHeight: 15 },
+  emptyBtnText: { color: colors.white, fontWeight: '600', fontFamily: font.semibold, fontSize: 15 },
 
   // Error / retry
   retryBtn: { marginTop: 12, backgroundColor: colors.accent, borderRadius: radius.md, paddingHorizontal: 20, paddingVertical: 10 },

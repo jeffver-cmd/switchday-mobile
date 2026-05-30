@@ -701,7 +701,7 @@ const uploadStyles = StyleSheet.create({
   dateDoneBtn: {
     alignItems: 'flex-end', paddingHorizontal: 4, paddingVertical: 6,
   },
-  dateDoneText: { fontSize: 15, fontFamily: font.semibold, fontWeight: '600', color: colors.accent, lineHeight: 15 },
+  dateDoneText: { fontSize: 15, fontFamily: font.semibold, fontWeight: '600', color: colors.accent },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
