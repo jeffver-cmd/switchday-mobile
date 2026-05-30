@@ -699,8 +699,8 @@ const styles = StyleSheet.create({
   heading: { fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   filterBtn: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
-    paddingHorizontal: 12, paddingVertical: 7,
+    height: 36, borderWidth: 1, borderColor: colors.border, borderRadius: radius.full,
+    paddingHorizontal: 14, justifyContent: 'center',
   },
   filterBtnText: { fontSize: 13, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, lineHeight: 18 },
 

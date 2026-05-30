@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   // regardless of what word follows it.
   shadowSmall: {
     ...SHADOW_BASE,
-    borderRadius: radius.md,
+    borderRadius: radius.full,
     height: 36,
     minWidth: 82,
     alignSelf: 'center',
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   gradSmall: {
     height: 36,
     minWidth: 82,
-    borderRadius: radius.md,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     ...HIGHLIGHT_BORDER,
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   gradSmallRow: {
     height: 36,
     minWidth: 82,
-    borderRadius: radius.md,
+    borderRadius: radius.full,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
