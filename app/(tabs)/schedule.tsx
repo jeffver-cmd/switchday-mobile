@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12,
   },
   heading: { fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
-  swapBtn: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.full, paddingHorizontal: 14, height: 36, justifyContent: 'center' },
+  swapBtn: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.full, paddingHorizontal: 16, height: 40, justifyContent: 'center' },
   swapBtnText: { ...buttonLabel, color: colors.textSecondary },
 
   section: { marginBottom: 8 },
