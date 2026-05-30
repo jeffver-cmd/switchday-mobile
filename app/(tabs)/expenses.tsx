@@ -229,7 +229,8 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
       const ext = asset.mimeType?.split('/')[1] ?? 'jpg'
       const path = `${connectionId}/${session.user.id}/${Date.now()}.${ext}`
       const fetchRes = await fetch(asset.uri)
-      const blob = await fetchRes.blob()
+      const arrayBuffer = await fetchRes.arrayBuffer()
+      const blob = new Blob([arrayBuffer], { type: asset.mimeType ?? 'image/jpeg' })
 
       const { error: uploadErr } = await supabase.storage
         .from('receipts')
