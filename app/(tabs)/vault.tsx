@@ -273,13 +273,13 @@ function UploadModal({ connectionId, onClose, onUploaded }: UploadModalProps) {
         {/* Header */}
         <View style={uploadStyles.header}>
           <TouchableOpacity onPress={onClose} disabled={uploading} style={uploadStyles.cancelBtn}>
-            <Text style={[uploadStyles.cancelText, uploading && { opacity: 0.4 }]} numberOfLines={1}>Cancel</Text>
+            <Text style={[uploadStyles.cancelText, uploading && { opacity: 0.4 }]}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={uploadStyles.title} numberOfLines={1}>Upload Document</Text>
+          <Text style={uploadStyles.title}>Upload Document</Text>
           <TouchableOpacity onPress={handleUpload} disabled={!pickedFile || uploading} style={uploadStyles.saveBtn}>
             {uploading
               ? <ActivityIndicator size="small" color={colors.accent} />
-              : <Text style={[uploadStyles.saveText, (!pickedFile) && { opacity: 0.4 }]} numberOfLines={1}>Upload</Text>}
+              : <Text style={[uploadStyles.saveText, (!pickedFile) && { opacity: 0.4 }]}>Upload</Text>}
           </TouchableOpacity>
         </View>
 
@@ -651,15 +651,15 @@ const styles = StyleSheet.create({
 const uploadStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: colors.borderHair,
   },
-  cancelBtn: { width: 72 },
+  cancelBtn: { minWidth: 70 },
   cancelText: { fontSize: 16, fontFamily: font.regular, color: colors.textMuted as string },
   title: { flex: 1, fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, textAlign: 'center' },
-  saveBtn: { width: 72, alignItems: 'flex-end' },
-  saveText: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, lineHeight: 16 },
+  saveBtn: { minWidth: 70, alignItems: 'flex-end' },
+  saveText: { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.accent },
 
   form: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 60 },
 

@@ -417,13 +417,13 @@ function EntryEditor({ visible, entry, isPro, onClose, onSaved, onDeleted }: Edi
         {/* Header */}
         <View style={editor.header}>
           <TouchableOpacity onPress={onClose} style={editor.headerBtn} disabled={isBusy}>
-            <Text style={[editor.cancel, isBusy && { opacity: 0.4 }]} numberOfLines={1}>Cancel</Text>
+            <Text style={[editor.cancel, isBusy && { opacity: 0.4 }]}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={editor.title} numberOfLines={1}>{entry ? 'Edit entry' : 'New entry'}</Text>
+          <Text style={editor.title}>{entry ? 'Edit entry' : 'New entry'}</Text>
           <TouchableOpacity onPress={handleSave} style={editor.headerBtn} disabled={isBusy}>
             {isBusy
               ? <ActivityIndicator size="small" color={colors.accent} />
-              : <Text style={editor.save} numberOfLines={1}>Save</Text>}
+              : <Text style={editor.save}>Save</Text>}
           </TouchableOpacity>
         </View>
 
@@ -736,14 +736,14 @@ const styles = StyleSheet.create({
 
 const editor = StyleSheet.create({
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: colors.borderHair,
   },
-  headerBtn: { width: 72 },
+  headerBtn: { minWidth: 70 },
   cancel: { fontSize: 16, fontFamily: font.regular, color: colors.textMuted },
   title:  { flex: 1, fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, textAlign: 'center' },
-  save:   { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, textAlign: 'right', lineHeight: 16 },
+  save:   { fontSize: 16, fontWeight: '600', fontFamily: font.semibold, color: colors.accent, textAlign: 'right' },
 
   form: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 60 },
   label: {

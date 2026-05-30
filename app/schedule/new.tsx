@@ -782,11 +782,11 @@ const s = StyleSheet.create({
   backLinkText: { color: colors.accent, fontSize: 15, fontFamily: font.regular },
 
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 12,
     borderBottomWidth: 1, borderBottomColor: colors.borderHair,
   },
-  cancelBtn: { width: 64 },
+  cancelBtn: { minWidth: 70 },
   cancelText: { fontSize: 16, fontFamily: font.regular, color: colors.textMuted },
   title: { flex: 1, fontSize: 17, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, textAlign: 'center' },
 
