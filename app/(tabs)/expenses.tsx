@@ -213,8 +213,8 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
     }
 
     const result = useCamera
-      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.85 })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 })
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.85, base64: true })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85, base64: true })
 
     if (result.canceled || !result.assets[0]) return
 
@@ -222,19 +222,28 @@ function LogExpenseModal({ connectionId, onClose, onSaved }: LogModalProps) {
     setScanning(true)
     setScanFeedback(null)
     try {
+      // Build blob from base64 — avoids fetch(file://) which is unreliable in
+      // standalone builds. expo-image-picker returns raw base64 (no data: prefix)
+      // when base64:true is set. atob is available in React Native 0.73+.
+      if (!asset.base64) { setScanFeedback('failed'); return }
+      const byteString = atob(asset.base64)
+      const bytes = new Uint8Array(byteString.length)
+      for (let i = 0; i < byteString.length; i++) {
+        bytes[i] = byteString.charCodeAt(i)
+      }
+      const mimeType = asset.mimeType ?? 'image/jpeg'
+      const blob = new Blob([bytes], { type: mimeType })
+
       // Upload to Supabase Storage (receipts bucket)
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
-      const ext = asset.mimeType?.split('/')[1] ?? 'jpg'
+      const ext = mimeType.split('/')[1] ?? 'jpg'
       const path = `${connectionId}/${session.user.id}/${Date.now()}.${ext}`
-      const fetchRes = await fetch(asset.uri)
-      const arrayBuffer = await fetchRes.arrayBuffer()
-      const blob = new Blob([arrayBuffer], { type: asset.mimeType ?? 'image/jpeg' })
 
       const { error: uploadErr } = await supabase.storage
         .from('receipts')
-        .upload(path, blob, { contentType: asset.mimeType ?? 'image/jpeg', upsert: false })
+        .upload(path, blob, { contentType: mimeType, upsert: false })
 
       if (uploadErr) { setScanFeedback('failed'); return }
 
