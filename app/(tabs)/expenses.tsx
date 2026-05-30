@@ -699,10 +699,11 @@ const styles = StyleSheet.create({
   heading: { fontSize: 24, fontWeight: '700', fontFamily: font.bold, color: colors.textPrimary },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   filterBtn: {
-    height: 36, borderWidth: 1, borderColor: colors.border, borderRadius: radius.full,
-    paddingHorizontal: 14, justifyContent: 'center',
+    height: 36, minWidth: 82, borderWidth: 1, borderColor: colors.border, borderRadius: radius.full,
+    paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
   },
-  filterBtnText: { fontSize: 13, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, lineHeight: 18 },
+  filterBtnText: { fontSize: 13, fontWeight: '600', fontFamily: font.semibold, color: colors.textPrimary, lineHeight: 13 },
 
 
   // Filter bottom sheet

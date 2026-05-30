@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: font.bold,
     letterSpacing: 0.3,
-    lineHeight: 16,
+    lineHeight: 14,
   },
 
   // ── Small (header buttons) ─────────────────────────────────────────────────
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: font.bold,
     letterSpacing: 0.3,
-    lineHeight: 15,
+    lineHeight: 13,
   },
 
   // ── Shared ─────────────────────────────────────────────────────────────────
