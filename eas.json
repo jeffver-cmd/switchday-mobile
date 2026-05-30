@@ -20,7 +20,7 @@
     "production": {
       "ios": {
         "appleId": "jeff@switchday.app",
-        "ascAppId": "FILL_IN_APP_STORE_CONNECT_APP_ID",
+        "ascAppId": "6775051696",
         "appleTeamId": "3XBSJGRKVT"
       },
       "android": {
