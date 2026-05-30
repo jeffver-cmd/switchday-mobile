@@ -3,6 +3,9 @@
  *
  * Use for any primary call-to-action (+ Log, Propose, Save, etc.).
  * Drop-in replacement for the plain TouchableOpacity + navy background pattern.
+ *
+ * small prop  → fixed 36px header button with minWidth so the '+' stays
+ *               at the same screen position across all tab screens.
  */
 import { Animated, Pressable, StyleSheet, Text, View, ViewStyle, TextStyle } from 'react-native'
 import { ReactNode, useRef } from 'react'
@@ -20,20 +23,49 @@ interface PrimaryButtonProps {
   leftIcon?: ReactNode
 }
 
-export function PrimaryButton({ label, onPress, disabled = false, style, textStyle, small = false, leftIcon }: PrimaryButtonProps) {
+const GRADIENT_ON: readonly [string, string]  = ['#3D506A', '#243558']
+const GRADIENT_OFF: readonly [string, string] = ['#8A9BB8', '#6B7D9E']
+
+export function PrimaryButton({
+  label, onPress, disabled = false, style, textStyle, small = false, leftIcon,
+}: PrimaryButtonProps) {
   const scale = useRef(new Animated.Value(1)).current
 
   function handlePressIn() {
     Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, speed: 300, bounciness: 4 }).start()
   }
-
   function handlePressOut() {
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 300, bounciness: 4 }).start()
   }
-
   function handlePress() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     onPress()
+  }
+
+  const gradColors = disabled ? GRADIENT_OFF : GRADIENT_ON
+
+  if (small) {
+    return (
+      <Pressable
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={handlePress}
+        disabled={disabled}
+        style={[styles.shadowSmall, style, disabled && styles.disabled]}
+      >
+        <Animated.View style={[styles.animSmall, { transform: [{ scale }] }]}>
+          <LinearGradient
+            colors={gradColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={leftIcon ? styles.gradSmallRow : styles.gradSmall}
+          >
+            {leftIcon && <View style={styles.iconWrap}>{leftIcon}</View>}
+            <Text style={[styles.labelSmall, textStyle]}>{label}</Text>
+          </LinearGradient>
+        </Animated.View>
+      </Pressable>
+    )
   }
 
   return (
@@ -42,60 +74,59 @@ export function PrimaryButton({ label, onPress, disabled = false, style, textSty
       onPressOut={handlePressOut}
       onPress={handlePress}
       disabled={disabled}
-      style={[styles.shadow, small && styles.shadowSmall, style, disabled && styles.disabled]}
+      style={[styles.shadow, style, disabled && styles.disabled]}
     >
-      <Animated.View style={[{ transform: [{ scale }] }, small && styles.shadowSmall]}>
+      <Animated.View style={{ transform: [{ scale }] }}>
         <LinearGradient
-          colors={disabled ? ['#8A9BB8', '#6B7D9E'] : ['#3D506A', '#243558']}
+          colors={gradColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
-          style={[styles.btn, small && styles.btnSmall, !!leftIcon && styles.btnRow]}
+          style={leftIcon ? styles.gradRow : styles.grad}
         >
           {leftIcon && <View style={styles.iconWrap}>{leftIcon}</View>}
-          <Text style={[styles.label, small && styles.labelSmall, textStyle]}>{label}</Text>
+          <Text style={[styles.label, textStyle]}>{label}</Text>
         </LinearGradient>
       </Animated.View>
     </Pressable>
   )
 }
 
+const HIGHLIGHT_BORDER = {
+  borderTopWidth: StyleSheet.hairlineWidth,
+  borderTopColor: 'rgba(255,255,255,0.18)',
+} as const
+
+const SHADOW_BASE = {
+  shadowColor: '#1A2640',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.35,
+  shadowRadius: 8,
+  elevation: 5,
+} as const
+
 const styles = StyleSheet.create({
+  // ── Full-size ──────────────────────────────────────────────────────────────
   shadow: {
-    // Color-matched shadow — navy glow instead of generic black
-    shadowColor: '#1A2640',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 5,
+    ...SHADOW_BASE,
     borderRadius: radius.md,
   },
-  disabled: {
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  // Locks the wrapper to fixed dimensions so parent flex context can't distort the button
-  shadowSmall: {
-    height: 36,
-    alignSelf: 'center',
-  },
-  btn: {
+  grad: {
     borderRadius: radius.md,
     paddingHorizontal: 18,
     paddingVertical: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    // Subtle top-edge highlight to simulate light catching the surface
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.18)',
+    ...HIGHLIGHT_BORDER,
   },
-  btnSmall: {
-    paddingHorizontal: 14,
-    paddingVertical: 0,
-    height: 36,
+  gradRow: {
+    borderRadius: radius.md,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
+    ...HIGHLIGHT_BORDER,
   },
-  btnRow: { flexDirection: 'row', alignItems: 'center' },
-  iconWrap: { marginRight: 6 },
   label: {
     color: colors.white,
     fontSize: 14,
@@ -104,8 +135,52 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     lineHeight: 20,
   },
+
+  // ── Small (header buttons) ─────────────────────────────────────────────────
+  // minWidth ensures the '+' sits at the same x position on every screen
+  // regardless of what word follows it.
+  shadowSmall: {
+    ...SHADOW_BASE,
+    borderRadius: radius.md,
+    height: 36,
+    minWidth: 82,
+    alignSelf: 'center',
+  },
+  animSmall: {
+    height: 36,
+    minWidth: 82,
+  },
+  gradSmall: {
+    height: 36,
+    minWidth: 82,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...HIGHLIGHT_BORDER,
+  },
+  gradSmallRow: {
+    height: 36,
+    minWidth: 82,
+    borderRadius: radius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    ...HIGHLIGHT_BORDER,
+  },
   labelSmall: {
+    color: colors.white,
     fontSize: 13,
+    fontWeight: '700',
+    fontFamily: font.bold,
+    letterSpacing: 0.3,
     lineHeight: 20,
   },
+
+  // ── Shared ─────────────────────────────────────────────────────────────────
+  disabled: {
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  iconWrap: { marginRight: 6 },
 })
